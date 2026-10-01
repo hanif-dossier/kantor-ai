@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kantor AI</title>
+<meta name="theme-color" content="#101820">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kantor AI">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="ikon-192.png">
+<link rel="apple-touch-icon" href="ikon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap">
+<style>
+:root{--latar:#101820;--kartu:#182330;--garis:#2a3745;--tinta:#eef3f6;--redup:#9fb0bd;--hijau:#5fd08f;--kuning:#f3c550;--merah:#f08a7d;--biru:#6fb6ff;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--serif:'Fraunces',Georgia,serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--latar);color:var(--tinta);font:15px/1.45 var(--sans);overflow:hidden}
+button,input{font:inherit}
+#akar{position:fixed;inset:0}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+/* papan angka */
+.papan{position:absolute;top:0;left:0;right:0;padding:max(10px,env(safe-area-inset-top)) 12px 8px;display:flex;gap:8px;align-items:stretch;overflow-x:auto;scrollbar-width:none;pointer-events:none}
+.papan>*{pointer-events:auto}
+.merek{display:flex;align-items:center;gap:8px;background:rgba(16,24,32,.82);backdrop-filter:blur(8px);border:1px solid var(--garis);border-radius:14px;padding:8px 12px;flex:none}
+.merek b{font-family:var(--serif);font-size:18px;letter-spacing:.01em}.merek small{display:block;font-size:10.5px;color:var(--redup);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.angka{display:flex;flex-direction:column;justify-content:center;background:rgba(16,24,32,.82);backdrop-filter:blur(8px);border:1px solid var(--garis);border-radius:14px;padding:6px 12px;flex:none;min-width:98px}
+.angka small{font-size:10px;color:var(--redup);font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}.angka b{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.angka.hijau b{color:var(--hijau)}.angka.kuning b{color:var(--kuning)}
+.alat{position:absolute;right:12px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:8px}
+.pil{border:1px solid var(--garis);background:rgba(16,24,32,.85);color:var(--tinta);border-radius:999px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px}
+.pil.hijau{background:var(--hijau);color:#06140d;border-color:var(--hijau)}.pil.kecil{padding:6px 11px;font-size:12px}
+.keterangan{position:absolute;left:12px;bottom:max(12px,env(safe-area-inset-bottom));font-size:11.5px;color:var(--redup);background:rgba(16,24,32,.7);padding:6px 10px;border-radius:10px;max-width:60%}
+/* label di atas kepala karyawan (diposisikan dari koordinat 3D) */
+.label{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:opacity .2s;will-change:transform}
+.label .nama{background:#fff;color:#1a2430;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25);border:2px solid #fff}
+.label.kerja .nama{border-color:var(--hijau)}.label.gagal .nama{border-color:var(--merah)}.label.istirahat .nama{border-color:#b7c0c8;color:#6b7680}
+.label .gelembung{background:#fff;color:#1a2430;font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:12px;max-width:170px;text-align:center;line-height:1.3;box-shadow:0 4px 14px rgba(0,0,0,.3);position:relative}
+.label .gelembung::after{content:'';position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:#fff;transform:translateX(-50%) rotate(45deg)}
+.label.kerja .gelembung{background:#e6f8ee}.label.kerja .gelembung::after{background:#e6f8ee}.label.gagal .gelembung{background:#fde6e2}.label.gagal .gelembung::after{background:#fde6e2}
+.label .gelembung .titik::after{content:'';animation:titik 1.2s steps(4,end) infinite}
+@keyframes titik{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+.label .zzz{font-size:11px;color:#6b7680;font-weight:800}
+/* panel rincian */
+.tirai{position:fixed;inset:0;background:rgba(5,10,15,.55);display:none;align-items:flex-end;justify-content:center;z-index:5}
+.tirai.buka{display:flex}
+.panel{width:min(520px,100%);max-height:82vh;overflow:auto;background:var(--kartu);border-radius:22px 22px 0 0;padding:18px 18px max(18px,env(safe-area-inset-bottom));border:1px solid var(--garis)}
+@media (min-width:640px){.tirai{align-items:center}.panel{border-radius:22px}}
+.panel h2{margin:0;font-family:var(--serif);font-size:24px}.panel .peran{color:var(--redup);font-size:13px;margin:2px 0 10px}
+.status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.status.kerja{background:rgba(95,208,143,.18);color:var(--hijau)}.status.selesai{background:rgba(111,182,255,.18);color:var(--biru)}.status.gagal{background:rgba(240,138,125,.18);color:var(--merah)}.status.istirahat{background:rgba(159,176,189,.18);color:var(--redup)}
+.baris{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--garis);font-size:13.5px}.baris small{display:block;color:var(--redup);font-size:12px}
+.baris .kanan{white-space:nowrap;color:var(--redup);font-size:12px}
+.sub{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--redup);font-weight:800;margin:14px 0 4px}
+.aksi{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+a{color:var(--biru)}
+/* masuk */
+.masuk{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 30% 20%,#1b2a3a,var(--latar) 60%)}
+.kotak{width:min(380px,100%);background:var(--kartu);border:1px solid var(--garis);border-radius:22px;padding:22px}
+.kotak h1{font-family:var(--serif);margin:0 0 4px;font-size:30px}.kotak p{color:var(--redup);margin:0 0 16px;font-size:14px}
+.kotak input{width:100%;background:var(--latar);border:1.5px solid var(--garis);color:var(--tinta);border-radius:14px;padding:13px 14px;font-size:16px;margin-bottom:10px}
+.kotak button{width:100%;padding:13px;border-radius:14px;border:0;background:var(--hijau);color:#06140d;font-weight:800;font-size:15px;cursor:pointer}
+.salah{color:var(--merah);font-size:13px;margin:6px 0 0}
+.pesan{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#fff;color:#1a2430;padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px;z-index:9;display:none}
+@media (max-width:600px){.label .gelembung{font-size:10px;padding:4px 7px;max-width:120px;border-radius:9px}.label .nama{font-size:10px;padding:1px 6px}.label.istirahat .gelembung{display:none}}
+@media (prefers-reduced-motion:reduce){.label .gelembung .titik::after{animation:none}}
+</style>
+</head>
+<body>
+<div id="akar"></div>
+<div class="pesan" id="pesan"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================================================
+   KANTOR AI: satu halaman. Karyawan AI (workflow GitHub, n8n di laptop, routine Claude) melapor ke database lewat
+   kantor_lapor; halaman ini membaca kantor_data dengan token pemilik dan menggambar kantornya dengan Three.js.
+   Tidak ada angka usaha di sini, hanya status kerja tiap karyawan.
+   ===================================================================================================== */
+const SB_URL = 'https://hzxfheydtrjhizbwbddh.supabase.co', SB_KEY = 'sb_publishable_3c_5VhfP4Z9g1dSU9c00HQ_0QkuiHTm', LS = 'kantor-sesi';
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rp = n => 'Rp ' + Math.round(+n || 0).toLocaleString('id-ID');
+const ribu = n => (+n || 0) >= 1000 ? (Math.round((+n) / 100) / 10).toLocaleString('id-ID') + ' rb' : String(+n || 0);
+const jam = t => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+const tglJam = t => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const lalu = t => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? 'baru saja' : m < 60 ? m + ' menit lalu' : m < 1440 ? Math.round(m / 60) + ' jam lalu' : Math.round(m / 1440) + ' hari lalu'; };
+async function rpc(fn, body) { const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('Server tidak menjawab (' + r.status + ').'); return r.json(); }
+const sesi = { baca: () => { try { return localStorage.getItem(LS); } catch { return null; } }, tulis: t => { try { localStorage.setItem(LS, t); } catch {} }, hapus: () => { try { localStorage.removeItem(LS); } catch {} } };
+function pesan(t) { const p = $('#pesan'); p.textContent = t; p.style.display = 'block'; clearTimeout(pesan.t); pesan.t = setTimeout(() => { p.style.display = 'none'; }, 2600); }
+
+// Karyawan AI. kode = yang dipakai pelapor. jadwal = kalimat untuk gelembung saat menunggu.
+const AGEN = [
+  { kode: 'bahan', nama: 'Rani', peran: 'Peracik bahan briefing', jadwal: 'jadwal 05.20', sumber: 'GitHub Actions', warna: 0xd98f5c, rambut: 0x2b1b12 },
+  { kode: 'briefing', nama: 'Bima', peran: 'Penulis briefing harian', jadwal: 'jadwal 06.02 dan 07.23', sumber: 'Routine Claude + GitHub Actions', warna: 0x4f7aa8, rambut: 0x111111 },
+  { kode: 'altcoin', nama: 'Sari', peran: 'Pemindai altcoin', jadwal: 'jadwal 06.00 dan siang', sumber: 'Routine Claude', warna: 0xb45f8c, rambut: 0x3b2a1a },
+  { kode: 'radar', nama: 'Dion', peran: 'Penjaga radar portofolio', jadwal: 'tiap 3 jam', sumber: 'GitHub Actions', warna: 0x5e9c6a, rambut: 0x1a1a1a },
+  { kode: 'pasar', nama: 'Tari', peran: 'Pengambil data pasar', jadwal: 'jadwal 04.47', sumber: 'GitHub Actions', warna: 0xc9a43a, rambut: 0x4a2f1b },
+  { kode: 'juru-catat-ofu', nama: 'Umar', peran: 'Juru catat OFU', jadwal: 'tiap 10 menit saat laptop nyala', sumber: 'n8n di laptop', warna: 0x4e8f8c, rambut: 0x111111 },
+  { kode: 'mentor-ofu', nama: 'Pak Wira', peran: 'Mentor juru catat OFU', jadwal: 'tiap ada pembaruan', sumber: 'Routine Claude', warna: 0x8a6d4a, rambut: 0x5a5a5a },
+  { kode: 'juru-invoice-nta', nama: 'Lina', peran: 'Juru invoice NTA', jadwal: 'tiap Excel disimpan', sumber: 'n8n di laptop', warna: 0xa65d5d, rambut: 0x2b1b12 },
+  { kode: 'peneliti', nama: 'Agus', peran: 'Peneliti', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x6b7fb3, rambut: 0x1a1a1a },
+  { kode: 'analis', nama: 'Maya', peran: 'Analis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x7fa36b, rambut: 0x3b2a1a },
+  { kode: 'penulis', nama: 'Reza', peran: 'Penulis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0xb08a4e, rambut: 0x111111 },
+  { kode: 'pemeriksa', nama: 'Nina', peran: 'Pemeriksa', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x9a5fa8, rambut: 0x2b1b12 },
+];
+let DATA = null, pilih = null, timer = null;
+const akar = $('#akar');
+
+/* ---------- masuk ---------- */
+function layarMasuk(ps) { hentikan();
+  akar.innerHTML = `<div class="masuk"><form class="kotak" id="fMasuk"><h1>Kantor AI</h1><p>Pantau semua karyawan AI dari HP. Masuk dengan sandi pemilik.</p>
+    <input id="iSandi" type="password" placeholder="Sandi" autocomplete="current-password" autofocus><button type="submit">Masuk</button><div class="salah" id="salah">${esc(ps || '')}</div></form></div>`;
+  $('#fMasuk').onsubmit = async e => { e.preventDefault(); const b = $('#fMasuk button'); b.disabled = true;
+    try { const r = await rpc('kantor_masuk', { p_sandi: $('#iSandi').value }); if (!r.ok) { $('#salah').textContent = r.pesan; b.disabled = false; return; } sesi.tulis(r.token); mulai(); }
+    catch (er) { $('#salah').textContent = er.message; b.disabled = false; } }; }
+async function keluar() { const t = sesi.baca(); sesi.hapus(); if (t) rpc('kantor_keluar', { p_token: t }).catch(() => {}); layarMasuk(); }
+
+/* ---------- status tiap karyawan ---------- */
+// Status yang digambar: 'kerja' kalau laporan terakhir 'kerja' dan belum lebih dari 2 jam (kalau lebih, dianggap macet
+// = 'gagal'); 'selesai' kalau selesai hari ini; 'istirahat' kalau belum ada apa-apa hari ini.
+function keadaan(a) { let t = DATA?.terakhir?.[a.kode]; if (!t) return { st: 'istirahat', teks: a.jadwal, t: null };
+  // 'istirahat' = detak jantung (laptop). Yang ditampilkan tetap pekerjaan nyata terakhir hari ini, kalau ada.
+  let siaga = null; if (t.status === 'istirahat') { siaga = t; t = (DATA?.riwayat?.[a.kode] || []).find(r => r.status !== 'istirahat') || t; }
+  const umur = (Date.now() - new Date(t.waktu)) / 60000, hariIni = new Date(t.waktu).toDateString() === new Date().toDateString();
+  if (t.status === 'istirahat') return { st: 'istirahat', teks: 'Siaga, cek terakhir ' + jam(t.waktu), t };
+  if (t.status === 'kerja') return umur > 120 ? { st: 'gagal', teks: 'Tidak ada kabar sejak ' + jam(t.waktu), t } : { st: 'kerja', teks: t.tugas || 'Sedang bekerja', t, ketik: true };
+  if (t.status === 'gagal') return { st: 'gagal', teks: 'Gagal: ' + (t.tugas || 'tugas terakhir'), t };
+  if (t.status === 'selesai' && hariIni) return { st: 'selesai', teks: (t.hasil || t.tugas || 'Selesai') + ' · ' + jam(t.waktu), t };
+  return { st: 'istirahat', teks: siaga ? 'Siaga, cek terakhir ' + jam(siaga.waktu) : a.jadwal, t }; }
+function papanAngka() { const K = AGEN.map(keadaan), aktif = K.filter(k => k.st === 'kerja' || k.st === 'selesai').length, h = DATA?.hariIni || {};
+  return `<div class="merek"><div><b>Kantor AI</b><small>${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}</small></div></div>
+    <div class="angka hijau"><small>Karyawan aktif</small><b>${aktif}/${AGEN.length}</b></div>
+    <div class="angka"><small>Tugas selesai hari ini</small><b>${h.selesai || 0}${h.gagal ? ` <span style="color:var(--merah);font-size:12px">${h.gagal} gagal</span>` : ''}</b></div>
+    <div class="angka kuning"><small>Biaya hari ini</small><b>${rp(h.biaya || 0)}</b></div>
+    <div class="angka"><small>Token hari ini</small><b>${ribu(h.token || 0)}</b></div>`; }
+
+/* ---------- kantor 3D ---------- */
+let T = null;   // { renderer, scene, camera, orang: [{agen, grup, kepala, dasar}], labels }
+function bangunKantor(wadah) {
+  const lebar = wadah.clientWidth, tinggi = wadah.clientHeight;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(lebar, tinggi); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  wadah.appendChild(renderer.domElement);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x101820); scene.fog = new THREE.Fog(0x101820, 26, 48);
+  const camera = new THREE.PerspectiveCamera(42, lebar / tinggi, .1, 100);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, .75));
+  const sinar = new THREE.DirectionalLight(0xfff2dc, .9); sinar.position.set(8, 14, 6); sinar.castShadow = true; sinar.shadow.mapSize.set(2048, 2048); Object.assign(sinar.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16 }); scene.add(sinar);
+  const kotak = (w, h, d, warna, x, y, z, bayang = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: warna, roughness: .85 })); m.position.set(x, y, z); m.castShadow = bayang; m.receiveShadow = true; scene.add(m); return m; };
+  // ruangan: lantai kayu, karpet biru, dinding krem, jendela
+  const W = 22, D = 16;
+  kotak(W, .4, D, 0xb98a5a, 0, -.2, 0, false);
+  kotak(W - 6, .06, D - 6, 0x2f4e86, 0, .03, 0, false);
+  kotak(W, 6, .4, 0xf1ead9, 0, 3, -D / 2); kotak(.4, 6, D, 0xe8e0cc, -W / 2, 3, 0);
+  for (let i = -1; i <= 1; i++) { kotak(3.6, 2.4, .1, 0xbfe3f7, i * 6.5, 3.3, -D / 2 + .25, false); kotak(3.8, .15, .2, 0xffffff, i * 6.5, 2.05, -D / 2 + .3, false); kotak(3.8, .15, .2, 0xffffff, i * 6.5, 4.55, -D / 2 + .3, false); }
+  for (let i = -1; i <= 1; i++) { kotak(.1, 2.4, 2.6, 0xbfe3f7, -W / 2 + .25, 3.3, i * 4.5, false); }
+  // papan nama kantor di dinding
+  kotak(5, 1.1, .12, 0xd13b3b, 6.5, 4.6, -D / 2 + .3, false);
+  // tanaman, lemari, mesin kopi (hiasan)
+  const pot = (x, z) => { kotak(.7, .7, .7, 0xa0522d, x, .55, z); const daun = new THREE.Mesh(new THREE.SphereGeometry(.7, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3f8f4a, roughness: .9 })); daun.position.set(x, 1.5, z); daun.castShadow = true; scene.add(daun); };
+  pot(-W / 2 + 1.2, -D / 2 + 1.3); pot(W / 2 - 1.2, D / 2 - 1.3); pot(-W / 2 + 1.2, D / 2 - 1.3);
+  kotak(2.2, 3, .9, 0xc9b58f, W / 2 - 1.3, 1.7, -D / 2 + 1); kotak(1.2, 1.1, .8, 0x3a3a3a, W / 2 - 3.4, .75, -D / 2 + 1);
+  // meja: 4 kolom x 3 baris, menghadap ke dinding belakang
+  const orang = [], kolom = 4, baris = Math.ceil(AGEN.length / kolom);
+  AGEN.forEach((a, i) => { const c = i % kolom, r = Math.floor(i / kolom), x = (c - (kolom - 1) / 2) * 4.6, z = (r - (baris - 1) / 2) * 4.2;
+    kotak(2.6, .12, 1.3, 0xe9e4d8, x, 1.3, z); [-1.1, 1.1].forEach(dx => [-.5, .5].forEach(dz => kotak(.1, 1.24, .1, 0x8d8d8d, x + dx, .64, z + dz)));
+    // monitor di sisi jauh meja, karyawan duduk di sisi dekat kamera menghadap monitor (jadi wajahnya ke arah kita)
+    kotak(1.1, .7, .06, 0x1c1c1c, x, 1.75, z + .35); kotak(.3, .25, .2, 0x3a3a3a, x, 1.42, z + .35);   // monitor
+    kotak(.8, .04, .3, 0xd9d9d9, x, 1.38, z - .2, false);   // keyboard
+    kotak(.9, .12, .9, 0x2b3c55, x, .9, z - 1.1); kotak(.9, 1, .12, 0x2b3c55, x, 1.45, z - 1.5); kotak(.1, .84, .1, 0x555555, x, .42, z - 1.1);   // kursi
+    // karyawan: badan, kepala, rambut, tangan (duduk, menghadap monitor)
+    const g = new THREE.Group(); g.position.set(x, 0, z - 1.05); g.rotation.y = Math.PI;
+    const badan = kotak(.72, .8, .5, a.warna, 0, 1.4, 0); g.add(badan); scene.remove(badan);
+    const kepala = kotak(.56, .56, .56, 0xf1c9a5, 0, 2.1, 0); g.add(kepala); scene.remove(kepala);
+    const rambut = kotak(.6, .22, .6, a.rambut, 0, 2.3, 0); g.add(rambut); scene.remove(rambut);
+    const mataK = kotak(.07, .07, .04, 0x222222, -.14, 2.12, -.29, false), mataN = kotak(.07, .07, .04, 0x222222, .14, 2.12, -.29, false); g.add(mataK); g.add(mataN); scene.remove(mataK); scene.remove(mataN);
+    const tgnK = kotak(.18, .18, .5, a.warna, -.3, 1.3, -.3), tgnN = kotak(.18, .18, .5, a.warna, .3, 1.3, -.3); g.add(tgnK); g.add(tgnN); scene.remove(tgnK); scene.remove(tgnN);
+    const kaki = kotak(.7, .3, .7, 0x2b3c55, 0, .95, -.1); g.add(kaki); scene.remove(kaki);
+    scene.add(g); orang.push({ a, g, kepala, tgnK, tgnN, x, z, fase: Math.random() * 6 }); });
+  // kamera: pandangan miring dari depan atas; bisa diputar dengan jari/tetikus
+  const kam = { sudut: -.42, tinggi: 11, jarak: 19, pusat: new THREE.Vector3(0, .8, -.4) };
+  const aturKamera = () => { camera.position.set(kam.pusat.x + Math.sin(kam.sudut) * kam.jarak, kam.tinggi, kam.pusat.z + Math.cos(kam.sudut) * kam.jarak); camera.lookAt(kam.pusat); };
+  aturKamera();
+  let seret = null; const el = renderer.domElement;
+  el.addEventListener('pointerdown', e => { seret = { x: e.clientX, y: e.clientY, sudut: kam.sudut, tinggi: kam.tinggi, gerak: 0 }; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', e => { if (!seret) return; const dx = e.clientX - seret.x, dy = e.clientY - seret.y; seret.gerak += Math.abs(dx) + Math.abs(dy); kam.sudut = seret.sudut - dx * .006; kam.tinggi = Math.min(16, Math.max(5, seret.tinggi + dy * .03)); aturKamera(); });
+  el.addEventListener('pointerup', e => { if (seret && seret.gerak < 6) ketuk(e); seret = null; });
+  el.addEventListener('wheel', e => { kam.jarak = Math.min(30, Math.max(10, kam.jarak + e.deltaY * .01)); aturKamera(); }, { passive: true });
+  const ray = new THREE.Raycaster(), v2 = new THREE.Vector2();
+  function ketuk(e) { const r = el.getBoundingClientRect(); v2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(v2, camera);
+    const hit = ray.intersectObjects(orang.map(o => o.g), true)[0]; if (!hit) return; const o = orang.find(x => x.g.children.includes(hit.object)); if (o) bukaPanel(o.a); }
+  const labels = document.createElement('div'); labels.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; wadah.appendChild(labels);
+  orang.forEach(o => { const l = document.createElement('div'); l.className = 'label'; l.onclick = () => bukaPanel(o.a); labels.appendChild(l); o.label = l; });
+  const ukur = () => { const w = wadah.clientWidth, h = wadah.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (w < 600) { kam.jarak = 27; kam.tinggi = 15; camera.fov = 50; } else { kam.jarak = 19; kam.tinggi = 11; camera.fov = 42; } camera.updateProjectionMatrix(); aturKamera(); };
+  addEventListener('resize', ukur); ukur();
+  const v3 = new THREE.Vector3();
+  function gambar() { if (!T) return; const t = performance.now() / 1000;
+    for (const o of orang) { const k = o.kd || { st: 'istirahat' };
+      if (k.st === 'kerja') { o.tgnK.position.y = 1.3 + Math.sin(t * 9 + o.fase) * .05; o.tgnN.position.y = 1.3 + Math.cos(t * 9 + o.fase) * .05; o.kepala.rotation.y = Math.sin(t * .8 + o.fase) * .08; }
+      else if (k.st === 'istirahat') { o.kepala.rotation.x = .25 + Math.sin(t * 1.2 + o.fase) * .03; o.tgnK.position.y = o.tgnN.position.y = 1.22; }
+      else { o.kepala.rotation.x = 0; o.kepala.rotation.y = Math.sin(t * .4 + o.fase) * .3; o.tgnK.position.y = o.tgnN.position.y = 1.3; }
+      v3.set(o.x, 2.75, o.z - 1.05).project(camera); const r = wadah.getBoundingClientRect();
+      o.label.style.transform = `translate(${(v3.x + 1) / 2 * r.width}px, ${(1 - v3.y) / 2 * r.height}px) translate(-50%,-100%)`; o.label.style.opacity = v3.z < 1 ? 1 : 0; }
+    renderer.render(scene, camera); T.raf = requestAnimationFrame(gambar); }
+  T = { renderer, scene, camera, orang, labels, raf: 0 }; gambar(); }
+function segarLabel() { if (!T) return; for (const o of T.orang) { const k = keadaan(o.a); o.kd = k; o.label.className = 'label ' + k.st;
+    const menunggu = (DATA?.perintah || []).some(p => p.agen === o.a.kode);
+    o.label.innerHTML = `<div class="gelembung">${esc(k.teks)}${k.ketik ? '<span class="titik"></span>' : ''}${menunggu ? ' <span style="color:#b36b00">· disuruh kerja</span>' : ''}</div><div class="nama">${esc(o.a.nama)}${k.st === 'istirahat' ? ' <span class="zzz">zz</span>' : ''}</div>`; } }
+function hentikan() { if (T) { cancelAnimationFrame(T.raf); T.renderer.dispose(); T = null; } clearInterval(timer); timer = null; }
+
+/* ---------- panel rincian karyawan ---------- */
+function bukaPanel(a) { pilih = a; const k = keadaan(a), R = DATA?.riwayat?.[a.kode] || [], menunggu = (DATA?.perintah || []).filter(p => p.agen === a.kode);
+  $('#tirai').innerHTML = `<div class="panel"><h2>${esc(a.nama)} <span class="status ${k.st}">${{ kerja: 'sedang bekerja', selesai: 'selesai hari ini', gagal: 'perlu dicek', istirahat: 'istirahat' }[k.st]}</span></h2>
+    <div class="peran">${esc(a.peran)} · ${esc(a.sumber)} · ${esc(a.jadwal)}</div>
+    <div style="font-size:14px">${esc(k.teks)}${k.t?.tautan ? ` · <a href="${esc(k.t.tautan)}" target="_blank" rel="noopener">lihat hasil</a>` : ''}</div>
+    ${menunggu.length ? `<div class="sub">Perintah menunggu</div>${menunggu.map(p => `<div class="baris"><span>${esc(p.perintah)}</span><span class="kanan">${esc(lalu(p.dibuat))}</span></div>`).join('')}` : ''}
+    <div class="sub">Riwayat kerja</div>
+    ${R.map(r => `<div class="baris"><span><span class="status ${r.status}" style="font-size:11px;padding:1px 7px">${r.status}</span> ${esc(r.tugas || '')}${r.hasil ? `<small>${esc(r.hasil)}</small>` : ''}${r.token || r.biaya ? `<small>${r.token ? ribu(r.token) + ' token' : ''}${r.token && r.biaya ? ' · ' : ''}${r.biaya ? rp(r.biaya) : ''}</small>` : ''}</span><span class="kanan">${esc(tglJam(r.waktu))}${r.tautan ? `<br><a href="${esc(r.tautan)}" target="_blank" rel="noopener">hasil</a>` : ''}</span></div>`).join('') || '<div class="baris"><span style="color:var(--redup)">Belum pernah melapor. Pelapornya belum dipasang atau belum pernah jalan.</span></div>'}
+    <div class="aksi"><button class="pil hijau" id="bSuruh">Suruh kerja sekarang</button><button class="pil" id="bTutup">Tutup</button></div>
+    <div style="font-size:12px;color:var(--redup);margin-top:10px">Perintah diambil karyawan saat ia jalan berikutnya. Yang di laptop (n8n) membacanya tiap 10 menit saat laptop menyala.</div></div>`;
+  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel;
+  $('#bSuruh').onclick = async () => { $('#bSuruh').disabled = true; try { const r = await rpc('kantor_perintah', { p_token: sesi.baca(), p_agen: a.kode, p_perintah: 'jalan' }); if (!r.ok) throw new Error(r.pesan); pesan(a.nama + ' disuruh kerja'); await muat(); bukaPanel(a); } catch (e) { pesan(e.message); $('#bSuruh').disabled = false; } }; }
+function tutupPanel() { pilih = null; $('#tirai').classList.remove('buka'); }
+
+/* ---------- muat & mulai ---------- */
+async function muat() { const t = sesi.baca(); if (!t) return layarMasuk();
+  try { const r = await rpc('kantor_data', { p_token: t }); if (!r.ok) { sesi.hapus(); return layarMasuk(r.pesan); } DATA = r; }
+  catch (e) { pesan(e.message); return; }
+  const p = $('#papan'); if (p) p.innerHTML = papanAngka(); segarLabel(); const kt = $('#kapan'); if (kt) kt.textContent = 'Diperbarui ' + jam(Date.now()) + ' · geser untuk memutar, ketuk karyawan untuk rinciannya'; }
+function mulai() { hentikan();
+  akar.innerHTML = `<div id="kantor" style="position:absolute;inset:0"></div><div class="papan" id="papan"></div><div class="keterangan" id="kapan">Memuat…</div>
+    <div class="alat"><button class="pil kecil" id="bMuat">Muat ulang</button><button class="pil kecil" id="bKeluar">Keluar</button></div><div class="tirai" id="tirai"></div>`;
+  $('#bMuat').onclick = muat; $('#bKeluar').onclick = keluar; $('#tirai').onclick = e => { if (e.target.id === 'tirai') tutupPanel(); };
+  bangunKantor($('#kantor')); muat(); timer = setInterval(muat, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && sesi.baca()) muat(); }); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+sesi.baca() ? mulai() : layarMasuk();
+</script>
+</body>
+</html>
