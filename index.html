@@ -188,7 +188,7 @@ function bangunKantor(wadah) {
     const hit = ray.intersectObjects(orang.map(o => o.g), true)[0]; if (!hit) return; const o = orang.find(x => x.g.children.includes(hit.object)); if (o) bukaPanel(o.a); }
   const labels = document.createElement('div'); labels.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; wadah.appendChild(labels);
   orang.forEach(o => { const l = document.createElement('div'); l.className = 'label'; l.onclick = () => bukaPanel(o.a); labels.appendChild(l); o.label = l; });
-  const ukur = () => { const w = wadah.clientWidth, h = wadah.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (w < 600) { kam.jarak = 27; kam.tinggi = 15; camera.fov = 50; } else { kam.jarak = 19; kam.tinggi = 11; camera.fov = 42; } camera.updateProjectionMatrix(); aturKamera(); };
+  const ukur = () => { const w = wadah.clientWidth, h = wadah.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (w < 600) { kam.jarak = 31; kam.tinggi = 17; camera.fov = 52; } else { kam.jarak = 19; kam.tinggi = 11; camera.fov = 42; } camera.updateProjectionMatrix(); aturKamera(); };
   addEventListener('resize', ukur); ukur();
   const v3 = new THREE.Vector3();
   function gambar() { if (!T) return; const t = performance.now() / 1000;
