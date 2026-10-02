@@ -187,7 +187,7 @@ function bangunKantor(wadah) {
   const papan = papanTeks('KANTOR AI', '#1a2430', '#ffffff', 8, 1.5); papan.position.set(0, 5.1, -D / 2 + .22); scene.add(papan);
   kotak(6, 2.6, .1, 0xffffff, 10.5, 3.6, -D / 2 + .26, false); kotak(6.2, 2.8, .06, 0x8a8a8a, 10.5, 3.6, -D / 2 + .24, false);   // papan tulis
   [[9, 4.2, 2.2], [8.6, 3.7, 3.4], [9.2, 3.2, 1.6]].forEach(([x, y, w]) => kotak(w, .12, .02, 0x3b6fd1, x, y, -D / 2 + .32, false));
-  const jam = silinder(.65, .65, .08, 0xffffff, -10.5, 5, -D / 2 + .3); jam.rotation.x = Math.PI / 2; kotak(.08, .45, .03, 0x222222, -10.5, 5.2, -D / 2 + .36, false); kotak(.35, .08, .03, 0x222222, -10.35, 5, -D / 2 + .36, false);
+  const jamDinding = silinder(.65, .65, .08, 0xffffff, -10.5, 5, -D / 2 + .3); jamDinding.rotation.x = Math.PI / 2;   // jangan bernama jam: itu fungsi pemformat waktu kotak(.08, .45, .03, 0x222222, -10.5, 5.2, -D / 2 + .36, false); kotak(.35, .08, .03, 0x222222, -10.35, 5, -D / 2 + .36, false);
   const pohon = (x, z, s = 1) => { kotak(.8 * s, .8 * s, .8 * s, 0xa0522d, x, .4 * s, z); bola(.85 * s, 0x3f8f4a, x, 1.55 * s, z); };
   [[-W / 2 + 1.4, -D / 2 + 1.4], [-W / 2 + 1.4, D / 2 - 1.6], [W / 2 - 1.4, D / 2 - 1.6], [-5.5, D / 2 - 1.6], [5.5, D / 2 - 1.6], [-18 + 1.4, -.6, .8], [6.2, -.6, .8]].forEach(([x, z, s]) => pohon(x, z, s));
   const lampu = (x, z) => { silinder(.02, .02, 1.6, 0x444444, x, 6.2, z); const b = bola(.3, 0xfff1c4, x, 5.3, z, MALAM ? 0xffe9a8 : 0xfff6dd); b.material.emissiveIntensity = MALAM ? 1 : .35; };
