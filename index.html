@@ -106,6 +106,8 @@ const AGEN = [
   { kode: 'analis', nama: 'Maya', peran: 'Analis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x7fa36b, rambut: 0x3b2a1a },
   { kode: 'penulis', nama: 'Reza', peran: 'Penulis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0xb08a4e, rambut: 0x111111 },
   { kode: 'pemeriksa', nama: 'Nina', peran: 'Pemeriksa', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x9a5fa8, rambut: 0x2b1b12 },
+  { kode: 'kabar', nama: 'Wati', peran: 'Pembaca kabar blog resmi proyek', jadwal: 'saat disuruh atau menyusul pagi', sumber: 'GitHub Actions', warna: 0xc98f3a, rambut: 0x1a1a1a },
+  { kode: 'kurir', nama: 'Joko', peran: 'Kurir briefing ke gudang anggota', jadwal: 'tiap routine mendorong hasil', sumber: 'GitHub Actions', warna: 0x3a8fc9, rambut: 0x2b1b12 },
   { kode: 'cadangan', nama: 'Dewi', peran: 'Penjaga cadangan database', jadwal: 'jadwal 02.17', sumber: 'GitHub Actions', warna: 0x7a6fb3, rambut: 0x2b1b12 },
   { kode: 'claude-code', nama: 'Tim Studio', peran: 'Agen Claude Code lainnya (Explore, Plan, dll.)', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x5e8c8c, rambut: 0x3b2a1a },
 ];
@@ -227,7 +229,7 @@ const GEDUNG = [
   { id: 'studio', nama: 'Studio Claude Code', agen: ['peneliti', 'analis', 'penulis', 'pemeriksa', 'claude-code'], warna: 0xb5d49c, x: -18, z: 7, lantaiTambahan: 0 },
   { id: 'kedai', nama: 'Kedai Kopi', jenis: 'kedai', x: -6, z: 7 },
   { id: 'arkade', nama: 'Arkade', jenis: 'arkade', x: 6, z: 7 },
-  { id: 'taman', nama: 'Taman', jenis: 'taman', x: 18, z: 7 },
+  { id: 'kabar', nama: 'Gedung Kabar & Kurir', agen: ['kabar', 'kurir'], warna: 0xd9c27a, x: 18, z: 7, lantaiTambahan: 1 },   // dulu Taman; lantai kosong 1 untuk karyawan berikutnya
 ];
 // Produk yang dipajang di Galeri.
 const PRODUK = {
@@ -370,7 +372,7 @@ function bangunKota(wadah) {
     const rekor = +(localStorage.getItem('kantor-rekor') || 0);
     arkade.label.innerHTML = `<div class="gelembung">Tangkap koin, 30 detik${rekor ? ' · rekor ' + rekor : ''}</div><div class="nama">Arkade</div>`;
     galeri.label.innerHTML = `<div class="gelembung">${PRODUK.web2.length} produk Web2 · ${PRODUK.web3.length} produk Web3</div><div class="nama">Galeri</div>`;
-    GEDUNG.find(g => g.jenis === 'taman').label.innerHTML = `<div class="gelembung">Lahan untuk gedung berikutnya</div><div class="nama">Taman</div>`; }
+    const taman = GEDUNG.find(g => g.jenis === 'taman'); if (taman) taman.label.innerHTML = `<div class="gelembung">Lahan untuk gedung berikutnya</div><div class="nama">Taman</div>`; }
   const v3 = new THREE.Vector3(); let t0 = performance.now();
   function tempatkan(l, x, y, z) { v3.set(x, y, z).project(camera); const r = wadah.getBoundingClientRect(); l.style.transform = `translate(${(v3.x + 1) / 2 * r.width}px, ${(1 - v3.y) / 2 * r.height}px) translate(-50%,-100%)`; l.style.opacity = v3.z < 1 ? 1 : 0; }
   function gambar(now) { if (!T) return; const t = now / 1000, dt = Math.min(.05, (now - t0) / 1000); t0 = now;
