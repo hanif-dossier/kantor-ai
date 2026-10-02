@@ -184,9 +184,20 @@ function bangunKantor(wadah) {
   kotak(W, 7, .4, 0xf3eee3, 0, 3.5, -D / 2); kotak(.4, 7, D, 0xece6d8, -W / 2, 3.5, 0); kotak(.4, 7, D, 0xece6d8, W / 2, 3.5, 0);
   for (let i = -2; i <= 2; i++) { if (i === 0) continue; kotak(4.6, 3, .1, MALAM ? 0x16233a : 0xbfe3f7, i * 7.2, 3.7, -D / 2 + .25, false); kotak(4.8, .14, .2, 0xffffff, i * 7.2, 2.2, -D / 2 + .3, false); kotak(4.8, .14, .2, 0xffffff, i * 7.2, 5.2, -D / 2 + .3, false); }
   for (let i = -1; i <= 1; i++) { kotak(.1, 3, 4.6, MALAM ? 0x16233a : 0xbfe3f7, -W / 2 + .25, 3.7, i * 7.5, false); kotak(.1, 3, 4.6, MALAM ? 0x16233a : 0xbfe3f7, W / 2 - .25, 3.7, i * 7.5 - 3, false); }
-  const papan = papanTeks('KANTOR AI', '#1a2430', '#ffffff', 8, 1.5); papan.position.set(0, 5.1, -D / 2 + .22); scene.add(papan);
-  kotak(6, 2.6, .1, 0xffffff, 10.5, 3.6, -D / 2 + .26, false); kotak(6.2, 2.8, .06, 0x8a8a8a, 10.5, 3.6, -D / 2 + .24, false);   // papan tulis
-  [[9, 4.2, 2.2], [8.6, 3.7, 3.4], [9.2, 3.2, 1.6]].forEach(([x, y, w]) => kotak(w, .12, .02, 0x3b6fd1, x, y, -D / 2 + .32, false));
+  const papan = papanTeks('KANTOR AI', '#1a2430', '#ffffff', 8, 1.5); papan.position.set(0, 5.55, -D / 2 + .22); scene.add(papan);
+  // papan skor bulan ini di dinding belakang (tekstur canvas, digambar ulang tiap data baru)
+  kotak(7.4, 3.6, .06, 0x3a3a42, 0, 2.85, -D / 2 + .22, false);
+  const skorKanvas = document.createElement('canvas'); skorKanvas.width = 1024; skorKanvas.height = 480; const skorTex = new THREE.CanvasTexture(skorKanvas); skorTex.anisotropy = 4;
+  const skorMesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.28), new THREE.MeshBasicMaterial({ map: skorTex })); skorMesh.position.set(0, 2.85, -D / 2 + .27); scene.add(skorMesh);
+  function gambarSkor(b = {}) { const c = skorKanvas.getContext('2d'); c.fillStyle = '#f7f4ec'; c.fillRect(0, 0, 1024, 480); c.fillStyle = '#1a2430'; c.fillRect(0, 0, 1024, 86);
+    c.fillStyle = '#ffffff'; c.font = 'bold 40px "Plus Jakarta Sans", sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left'; c.fillText('PAPAN SKOR', 36, 43);
+    c.textAlign = 'right'; c.font = '600 30px "Plus Jakarta Sans", sans-serif'; c.fillStyle = '#f3c550'; c.fillText(new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }).toUpperCase(), 988, 43);
+    const angka = (x, label, nilai, warna) => { c.textAlign = 'left'; c.fillStyle = '#6b7680'; c.font = '700 24px "Plus Jakarta Sans", sans-serif'; c.fillText(label, x, 140); c.fillStyle = warna; c.font = 'bold 84px "Fraunces", Georgia, serif'; c.fillText(String(nilai), x, 215); };
+    angka(36, 'TUGAS SELESAI', b.selesai || 0, '#1f7a4a'); angka(360, 'GAGAL', b.gagal || 0, '#b3402f'); angka(640, 'TOKEN', ribu(b.token || 0), '#1a2430');
+    c.fillStyle = '#6b7680'; c.font = '700 24px "Plus Jakarta Sans", sans-serif'; c.textAlign = 'left'; c.fillText('PALING RAJIN BULAN INI', 36, 300);
+    (b.teratas || []).slice(0, 3).forEach((t, i) => { const a = agenKode(t.agen); c.fillStyle = '#1a2430'; c.font = 'bold 34px "Plus Jakarta Sans", sans-serif'; c.fillText(`${i + 1}. ${a ? a.nama : t.agen}`, 36 + i * 330, 360); c.fillStyle = '#6b7680'; c.font = '600 26px "Plus Jakarta Sans", sans-serif'; c.fillText(`${t.n} tugas`, 36 + i * 330, 405); });
+    if (!(b.teratas || []).length) { c.fillStyle = '#9aa3ad'; c.font = '600 28px "Plus Jakarta Sans", sans-serif'; c.fillText('Belum ada tugas selesai bulan ini', 36, 370); }
+    skorTex.needsUpdate = true; } gambarSkor();
   const jamDinding = silinder(.65, .65, .08, 0xffffff, -10.5, 5, -D / 2 + .3); jamDinding.rotation.x = Math.PI / 2;   // jangan bernama jam: itu fungsi pemformat waktu kotak(.08, .45, .03, 0x222222, -10.5, 5.2, -D / 2 + .36, false); kotak(.35, .08, .03, 0x222222, -10.35, 5, -D / 2 + .36, false);
   const pohon = (x, z, s = 1) => { kotak(.8 * s, .8 * s, .8 * s, 0xa0522d, x, .4 * s, z); bola(.85 * s, 0x3f8f4a, x, 1.55 * s, z); };
   [[-W / 2 + 1.4, -D / 2 + 1.4], [-W / 2 + 1.4, D / 2 - 1.6], [W / 2 - 1.4, D / 2 - 1.6], [-5.5, D / 2 - 1.6], [5.5, D / 2 - 1.6], [-18 + 1.4, -.6, .8], [6.2, -.6, .8]].forEach(([x, z, s]) => pohon(x, z, s));
@@ -215,6 +226,17 @@ function bangunKantor(wadah) {
   sofa(8.4, true); sofa(4.6, false); kotak(2.2, .08, 1, 0xf2efe9, 0, .75, 6.5); [-.9, .9].forEach(dx => [-.35, .35].forEach(dz => kotak(.08, .72, .08, 0x8d8d8d, dx, .38, 6.5 + dz))); kotak(.5, .2, .35, 0x3b6fd1, .4, .85, 6.5, false);
   const sofaTempat = [[-1.6, 8.4, 0], [1.6, 8.4, 0], [-1.6, 4.6, Math.PI], [1.6, 4.6, Math.PI]].map(([x, z, hadap]) => ({ x, z, hadap, mode: 'sofa', dipakai: null }));
   const TEMPAT = [...pantryTempat, ...sofaTempat];
+  // ruang rapat kaca (pojok kanan depan, pintu menghadap lorong). Dipakai saat >= 2 karyawan bekerja bersamaan.
+  const RX = 15.5, RZ = 11.1, RW = 6.2, RD = 5.2, PINTU = [RX, RZ - RD / 2 - .9];
+  const kaca = (w, h, d, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: .3, roughness: .05, metalness: .1 })); m.position.set(x, y, z); scene.add(m); return m; };
+  kaca(.08, 3, RD, RX - RW / 2, 1.5, RZ); kaca(.08, 3, RD, RX + RW / 2, 1.5, RZ); kaca(RW, 3, .08, RX, 1.5, RZ + RD / 2);
+  kaca((RW - 1.6) / 2, 3, .08, RX - RW / 4 - .4, 1.5, RZ - RD / 2); kaca((RW - 1.6) / 2, 3, .08, RX + RW / 4 + .4, 1.5, RZ - RD / 2);   // pintu di tengah
+  [[-RW / 2, -RD / 2], [RW / 2, -RD / 2], [-RW / 2, RD / 2], [RW / 2, RD / 2]].forEach(([dx, dz]) => kotak(.16, 3.1, .16, 0x2b3c55, RX + dx, 1.55, RZ + dz));
+  kotak(RW + .2, .12, RD + .2, 0x2b3c55, RX, 3.06, RZ, false); kotak(RW, .05, RD, 0x8fa8c8, RX, .04, RZ, false);
+  const rapatPapan = papanTeks('RUANG RAPAT', '#1a2430', '#ffffff', 2.8, .5); rapatPapan.position.set(RX, 3.4, RZ - RD / 2); scene.add(rapatPapan);
+  silinder(1.5, 1.5, .1, 0xf2efe9, RX, 1.05, RZ); silinder(.18, .25, 1, 0x6a6f78, RX, .5, RZ);
+  const rapatTempat = [[RX - 1.9, RZ - 1.1, -Math.PI / 2], [RX + 1.9, RZ - 1.1, Math.PI / 2], [RX - 1.9, RZ + 1.1, -Math.PI / 2], [RX + 1.9, RZ + 1.1, Math.PI / 2], [RX, RZ + 2.1, 0]].map(([x, z, hadap]) => ({ x, z, hadap, mode: 'rapat', dipakai: null, pintu: PINTU }));
+  rapatTempat.forEach(s => { kotak(.8, .1, .8, 0x2b3c55, s.x, .9, s.z); kotak(.1, .84, .1, 0x555555, s.x, .42, s.z); const lx = RX + (s.x - RX) * .55, lz = RZ + (s.z - RZ) * .55; kotak(.55, .04, .4, 0xd9d9d9, lx, 1.12, lz, false); kotak(.55, .36, .03, 0x1c1c1c, lx, 1.3, lz - (s.z - RZ) * .08); });
 
   // kamera: miring dari depan atas; geser = putar, roda = zoom
   const kam = { sudut: -.3, tinggi: 21, jarak: 38, pusat: new THREE.Vector3(0, .5, -.5) };
@@ -233,18 +255,20 @@ function bangunKantor(wadah) {
   addEventListener('resize', ukur); ukur();
 
   // jalur: dari posisi sekarang ke tujuan lewat celah meja dan lorong tengah
-  const jalurKe = (p, tx, tz, celahTujuan) => { const path = []; const dekatMeja = Math.abs(p.pos.x - p.meja.x) < .3 && Math.abs(p.pos.z - p.meja.z) < .6;
-    if (dekatMeja) path.push([p.celah, p.pos.z]); path.push([dekatMeja ? p.celah : p.pos.x, AISLE]);
+  const jalurKe = (p, tx, tz, celahTujuan, dari = [p.pos.x, p.pos.z]) => { const path = []; const dekatMeja = Math.abs(dari[0] - p.meja.x) < .3 && Math.abs(dari[1] - p.meja.z) < .6;
+    if (p.tempat?.pintu) path.push(p.tempat.pintu); else if (dekatMeja) path.push([p.celah, dari[1]]); path.push([p.tempat?.pintu ? p.tempat.pintu[0] : dekatMeja ? p.celah : dari[0], AISLE]);
     if (celahTujuan != null) { path.push([celahTujuan, AISLE]); path.push([celahTujuan, tz]); } else path.push([tx, AISLE]);
     path.push([tx, tz]); return path.filter((q, i, arr) => !i || Math.abs(q[0] - arr[i - 1][0]) > .05 || Math.abs(q[1] - arr[i - 1][1]) > .05); };
   const pulang = p => { p.path = jalurKe(p, p.meja.x, p.meja.z, p.celah); p.tujuanMode = 'duduk'; if (p.tempat) { p.tempat.dipakai = null; p.tempat = null; } };
-  const pergi = (p, t) => { t.dipakai = p; p.tempat = t; p.path = jalurKe(p, t.x, t.z, null); p.tujuanMode = t.mode; p.tujuanHadap = t.hadap; };
+  const pergi = (p, t) => { const path = t.pintu ? [...jalurKe(p, t.pintu[0], t.pintu[1], null), [t.x, t.z]] : jalurKe(p, t.x, t.z, null); t.dipakai = p; p.tempat = t; p.path = path; p.tujuanMode = t.mode; p.tujuanHadap = t.hadap; };
   // dipanggil tiap data baru: tentukan ke mana tiap orang
-  function segar() { const t = performance.now() / 1000;
+  function segar() { const t = performance.now() / 1000; gambarSkor(DATA?.bulanIni || {});
+    const kerja = orang.filter(p => keadaan(p.a).st === 'kerja'), rapat = kerja.length >= 2;
     for (const p of orang) { const k = keadaan(p.a); p.kd = k; p.label.className = 'label ' + k.st;
       const isi = k.st === 'kerja' ? `<div class="gelembung">${esc(k.teks)}<span class="titik"></span></div>` : k.st === 'gagal' ? `<div class="gelembung">${esc(k.teks)}</div>` : k.st === 'selesai' ? `<div class="gelembung kecil">selesai ${k.t ? jam(k.t.waktu) : ''}</div>` : '';
       p.label.innerHTML = `${isi}<div class="nama">${esc(p.a.nama)}${k.st === 'istirahat' ? ' <span class="zzz">zz</span>' : ''}</div>`;
-      if (k.st === 'istirahat') { if (!p.tempat && !p.path.length) { const kosong = TEMPAT.find(x => !x.dipakai); if (kosong) pergi(p, kosong); else p.tujuanMode = 'santai'; } }
+      if (k.st === 'istirahat') { if (p.tempat?.mode === 'rapat') pulang(p); else if (!p.tempat && !p.path.length) { const kosong = TEMPAT.find(x => !x.dipakai); if (kosong) pergi(p, kosong); else p.tujuanMode = 'santai'; } }
+      else if (k.st === 'kerja' && rapat) { if (!p.tempat) { const kursi = rapatTempat.find(x => !x.dipakai); if (kursi) pergi(p, kursi); } else if (p.tempat.mode !== 'rapat') pulang(p); }
       else if (p.tempat || p.mode !== 'duduk' && !p.path.length && p.tujuanMode !== 'duduk') pulang(p);
       if (!p.path.length && !p.tempat) p.tujuanMode = k.st === 'gagal' ? 'bingung' : k.st === 'kerja' ? 'ketik' : k.st === 'selesai' ? 'santai' : 'santai';
       if (!p.jadwal) p.jadwal = t + 20 + Math.random() * 40; } }
@@ -254,12 +278,12 @@ function bangunKantor(wadah) {
     for (const p of orang) { const o = p.o, f = p.fase;
       if (p.path.length) {   // berjalan
         const [tx, tz] = p.path[0], dx = tx - p.pos.x, dz = tz - p.pos.z, jarak = Math.hypot(dx, dz), langkah = 2.4 * dt;
-        if (jarak <= langkah) { p.pos.set(tx, 0, tz); p.path.shift(); if (!p.path.length) { p.mode = p.tujuanMode; o.g.rotation.y = p.mode === 'duduk' || p.mode === 'ketik' || p.mode === 'santai' || p.mode === 'bingung' ? Math.PI : p.tujuanHadap ?? Math.PI; } }
+        if (jarak <= langkah) { p.pos.set(tx, 0, tz); p.path.shift(); if (!p.path.length) { p.mode = p.tujuanMode; o.g.rotation.y = ['duduk', 'ketik', 'santai', 'bingung'].includes(p.mode) ? Math.PI : (p.tujuanHadap ?? Math.PI); } }
         else { p.pos.x += dx / jarak * langkah; p.pos.z += dz / jarak * langkah; o.g.rotation.y = lerpSudut(o.g.rotation.y, Math.atan2(-dx, -dz) + Math.PI, .25); }
         o.g.position.set(p.pos.x, Math.abs(Math.sin(t * 9 + f)) * .05, p.pos.z); const s = Math.sin(t * 9 + f) * .6;
         o.kakiK.rotation.x = s; o.kakiN.rotation.x = -s; o.lenganK.rotation.x = -s * .6; o.lenganN.rotation.x = s * .6; o.kepala.rotation.set(0, 0, 0); p.mode = 'jalan'; }
       else {
-        const duduk = p.mode === 'duduk' || p.mode === 'ketik' || p.mode === 'santai' || p.mode === 'bingung' && false || p.mode === 'sofa';
+        const duduk = p.mode === 'duduk' || p.mode === 'ketik' || p.mode === 'santai' || p.mode === 'sofa' || p.mode === 'rapat';
         if (p.mode === 'bingung') { o.g.position.set(p.celah, 0, p.meja.z + .2); } else o.g.position.set(p.pos.x, duduk ? -.08 : 0, p.pos.z);
         o.kakiK.rotation.x = o.kakiN.rotation.x = duduk ? 1.5 : 0;
         if (p.mode === 'ketik') { o.lenganK.rotation.x = 1.15 + Math.sin(t * 11 + f) * .09; o.lenganN.rotation.x = 1.15 + Math.cos(t * 11 + f) * .09; o.kepala.rotation.set(Math.sin(t * 1.3 + f) * .05, Math.sin(t * .7 + f) * .12, 0); }
@@ -267,6 +291,7 @@ function bangunKantor(wadah) {
         else if (p.mode === 'bingung') { o.lenganN.rotation.set(2.9 + Math.sin(t * 7 + f) * .12, 0, -.35); o.lenganK.rotation.set(.2, 0, 0); o.kepala.rotation.set(.25, Math.sin(t * .9 + f) * .2, .12); }
         else if (p.mode === 'kopi') { const minum = (t + f) % 6 < 1.4; o.lenganN.rotation.x = minum ? 2.45 : .7; o.lenganK.rotation.x = .3; o.kepala.rotation.set(minum ? -.15 : 0, Math.sin(t * .6 + f) * .3, 0); }
         else if (p.mode === 'sofa') { o.lenganK.rotation.x = o.lenganN.rotation.x = .5; o.kepala.rotation.set(-.05, Math.sin(t * .4 + f) * .4, 0); }
+        else if (p.mode === 'rapat') { const bicara = (t + f) % 9 < 3; o.lenganK.rotation.x = bicara ? 1.6 + Math.sin(t * 5 + f) * .25 : 1.1 + Math.sin(t * 9 + f) * .06; o.lenganN.rotation.x = 1.1 + Math.cos(t * 9 + f) * .06; o.kepala.rotation.set(bicara ? -.1 : .05, Math.sin(t * .9 + f) * .45, 0); }
         else { o.lenganK.rotation.x = o.lenganN.rotation.x = .9; o.kepala.rotation.set(.2, 0, 0); }
         // yang sudah selesai sesekali ambil kopi sebentar, biar kantornya hidup
         if (p.kd?.st === 'selesai' && t > p.jadwal) { p.jadwal = t + 35 + Math.random() * 50; if (p.mode === 'santai' && !p.tempat) { const kosong = pantryTempat.find(x => !x.dipakai); if (kosong && Math.random() < .6) { pergi(p, kosong); p.balik = t + 9 + Math.random() * 6; } } }

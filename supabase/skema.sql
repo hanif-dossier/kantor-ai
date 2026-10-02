@@ -103,6 +103,7 @@ end $f$;
 create or replace function public.kantor_data(p_token text) returns jsonb language plpgsql stable security definer
 set search_path = public, extensions as $f$
 declare v_awal timestamptz := date_trunc('day', now() at time zone 'Asia/Jakarta') at time zone 'Asia/Jakarta';
+        v_bulan timestamptz := date_trunc('month', now() at time zone 'Asia/Jakarta') at time zone 'Asia/Jakarta';
 begin
   if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
   return jsonb_build_object('ok', true, 'sekarang', now(),
@@ -113,6 +114,11 @@ begin
           select *, row_number() over (partition by agen order by waktu desc) rn from kantor_lapor) l where rn <= 12 group by agen) t), '{}'::jsonb),
     'hariIni', (select jsonb_build_object('selesai', count(*) filter (where status = 'selesai'), 'gagal', count(*) filter (where status = 'gagal'),
         'token', coalesce(sum(token), 0), 'biaya', coalesce(sum(biaya), 0)) from kantor_lapor where waktu >= v_awal),
+    'bulanIni', (select jsonb_build_object('selesai', count(*) filter (where status = 'selesai'), 'gagal', count(*) filter (where status = 'gagal'),
+        'token', coalesce(sum(token), 0), 'biaya', coalesce(sum(biaya), 0),
+        'teratas', coalesce((select jsonb_agg(jsonb_build_object('agen', agen, 'n', n) order by n desc) from (
+            select agen, count(*) n from kantor_lapor where waktu >= v_bulan and status = 'selesai' group by agen order by n desc limit 5) t), '[]'::jsonb))
+        from kantor_lapor where waktu >= v_bulan),
     'perintah', coalesce((select jsonb_agg(to_jsonb(p) order by dibuat desc) from kantor_perintah p where diambil is null), '[]'::jsonb));
 end $f$;
 
