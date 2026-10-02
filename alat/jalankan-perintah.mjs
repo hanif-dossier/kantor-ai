@@ -20,7 +20,9 @@ export async function jalankanPerintah() {
     const r = await fetch(URL_, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ p_rahasia: baca('KANTOR_KUNCI'), p_agen: Object.keys(PETA) }) });
     const j = await r.json().catch(() => ({})); if (!j.ok) return hasil;
     const token = baca('GITHUB_TOKEN'); if (!token) return hasil;
-    for (const p of j.perintah || []) { const [repo, wf] = PETA[p.agen] || []; if (!repo) continue;
+    // beberapa perintah untuk agen yang sama cukup dipicu sekali (dua run beruntun pernah saling timpa saat push)
+    const sudah = new Set();
+    for (const p of j.perintah || []) { const [repo, wf] = PETA[p.agen] || []; if (!repo || sudah.has(p.agen)) continue; sudah.add(p.agen);
       const d = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${wf}/dispatches`, { method: 'POST', headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ ref: 'main' }) });
       hasil.push({ agen: p.agen, dipicu: d.status === 204, status: d.status }); }
   } catch {} return hasil; }
