@@ -106,6 +106,7 @@ const AGEN = [
   { kode: 'analis', nama: 'Maya', peran: 'Analis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x7fa36b, rambut: 0x3b2a1a },
   { kode: 'penulis', nama: 'Reza', peran: 'Penulis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0xb08a4e, rambut: 0x111111 },
   { kode: 'pemeriksa', nama: 'Nina', peran: 'Pemeriksa', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x9a5fa8, rambut: 0x2b1b12 },
+  { kode: 'cadangan', nama: 'Dewi', peran: 'Penjaga cadangan database', jadwal: 'jadwal 02.17', sumber: 'GitHub Actions', warna: 0x7a6fb3, rambut: 0x2b1b12 },
   { kode: 'claude-code', nama: 'Tim Studio', peran: 'Agen Claude Code lainnya (Explore, Plan, dll.)', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x5e8c8c, rambut: 0x3b2a1a },
 ];
 let DATA = null, pilih = null, timer = null;
@@ -221,7 +222,7 @@ function hentikan() { if (T) { cancelAnimationFrame(T.raf); T.renderer.dispose()
 const GEDUNG = [
   { id: 'briefing', nama: 'Gedung Briefing', agen: ['bahan', 'briefing'], warna: 0xe0b98a, x: -18, z: -7, lantaiTambahan: 0 },
   { id: 'pasar', nama: 'Menara Pasar', agen: ['pasar', 'radar', 'altcoin'], warna: 0x9cc0e4, x: -6, z: -7, lantaiTambahan: 0 },
-  { id: 'usaha', nama: 'Kantor OFU & NTA', agen: ['juru-catat-ofu', 'mentor-ofu', 'juru-invoice-nta'], warna: 0xe0a0a0, x: 6, z: -7, lantaiTambahan: 0 },
+  { id: 'usaha', nama: 'Kantor OFU & NTA', agen: ['juru-catat-ofu', 'mentor-ofu', 'juru-invoice-nta', 'cadangan'], warna: 0xe0a0a0, x: 6, z: -7, lantaiTambahan: 0 },
   { id: 'galeri', nama: 'Galeri Web2 & Web3', jenis: 'galeri', x: 18, z: -7 },
   { id: 'studio', nama: 'Studio Claude Code', agen: ['peneliti', 'analis', 'penulis', 'pemeriksa', 'claude-code'], warna: 0xb5d49c, x: -18, z: 7, lantaiTambahan: 0 },
   { id: 'kedai', nama: 'Kedai Kopi', jenis: 'kedai', x: -6, z: 7 },
