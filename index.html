@@ -96,7 +96,7 @@ function pesan(t) { const p = $('#pesan'); p.textContent = t; p.style.display = 
 const AGEN = [
   { kode: 'bahan', nama: 'Rani', peran: 'Peracik bahan briefing', jadwal: 'jadwal 05.20', sumber: 'GitHub Actions', warna: 0xd98f5c, rambut: 0x2b1b12 },
   { kode: 'briefing', nama: 'Bima', peran: 'Penulis briefing harian', jadwal: 'jadwal 06.02 dan 07.23', sumber: 'Routine Claude + GitHub Actions', warna: 0x4f7aa8, rambut: 0x111111 },
-  { kode: 'altcoin', nama: 'Sari', peran: 'Pemindai altcoin', jadwal: 'jadwal 06.00 dan siang', sumber: 'Routine Claude', warna: 0xb45f8c, rambut: 0x3b2a1a },
+  { kode: 'altcoin', nama: 'Sari', peran: 'Pemindai altcoin', jadwal: 'jadwal 05.07 dan tiap 3 jam', sumber: 'GitHub Actions + routine Claude', warna: 0xb45f8c, rambut: 0x3b2a1a },
   { kode: 'radar', nama: 'Dion', peran: 'Penjaga radar portofolio', jadwal: 'tiap 3 jam', sumber: 'GitHub Actions', warna: 0x5e9c6a, rambut: 0x1a1a1a },
   { kode: 'pasar', nama: 'Tari', peran: 'Pengambil data pasar', jadwal: 'jadwal 04.47', sumber: 'GitHub Actions', warna: 0xc9a43a, rambut: 0x4a2f1b },
   { kode: 'juru-catat-ofu', nama: 'Umar', peran: 'Juru catat OFU', jadwal: 'tiap 10 menit saat laptop nyala', sumber: 'n8n di laptop', warna: 0x4e8f8c, rambut: 0x111111 },
@@ -106,6 +106,7 @@ const AGEN = [
   { kode: 'analis', nama: 'Maya', peran: 'Analis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x7fa36b, rambut: 0x3b2a1a },
   { kode: 'penulis', nama: 'Reza', peran: 'Penulis', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0xb08a4e, rambut: 0x111111 },
   { kode: 'pemeriksa', nama: 'Nina', peran: 'Pemeriksa', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x9a5fa8, rambut: 0x2b1b12 },
+  { kode: 'claude-code', nama: 'Tim Studio', peran: 'Agen Claude Code lainnya (Explore, Plan, dll.)', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x5e8c8c, rambut: 0x3b2a1a },
 ];
 let DATA = null, pilih = null, timer = null;
 let MODE = (() => { try { return localStorage.getItem('kantor-mode') || 'kota'; } catch { return 'kota'; } })();   // 'kota' atau 'kantor'
@@ -222,7 +223,7 @@ const GEDUNG = [
   { id: 'pasar', nama: 'Menara Pasar', agen: ['pasar', 'radar', 'altcoin'], warna: 0x9cc0e4, x: -6, z: -7, lantaiTambahan: 0 },
   { id: 'usaha', nama: 'Kantor OFU & NTA', agen: ['juru-catat-ofu', 'mentor-ofu', 'juru-invoice-nta'], warna: 0xe0a0a0, x: 6, z: -7, lantaiTambahan: 0 },
   { id: 'galeri', nama: 'Galeri Web2 & Web3', jenis: 'galeri', x: 18, z: -7 },
-  { id: 'studio', nama: 'Studio Claude Code', agen: ['peneliti', 'analis', 'penulis', 'pemeriksa'], warna: 0xb5d49c, x: -18, z: 7, lantaiTambahan: 0 },
+  { id: 'studio', nama: 'Studio Claude Code', agen: ['peneliti', 'analis', 'penulis', 'pemeriksa', 'claude-code'], warna: 0xb5d49c, x: -18, z: 7, lantaiTambahan: 0 },
   { id: 'kedai', nama: 'Kedai Kopi', jenis: 'kedai', x: -6, z: 7 },
   { id: 'arkade', nama: 'Arkade', jenis: 'arkade', x: 6, z: 7 },
   { id: 'taman', nama: 'Taman', jenis: 'taman', x: 18, z: 7 },

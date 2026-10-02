@@ -123,6 +123,17 @@ begin
   insert into kantor_perintah(agen, perintah) values (lower(trim(p_agen)), left(coalesce(p_perintah, 'jalan'), 300));
   return jsonb_build_object('ok', true);
 end $f$;
+-- ANTREAN untuk pemicu dari laptop (alat/jalankan-perintah.mjs): perintah yang belum diambil untuk daftar agen GitHub.
+create or replace function public.kantor_antrean(p_rahasia text, p_agen text[]) returns jsonb language plpgsql security definer
+set search_path = public, extensions as $f$
+declare v jsonb;
+begin
+  if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from kantor_pemilik where id = 1 and rahasia_hash = kantor__h(p_rahasia)) then
+    return jsonb_build_object('ok', false, 'pesan', 'ditolak'); end if;
+  with p as (update kantor_perintah set diambil = now() where agen = any(p_agen) and diambil is null returning agen, perintah, dibuat)
+  select coalesce(jsonb_agg(jsonb_build_object('agen', agen, 'perintah', perintah, 'dibuat', dibuat)), '[]'::jsonb) into v from p;
+  return jsonb_build_object('ok', true, 'perintah', v);
+end $f$;
 create or replace function public.kantor_ganti_sandi(p_token text, p_lama text, p_baru text) returns jsonb language plpgsql security definer
 set search_path = public, extensions as $f$
 declare v_hash text;
@@ -137,5 +148,5 @@ end $f$;
 
 revoke all on function public.kantor__h(text), public.kantor__sah(text) from public, anon, authenticated;
 grant execute on function public.kantor_masuk(text), public.kantor_keluar(text), public.kantor_lapor(text,text,text,text,text,text,text,text,int,numeric),
-  public.kantor_data(text), public.kantor_perintah(text,text,text), public.kantor_ganti_sandi(text,text,text) to anon, authenticated;
+  public.kantor_data(text), public.kantor_perintah(text,text,text), public.kantor_ganti_sandi(text,text,text), public.kantor_antrean(text,text[]) to anon, authenticated;
 notify pgrst, 'reload schema';

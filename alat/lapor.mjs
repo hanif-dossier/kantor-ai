@@ -16,8 +16,8 @@ export async function lapor(agen, status, { tugas = null, hasil = null, tautan =
       body: JSON.stringify({ p_rahasia: kunci(), p_agen: agen, p_status: status, p_tugas: tugas, p_hasil: hasil, p_tautan: tautan, p_sumber: sumber, p_jalan_id: jalanId, p_token: token, p_biaya: biaya }) });
     const j = await r.json().catch(() => ({})); return j.ok ? (j.perintah || []) : [];
   } catch { return []; } }
-// Dipanggil dari baris perintah (GitHub Actions): node lapor.mjs <agen> <status> "<tugas>" ["<hasil>"] ["<tautan>"]
+// Dipanggil dari baris perintah (GitHub Actions): node lapor.mjs <agen> <status> "<tugas>" ["<hasil>"] ["<tautan>"] [token] [biaya]
 if (process.argv[1] && /lapor\.mjs$/.test(process.argv[1]) && process.argv.length > 3) {
-  const [, , agen, status, tugas, hasil, tautan] = process.argv;
-  const p = await lapor(agen, status, { tugas, hasil, tautan, sumber: process.env.GITHUB_ACTIONS ? 'github' : 'laptop', jalanId: process.env.GITHUB_RUN_ID || null });
+  const [, , agen, status, tugas, hasil, tautan, tokenArg, biayaArg] = process.argv;
+  const p = await lapor(agen, status, { tugas, hasil, tautan, sumber: process.env.KANTOR_SUMBER || (process.env.GITHUB_ACTIONS ? 'github' : 'laptop'), jalanId: process.env.GITHUB_RUN_ID || null, token: tokenArg ? +tokenArg || null : null, biaya: biayaArg ? +biayaArg || null : null });
   console.log(JSON.stringify({ dilaporkan: agen, status, perintah: p })); }

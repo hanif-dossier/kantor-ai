@@ -24,4 +24,11 @@ pemilik. Tidak ada angka usaha, nama orang, atau kunci apa pun di repo ini.
 
 - `index.html`, `sw.js`, `manifest.json`, ikon: aplikasi web (bisa dipasang di HP).
 - `supabase/skema.sql`: tabel `kantor_*` dan fungsi `kantor_masuk / kantor_lapor / kantor_data / kantor_perintah`.
-- `alat/pasang-db.mjs`: memasang skema dan membuat sandi (sekali). `alat/lapor.mjs`: pelapor untuk skrip Node.
+- `alat/pasang-db.mjs`: memasang skema dan membuat sandi (sekali). `alat/lapor.mjs`: pelapor untuk skrip Node
+  (juga baris perintah: `node lapor.mjs <agen> <status> "<tugas>" ["<hasil>"] ["<tautan>"] [token] [biaya]`).
+- `alat/lapor-hook.mjs`: hook Claude Code (SubagentStart/SubagentStop) supaya agen peneliti, analis, penulis,
+  pemeriksa, dan agen lain melapor sendiri, lengkap dengan jumlah token dari transkripnya.
+- `alat/jalankan-perintah.mjs`: dijalankan dari laptop; mengambil antrean "Suruh kerja sekarang" untuk karyawan
+  GitHub Actions dan memicu workflow-nya lewat `workflow_dispatch` (token GitHub disimpan di luar repo).
+- Karyawan yang tidak bisa melapor sendiri (routine Claude di cloud) dilaporkan oleh workflow `kantor-routine.yml`
+  di repo tujuannya, yang jalan setiap ada komit beratas nama "Claude".
