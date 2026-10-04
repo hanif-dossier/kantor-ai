@@ -14,6 +14,7 @@ const PETA = {
   kabar: ['hanif-dossier/laporan-harian', 'kabar-blog.yml'],
   kurir: ['hanif-dossier/laporan-harian', 'unggah.yml'],
   sosmed: ['hanif-dossier/laporan-harian', 'konten-harian.yml'],
+  'sosmed-posting': ['hanif-dossier/laporan-harian', 'ig-posting.yml'],
 };
 const baca = k => { try { return (fs.readFileSync('D:/Ai Agent/rahasia/kantor-ai.txt', 'utf8').match(new RegExp('^' + k + '=(\\S+)$', 'm')) || [])[1] || ''; } catch { return ''; } };
 export async function jalankanPerintah() {

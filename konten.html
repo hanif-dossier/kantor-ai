@@ -48,7 +48,10 @@ textarea{width:100%;min-height:260px;margin-top:10px;background:var(--bg);color:
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const DASAR = 'https://hzxfheydtrjhizbwbddh.supabase.co/storage/v1/object/public/konten/';
+const SB = 'https://hzxfheydtrjhizbwbddh.supabase.co', ANON = 'sb_publishable_3c_5VhfP4Z9g1dSU9c00HQ_0QkuiHTm', DASAR = SB + '/storage/v1/object/public/konten/';
+const rpc = async (fn, body) => (await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+const sesiKantor = () => { try { return localStorage.getItem('kantor-sesi'); } catch { return null; } };   // sesi pemilik yang sama dengan Kantor AI (satu alamat)
+const LABEL = { draf: ['Draf, belum diposting', ''], tahan: ['Ditahan: tidak akan diposting', 'merah'], posting: ['Sedang diposting', 'aksen'], terbit: ['Terbit di Instagram', 'hijau'], gagal: ['Posting gagal', 'merah'] };
 const BLN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const tgl = t => { const d = new Date(t + 'T00:00:00Z'); return `${HARI[d.getUTCDay()]}, ${d.getUTCDate()} ${BLN[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
@@ -61,17 +64,21 @@ async function muat() {
     if (!t) { const r = await fetch(DASAR + 'terbaru.json?x=' + Date.now()); if (!r.ok) throw 0; t = (await r.json()).tanggal; }
     const r = await fetch(`${DASAR}${t}/index.json?x=${Date.now()}`);
     if (!r.ok) { isi.innerHTML = `<h1>Draf <i>postingan</i></h1><div class="kartu kosong">Belum ada draf untuk ${esc(tgl(t))}.<br><br><a class="tombol" href="?t=${geser(t, -1)}">← Hari sebelumnya</a></div>`; return; }
-    const D = await r.json();
+    const D = await r.json(); const S = await rpc('konten_status_baca', { p_tanggal: D.tanggal }).catch(() => ({ status: 'draf' })); D.status = S.status || 'draf'; D.permalink = S.permalink; D.catatan = S.catatan;
     isi.innerHTML = `
       <h1>Draf <i>postingan</i> ${esc(tgl(D.tanggal))}</h1>
-      <p class="ket">Disusun Rina pagi ini dari angka per ${esc(D.tglData)}. Periksa kalimat dan angkanya, simpan empat gambar, salin keterangan, lalu posting dari Instagram. Belum ada yang terkirim ke mana pun.</p>
-      <div class="pil-baris"><span class="pil aksen">${esc(D.seri)}</span><span class="pil">${esc(D.judul)}</span><span class="pil">${D.slides.length} slide · 1080×1350</span>${D.token ? `<span class="pil">${D.token.toLocaleString('id-ID')} token</span>` : ''}<span class="pil ${D.status === 'draf' ? '' : 'hijau'}">${D.status === 'draf' ? 'Draf, belum diposting' : esc(D.status)}</span></div>
+      <p class="ket">Disusun Rina pagi ini dari angka per ${esc(D.tglData)}${D.penulis ? ', kata-kata oleh ' + esc(D.penulis) : ''}. Kalau tidak ditahan, Rina memposting ke Instagram pukul 17.05 WIB. Periksa kalimat dan angkanya dulu; tombol di bawah untuk menahan atau memposting sekarang.</p>
+      <div class="pil-baris"><span class="pil aksen">${esc(D.seri)}</span><span class="pil">${esc(D.judul)}</span><span class="pil">${D.slides.length} slide · 1080×1350</span>${D.token ? `<span class="pil">${D.token.toLocaleString('id-ID')} token</span>` : ''}<span class="pil ${(LABEL[D.status] || LABEL.draf)[1]}">${(LABEL[D.status] || LABEL.draf)[0]}</span>${D.permalink ? `<a class="pil hijau" href="${esc(D.permalink)}" target="_blank" rel="noopener">Buka di Instagram</a>` : ''}</div>
+      <div class="kartu" id="kendali" style="margin-bottom:12px"><span class="label">Kendali posting</span>
+        ${D.status === 'terbit' ? `<p class="sumber" style="margin:8px 0 0">Sudah terbit${D.diubah ? '' : ''}. Mengubahnya dilakukan dari Instagram.</p>` : sesiKantor() ? `<div class="baris-aksi">${D.status === 'tahan' ? '<button class="tombol" data-status="draf">Lepas tahanan (posting 17.05)</button>' : '<button class="tombol" data-status="tahan">Tahan, jangan diposting</button>'}<button class="tombol utama" data-status="posting">Posting sekarang</button></div><p class="sumber">"Posting sekarang" dijalankan oleh dispatcher di laptop (saat laptop menyala) atau ikut jadwal 17.05 WIB. ${D.catatan ? 'Catatan: ' + esc(D.catatan) : ''}</p>` : `<p class="sumber" style="margin:8px 0 0">Masuk dulu di <a href="./">Kantor AI</a> dengan sandi pemilik untuk menahan atau memposting sekarang. Tanpa tindakan, draf diposting pukul 17.05 WIB.</p>`}</div>
       <div class="kartu"><span class="label">Slide</span><div class="grid" style="margin-top:10px">${D.slides.map((s, i) => `<div class="slide"><span class="no">${i + 1}</span><img src="${DASAR}${D.tanggal}/${s}" alt="Slide ${i + 1}" loading="lazy"><a href="${DASAR}${D.tanggal}/${s}" target="_blank" rel="noopener">Buka</a></div>`).join('')}</div>
         <p class="sumber">Di HP: buka tiap gambar lalu tahan untuk menyimpan. Urutan unggah mengikuti nomornya.</p></div>
       <div class="kartu" style="margin-top:12px"><span class="label">Keterangan (caption)</span><textarea id="caption" readonly>${esc(D.caption)}</textarea>
         <div class="baris-aksi"><button class="tombol utama" id="salin">Salin keterangan</button><a class="tombol" href="${DASAR}${D.tanggal}/keterangan.txt" target="_blank" rel="noopener">Buka berkas teks</a></div>
         <p class="sumber">Sumber angka: ${esc((D.sumber || []).join(' · '))}.</p></div>
       <div class="nav"><a class="tombol" href="?t=${geser(D.tanggal, -1)}">← ${esc(geser(D.tanggal, -1))}</a><a class="tombol" href="?t=${geser(D.tanggal, 1)}">${esc(geser(D.tanggal, 1))} →</a></div>`;
+    document.querySelectorAll('#kendali [data-status]').forEach(b => b.onclick = async () => { const st = b.dataset.status; if (st === 'posting' && !confirm('Posting draf ini ke Instagram sekarang?')) return; if (st === 'tahan' && !confirm('Tahan draf ini? Rina tidak akan mempostingnya hari ini.')) return;
+      b.disabled = true; const j = await rpc('konten_status_set', { p_token: sesiKantor(), p_tanggal: D.tanggal, p_status: st }).catch(() => ({ ok: false, pesan: 'Server tidak menjawab.' })); if (!j.ok) { toast(j.pesan || 'Gagal'); b.disabled = false; return; } toast(st === 'tahan' ? 'Draf ditahan' : st === 'posting' ? 'Perintah posting dikirim' : 'Tahanan dilepas'); setTimeout(muat, 600); });
     document.getElementById('salin').onclick = async () => { const ta = document.getElementById('caption'); try { await navigator.clipboard.writeText(ta.value); toast('Keterangan disalin'); } catch { ta.select(); document.execCommand('copy'); toast('Keterangan disalin'); } };
   } catch (e) { isi.innerHTML = `<h1>Draf <i>postingan</i></h1><div class="kartu kosong">Belum ada draf yang tersimpan. Rina menyusun draf tiap pagi pukul 07.41 WIB.</div>`; }
 }
