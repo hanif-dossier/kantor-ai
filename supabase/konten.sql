@@ -62,3 +62,22 @@ begin
   insert into cs_rahasia(nama, nilai) values (p_nama, p_nilai) on conflict (nama) do update set nilai = excluded.nilai, diubah = now();
   return jsonb_build_object('ok', true, 'nama', p_nama, 'panjang', length(p_nilai));
 end $$;
+
+-- Pemilik (sesi Kantor AI) memasang token Instagram dari HP lewat konten.html, tanpa lewat laptop atau chat.
+create or replace function public.konten_rahasia_set(p_token text, p_nama text, p_nilai text) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_nama not in ('ig_token') or coalesce(length(btrim(p_nilai)), 0) < 20 then return jsonb_build_object('ok', false, 'pesan', 'Token terlalu pendek atau nama tidak dikenal.'); end if;
+  insert into cs_rahasia(nama, nilai) values (p_nama, btrim(p_nilai)) on conflict (nama) do update set nilai = excluded.nilai, diubah = now();
+  return jsonb_build_object('ok', true, 'nama', p_nama, 'panjang', length(btrim(p_nilai)));
+end $$;
+grant execute on function public.konten_rahasia_set(text, text, text) to anon, authenticated;
+-- Apakah token sudah ada (tanpa membuka nilainya)
+create or replace function public.konten_rahasia_ada(p_token text, p_nama text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis.'); end if;
+  select nama, length(nilai) as panjang, diubah into r from cs_rahasia where nama = p_nama;
+  return jsonb_build_object('ok', true, 'ada', r is not null, 'panjang', r.panjang, 'diubah', r.diubah);
+end $$;
+grant execute on function public.konten_rahasia_ada(text, text) to anon, authenticated;
