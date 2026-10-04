@@ -13,6 +13,7 @@ const PETA = {
   pasar: ['hanif-dossier/hanif-dossier.github.io', 'data-pasar.yml'],
   kabar: ['hanif-dossier/laporan-harian', 'kabar-blog.yml'],
   kurir: ['hanif-dossier/laporan-harian', 'unggah.yml'],
+  sosmed: ['hanif-dossier/laporan-harian', 'konten-harian.yml'],
 };
 const baca = k => { try { return (fs.readFileSync('D:/Ai Agent/rahasia/kantor-ai.txt', 'utf8').match(new RegExp('^' + k + '=(\\S+)$', 'm')) || [])[1] || ''; } catch { return ''; } };
 export async function jalankanPerintah() {
