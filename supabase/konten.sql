@@ -14,10 +14,12 @@ create table if not exists public.konten_status (
   diubah timestamptz not null default now()
 );
 alter table public.konten_status enable row level security;
+-- Format posting per tanggal (6 Okt 2026): null = ikut draf (index.json: Reels Selasa, Kamis, Sabtu), 'carousel' atau 'reels'.
+alter table public.konten_status add column if not exists format text check (format in ('carousel', 'reels'));
 revoke all on public.konten_status from public, anon, authenticated;
 
 create or replace function public.konten_status_baca(p_tanggal date) returns jsonb language sql stable security definer set search_path = public as $$
-  select coalesce((select jsonb_build_object('ok', true, 'tanggal', tanggal, 'status', status, 'permalink', permalink, 'catatan', catatan, 'diubah', diubah) from konten_status where tanggal = p_tanggal),
+  select coalesce((select jsonb_build_object('ok', true, 'tanggal', tanggal, 'status', status, 'permalink', permalink, 'catatan', catatan, 'format', format, 'diubah', diubah) from konten_status where tanggal = p_tanggal),
     jsonb_build_object('ok', true, 'tanggal', p_tanggal, 'status', 'draf')) $$;
 grant execute on function public.konten_status_baca(date) to anon, authenticated;
 
@@ -81,3 +83,23 @@ begin
   return jsonb_build_object('ok', true, 'ada', r is not null, 'panjang', r.panjang, 'diubah', r.diubah);
 end $$;
 grant execute on function public.konten_rahasia_ada(text, text) to anon, authenticated;
+
+-- Pemilik (sesi Kantor AI) atau Manajer lewat jembatan (KANTOR_KUNCI) memilih format posting satu tanggal.
+create or replace function public.konten_format_set(p_token text, p_tanggal date, p_format text) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_format not in ('carousel', 'reels') then return jsonb_build_object('ok', false, 'pesan', 'Format tidak dikenal.'); end if;
+  if exists (select 1 from konten_status where tanggal = p_tanggal and status = 'terbit') then return jsonb_build_object('ok', false, 'pesan', 'Draf ini sudah terbit di Instagram.'); end if;
+  insert into konten_status(tanggal, format) values (p_tanggal, p_format) on conflict (tanggal) do update set format = excluded.format, diubah = now();
+  return konten_status_baca(p_tanggal);
+end $$;
+grant execute on function public.konten_format_set(text, date, text) to anon, authenticated;
+create or replace function public.konten_format_tulis(p_rahasia text, p_tanggal date, p_format text) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from kantor_pemilik where id = 1 and rahasia_hash = kantor__h(p_rahasia)) then return jsonb_build_object('ok', false, 'pesan', 'Kunci tidak sah.'); end if;
+  if p_format not in ('carousel', 'reels') then return jsonb_build_object('ok', false, 'pesan', 'Format tidak dikenal.'); end if;
+  insert into konten_status(tanggal, format) values (p_tanggal, p_format) on conflict (tanggal) do update set format = excluded.format, diubah = now();
+  return konten_status_baca(p_tanggal);
+end $$;
+grant execute on function public.konten_format_tulis(text, date, text) to anon, authenticated;
+notify pgrst, 'reload schema';
