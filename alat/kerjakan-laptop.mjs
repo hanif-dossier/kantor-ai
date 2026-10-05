@@ -40,8 +40,12 @@ ${t.perintah}`; }
 async function kerjakan(t) {
   const agen = t.atas_nama || 'claude-code', jalanId = 'laptop-' + t.id, tugas = String(t.perintah).replace(/\s+/g, ' ').slice(0, 90);
   await lapor(agen, 'kerja', { tugas, sumber: 'laptop', jalanId });
+  // Lingkungan bersih: variabel sesi aplikasi desktop (CLAUDE_*, ANTHROPIC_*) membuat Claude Code baris perintah gagal masuk.
+  // Kalau pemilik memasang token jangka panjang (claude setup-token) di rahasia/kantor-ai.txt sebagai CLAUDE_TOKEN, itu yang dipakai.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(CLAUDE|ANTHROPIC)/i.test(k)));
+  const tok = (() => { try { return (fs.readFileSync('D:/Ai Agent/rahasia/kantor-ai.txt', 'utf8').match(/^CLAUDE_TOKEN=(\S+)$/m) || [])[1]; } catch { return null; } })(); if (tok) env.CLAUDE_CODE_OAUTH_TOKEN = tok;
   const r = spawnSync(CLAUDE, ['-p', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--max-turns', '80', '--allowedTools', ...BOLEH, '--disallowedTools', ...TOLAK],
-    { cwd: 'D:/Ai Agent', input: aturan(t), encoding: 'utf8', timeout: BATAS_MENIT * 60000, maxBuffer: 1 << 26, windowsHide: true });
+    { cwd: 'D:/Ai Agent', env, input: aturan(t), encoding: 'utf8', timeout: BATAS_MENIT * 60000, maxBuffer: 1 << 26, windowsHide: true });
   let j = {}; try { j = JSON.parse((r.stdout || '').trim().split('\n').pop()); } catch {}
   const gagal = r.error || r.status !== 0 || j.is_error, teks = String(j.result || '').trim();
   const balasan = gagal ? `Tugas laptop belum berhasil: ${r.error?.code === 'ETIMEDOUT' ? `lewat ${BATAS_MENIT} menit` : (teks || r.stderr || 'Claude Code tidak menjawab').slice(0, 300)}.` : teks.slice(0, 1800);
