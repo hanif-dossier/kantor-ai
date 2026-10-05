@@ -517,11 +517,43 @@ function bukaPanel(a) { pilih = a; const k = keadaan(a), R = DATA?.riwayat?.[a.k
     ${menunggu.length ? `<div class="sub">Perintah menunggu</div>${menunggu.map(p => `<div class="baris"><span>${esc(p.perintah)}</span><span class="kanan">${esc(lalu(p.dibuat))}</span></div>`).join('')}` : ''}
     <div class="sub">Riwayat kerja</div>
     ${R.map(r => `<div class="baris"><span><span class="status ${r.status}" style="font-size:11px;padding:1px 7px">${r.status}</span> ${esc(r.tugas || '')}${r.hasil ? `<small>${esc(r.hasil)}</small>` : ''}${r.token || r.biaya ? `<small>${r.token ? ribu(r.token) + ' token' : ''}${r.token && r.biaya ? ' · ' : ''}${r.biaya ? rp(r.biaya) : ''}</small>` : ''}</span><span class="kanan">${esc(tglJam(r.waktu))}${r.tautan ? `<br><a href="${esc(r.tautan)}" target="_blank" rel="noopener">hasil</a>` : ''}</span></div>`).join('') || '<div class="baris"><span style="color:var(--redup)">Belum pernah melapor. Pelapornya belum dipasang atau belum pernah jalan.</span></div>'}
+    <div class="sub">Chat dengan ${esc(a.nama)}</div>
+    <div class="chat" id="chatIsi" style="min-height:90px;max-height:36vh"><div class="kosong">Memuat percakapan…</div></div>
+    <div class="pil-baris">${(SARAN_AGEN[a.kode] || SARAN_AGEN._).map(t => `<button type="button" class="pil kecil" data-saran="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <form class="chatForm" id="chatForm"><textarea id="chatTeks" rows="2" placeholder="Tulis untuk ${esc(a.nama)}…" maxlength="2000"></textarea><button class="pil utama" id="chatKirim" type="submit">Kirim</button></form>
+    <div style="font-size:12px;color:var(--redup);margin-top:6px">Pesan diterima Pak Hadi, dikerjakan sesuai pekerjaan ${esc(a.nama)}, dan dibalas di sini atas namanya (biasanya 1 sampai 3 menit).</div>
     <div class="aksi"><button class="pil hijau" id="bSuruh">Suruh kerja sekarang</button><button class="pil" id="bTutup">Tutup</button></div>
     <div style="font-size:12px;color:var(--redup);margin-top:10px">Perintah diambil karyawan saat ia jalan berikutnya. Yang di laptop (n8n) membacanya tiap 10 menit saat laptop menyala.</div></div>`;
-  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel;
+  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel; pasangChat(a.kode, a.nama);
   $('#bSuruh').onclick = async () => { $('#bSuruh').disabled = true; try { const r = await rpc('kantor_perintah', { p_token: sesi.baca(), p_agen: a.kode, p_perintah: 'jalan' }); if (!r.ok) throw new Error(r.pesan); pesan(a.nama + ' disuruh kerja'); await muat(); bukaPanel(a); } catch (e) { pesan(e.message); $('#bSuruh').disabled = false; } }; }
 function tutupPanel() { pilih = null; $('#tirai').classList.remove('buka'); clearInterval(bukaManajer.t); }
+// Kolom chat per karyawan (5 Okt 2026 malam): pesan ditandai kode karyawan (agen), lewat jembatan yang sama dengan Ruang
+// Manajer; Pak Hadi mengerjakannya dalam lingkup pekerjaan karyawan itu dan membalas atas nama karyawan tersebut.
+const SARAN_AGEN = { _: ['Apa yang kamu kerjakan hari ini?', 'Jalankan sekarang'],
+  radar: ['Jalankan radar sekarang', 'Ada peringatan apa hari ini?', 'Koin mana yang paling turun?'],
+  sosmed: ['Susun ulang draf hari ini', 'Tahan posting hari ini', 'Buat postingan tentang Bitcoin besok'],
+  briefing: ['Ringkas briefing hari ini', 'Apa yang paling penting di pasar hari ini?'],
+  bahan: ['Siapkan bahan briefing lagi', 'Sumber apa saja yang dipakai hari ini?'],
+  altcoin: ['Screening ulang altcoin', 'Koin apa yang naik paling kencang pekan ini?'],
+  pasar: ['Ambil data pasar sekarang'], kabar: ['Cek kabar blog proyek sekarang', 'Ada kabar apa dari proyek portofolio?'],
+  kurir: ['Briefing hari ini sudah sampai ke anggota?'], cs: ['Berapa pengunjung yang bertanya hari ini?', 'Pertanyaan apa yang paling sering?'],
+  'juru-catat-ofu': ['Periksa laporan minyak minggu ini'], 'juru-invoice-nta': ['Periksa invoice NTA minggu ini'], 'mentor-ofu': ['Apa usulan perbaikan terakhirmu?'],
+  cadangan: ['Cadangan semalam berhasil?'], manajer: ['Bagaimana keadaan kantor hari ini?'] };
+function pasangChat(agen, nama) { clearInterval(bukaManajer.t);
+  const gambar = async () => { const r = await rpc('kantor_chat_baca', { p_token: sesi.baca(), p_sejak: 0, p_agen: agen }).catch(() => null); const el = $('#chatIsi'); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = `<div class="kosong">${esc(r?.pesan || 'Tidak bisa memuat.')}</div>`; return; }
+    const P = r.pesan || []; if (!P.length) { el.innerHTML = `<div class="kosong">Belum ada percakapan dengan ${esc(nama)}. Tulis perintah pertama Anda.</div>`; return; }
+    const dekatBawah = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    el.innerHTML = P.map(m => { const siapa = m.dari === 'pemilik' ? 'Anda' : m.dari === 'manajer' ? 'Pak Hadi' : (AGEN.find(x => x.kode === m.dari)?.nama || m.dari);
+      const tanda = m.dari === 'pemilik' ? (m.status === 'baru' ? ' · terkirim' : m.status === 'diambil' ? ' · sedang dikerjakan' : '') : '';
+      return `<div class="gelembung ${m.dari === 'pemilik' ? 'saya' : 'mereka'}"><div class="siapa">${esc(siapa)}${tanda} · ${esc(lalu(m.dibuat))}</div><div>${esc(m.isi).replace(/\n/g, '<br>')}</div>${m.tindakan?.hasil?.length ? `<div class="tindakan">${m.tindakan.hasil.map(esc).join('<br>')}</div>` : ''}</div>`; }).join('');
+    if (dekatBawah || gambar.pertama === undefined) el.scrollTop = el.scrollHeight; gambar.pertama = false; };
+  gambar(); bukaManajer.t = setInterval(gambar, 15000);
+  $$('[data-saran]').forEach(b => b.onclick = () => { $('#chatTeks').value = b.dataset.saran; $('#chatTeks').focus(); });
+  $('#chatForm').onsubmit = async e => { e.preventDefault(); const t = $('#chatTeks').value.trim(); if (!t) return; $('#chatKirim').disabled = true;
+    try { const r = await rpc('kantor_chat_kirim', { p_token: sesi.baca(), p_isi: t, p_agen: agen }); if (!r.ok) throw new Error(r.pesan); $('#chatTeks').value = ''; pesan(r.dikirim ? 'Terkirim untuk ' + nama : 'Tersimpan, tapi Pak Hadi belum bisa diketuk'); await gambar(); }
+    catch (er) { pesan(er.message); } finally { const k = $('#chatKirim'); if (k) k.disabled = false; } };
+  $('#chatTeks').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chatForm').requestSubmit(); } }; }
 // Ruang Manajer (5 Okt 2026): pemilik menulis perintah atau pertanyaan bebas; Pak Hadi (routine Claude) membalas lewat
 // jembatan GitHub dalam 1 sampai 3 menit. Halaman menyegarkan percakapan tiap 15 detik selama ruang terbuka.
 const CHAT_SARAN = ['Bagaimana keadaan kantor hari ini?', 'Susun ulang draf Instagram hari ini', 'Tahan posting hari ini', 'Jalankan radar sekarang'];
