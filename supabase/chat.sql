@@ -113,3 +113,27 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 grant execute on function public.kantor_perintah_kunci(text, text, text) to anon, authenticated;
+
+-- Tugas laptop (6 Okt 2026): Manajer memasukkan tugas 'laptop' lewat jembatan; alat/kerjakan-laptop.mjs di laptop
+-- mengambilnya, menjalankan Claude Code di D:\Ai Agent, lalu membalas hasilnya ke chat yang meminta (ref) atas nama
+-- karyawan yang ditunjuk (atas_nama), misalnya juru-catat-ofu.
+alter table public.kantor_perintah add column if not exists ref bigint;
+alter table public.kantor_perintah add column if not exists atas_nama text;
+drop function if exists public.kantor_perintah_kunci(text, text, text);
+create or replace function public.kantor_perintah_kunci(p_rahasia text, p_agen text, p_perintah text, p_ref bigint default null, p_atas_nama text default null) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from kantor_pemilik where id = 1 and rahasia_hash = kantor__h(p_rahasia)) then return jsonb_build_object('ok', false, 'pesan', 'ditolak'); end if;
+  insert into kantor_perintah(agen, perintah, ref, atas_nama) values (lower(trim(p_agen)), left(coalesce(p_perintah, 'jalan'), 4000), p_ref, nullif(left(lower(btrim(p_atas_nama)), 40), ''));
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.kantor_perintah_kunci(text, text, text, bigint, text) to anon, authenticated;
+create or replace function public.kantor_laptop_ambil(p_rahasia text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from kantor_pemilik where id = 1 and rahasia_hash = kantor__h(p_rahasia)) then return jsonb_build_object('ok', false, 'pesan', 'ditolak'); end if;
+  with p as (update kantor_perintah set diambil = now() where id in (select id from kantor_perintah where agen = 'laptop' and diambil is null order by id limit 3) returning id, perintah, ref, atas_nama, dibuat)
+  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'perintah', perintah, 'ref', ref, 'atas_nama', atas_nama, 'dibuat', dibuat) order by id), '[]'::jsonb) into v from p;
+  return jsonb_build_object('ok', true, 'tugas', v);
+end $$;
+grant execute on function public.kantor_laptop_ambil(text) to anon, authenticated;
+notify pgrst, 'reload schema';

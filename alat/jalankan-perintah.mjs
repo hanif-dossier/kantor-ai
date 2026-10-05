@@ -3,7 +3,7 @@
 // picu workflow_dispatch di repo yang sesuai dengan token GitHub dari rahasia/kantor-ai.txt (GITHUB_TOKEN, dari
 // `gh auth token`, cakupan 'workflow'). Karyawan laptop (juru-catat-ofu, juru-invoice-nta) sudah membaca antreannya
 // sendiri lewat lapor(), jadi tidak ada di peta ini. Tidak pernah melempar galat.
-import fs from 'fs';
+import fs from 'fs'; import { spawn } from 'child_process'; import { fileURLToPath } from 'url';
 const URL_ = 'https://hzxfheydtrjhizbwbddh.supabase.co/rest/v1/rpc/kantor_antrean';
 const ANON = 'sb_publishable_3c_5VhfP4Z9g1dSU9c00HQ_0QkuiHTm';
 const PETA = {
@@ -27,5 +27,9 @@ export async function jalankanPerintah() {
     for (const p of j.perintah || []) { const [repo, wf] = PETA[p.agen] || []; if (!repo || sudah.has(p.agen)) continue; sudah.add(p.agen);
       const d = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${wf}/dispatches`, { method: 'POST', headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000), body: JSON.stringify({ ref: 'main' }) });
       hasil.push({ agen: p.agen, dipicu: d.status === 204, status: d.status }); }
-  } catch {} return hasil; }
+  } catch {}
+  // Tugas 'laptop' (Excel, aplikasi, berkas lokal) dikerjakan Claude Code oleh kerjakan-laptop.mjs. Dijalankan terpisah
+  // supaya putaran n8n tidak menunggu; pekerja itu sendiri keluar cepat kalau antrean kosong atau pekerja lain masih jalan.
+  try { spawn(process.execPath, [fileURLToPath(new URL('./kerjakan-laptop.mjs', import.meta.url))], { detached: true, stdio: 'ignore', windowsHide: true, cwd: 'D:/Ai Agent' }).unref(); hasil.push({ agen: 'laptop', pekerja: 'dimulai' }); } catch {}
+  return hasil; }
 if (process.argv[1] && /jalankan-perintah\.mjs$/.test(process.argv[1])) console.log(JSON.stringify(await jalankanPerintah()));
