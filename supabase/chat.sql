@@ -20,13 +20,13 @@ alter table public.kantor_chat enable row level security;
 revoke all on public.kantor_chat from public, anon, authenticated;
 
 -- Mengetuk repo privat lewat GitHub repository_dispatch (pg_net, asinkron; pg_net tidak punya PUT untuk contents API).
--- Workflow kantor-chat.yml menerima event "perintah" dan menulis perintah/<id>.json; push itu memicu routine Manajer.
+-- Repo privat kantor-perintah hanya berisi perintah dan balasan, jadi webhook push-nya memicu routine Manajer hanya saat ada pesan.
 create or replace function public.kantor__ke_github(p_id bigint, p_isi text, p_dibuat timestamptz) returns bigint
 language plpgsql security definer set search_path = public, extensions as $$
 declare tok text;
 begin
   select nilai into tok from cs_rahasia where nama = 'github_token'; if tok is null then return null; end if;
-  return net.http_post('https://api.github.com/repos/hanif-dossier/laporan-harian/dispatches',
+  return net.http_post('https://api.github.com/repos/hanif-dossier/kantor-perintah/dispatches',
     jsonb_build_object('event_type', 'perintah', 'client_payload', jsonb_build_object('id', p_id, 'isi', p_isi, 'dibuat', p_dibuat)), '{}'::jsonb,
     jsonb_build_object('Authorization', 'Bearer ' || tok, 'Accept', 'application/vnd.github+json', 'User-Agent', 'kantor-ai', 'Content-Type', 'application/json'), 15000);
 end $$;
