@@ -45,6 +45,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .tirai.buka{display:flex}
 .panel{width:min(520px,100%);max-height:82vh;overflow:auto;background:var(--kartu);border-radius:22px 22px 0 0;padding:18px 18px max(18px,env(safe-area-inset-bottom));border:1px solid var(--garis)}
 @media (min-width:640px){.tirai{align-items:center}.panel{border-radius:22px}}
+.chat{flex:1;min-height:200px;max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px 2px;margin:6px 0}
+.gelembung{max-width:88%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.5;background:rgba(255,255,255,.06);border:1px solid var(--garis)}
+.gelembung.saya{align-self:flex-end;background:rgba(240,179,90,.14);border-color:rgba(240,179,90,.3)}.gelembung.mereka{align-self:flex-start}
+.gelembung .siapa{font-size:11.5px;color:var(--redup);margin-bottom:3px}.gelembung .tindakan{margin-top:6px;font-size:12px;color:var(--redup);border-top:1px dashed var(--garis);padding-top:5px}
+.chatForm{display:flex;gap:8px;align-items:flex-end;margin-top:6px}.chatForm textarea{flex:1;resize:none;background:rgba(255,255,255,.05);color:var(--tinta);border:1px solid var(--garis);border-radius:12px;padding:10px 12px;font:14px var(--sans)}
+.pil-baris{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}.pil.utama{background:var(--kuning);color:#1a1206;border-color:transparent}
 .panel h2{margin:0;font-family:var(--serif);font-size:24px}.panel .peran{color:var(--redup);font-size:13px;margin:2px 0 10px}
 .status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}
 .status.kerja{background:rgba(95,208,143,.18);color:var(--hijau)}.status.selesai{background:rgba(111,182,255,.18);color:var(--biru)}.status.gagal{background:rgba(240,138,125,.18);color:var(--merah)}.status.istirahat{background:rgba(159,176,189,.18);color:var(--redup)}
@@ -110,7 +116,8 @@ const AGEN = [
   { kode: 'kabar', nama: 'Wati', peran: 'Pembaca kabar blog resmi proyek', jadwal: 'saat disuruh atau menyusul pagi', sumber: 'GitHub Actions', warna: 0xc98f3a, rambut: 0x1a1a1a },
   { kode: 'kurir', nama: 'Joko', peran: 'Kurir briefing ke gudang anggota', jadwal: 'tiap routine mendorong hasil', sumber: 'GitHub Actions', warna: 0x3a8fc9, rambut: 0x2b1b12 },
   { kode: 'cs', nama: 'Dina', peran: 'Resepsionis situs Hanif Dossier (kotak chat)', jadwal: '24 jam, tiap pengunjung bertanya', sumber: 'Supabase + Gemini', warna: 0xd46a8a, rambut: 0x2b1b12 },
-  { kode: 'sosmed', nama: 'Rina', peran: 'Social media: draf postingan Instagram harian', jadwal: 'jadwal 07.41', sumber: 'GitHub Actions + Gemini', warna: 0x6fb3a0, rambut: 0x1a1a1a },
+  { kode: 'sosmed', nama: 'Rina', peran: 'Social media: draf postingan Instagram harian', jadwal: 'jadwal 07.35, posting 17.05', sumber: 'Routine Claude + GitHub Actions', warna: 0x6fb3a0, rambut: 0x1a1a1a },
+  { kode: 'manajer', nama: 'Pak Hadi', peran: 'Manajer: menerima perintah pemilik, membagi, memeriksa', jadwal: 'tiap ada pesan, periksa pagi 08.30', sumber: 'Routine Claude', warna: 0x4a5a8a, rambut: 0x3a3a3a },
   { kode: 'cadangan', nama: 'Dewi', peran: 'Penjaga cadangan database', jadwal: 'jadwal 02.17', sumber: 'GitHub Actions', warna: 0x7a6fb3, rambut: 0x2b1b12 },
   { kode: 'claude-code', nama: 'Tim Studio', peran: 'Agen Claude Code lainnya (Explore, Plan, dll.)', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x5e8c8c, rambut: 0x3b2a1a },
 ];
@@ -309,7 +316,7 @@ function hentikan() { if (T) { cancelAnimationFrame(T.raf); T.renderer.dispose()
 // lantaiTambahan (lantai kosong, jendela gelap) atau tambah karyawan ke daftar AGEN dan masukkan kodenya ke gedung.
 // Blok kota: 4 kolom (x -18, -6, 6, 18) x 2 baris (z -7, 7), jalan di antaranya.
 const GEDUNG = [
-  { id: 'briefing', nama: 'Gedung Briefing', agen: ['bahan', 'briefing'], warna: 0xe0b98a, x: -18, z: -7, lantaiTambahan: 0 },
+  { id: 'briefing', nama: 'Gedung Briefing', agen: ['bahan', 'briefing', 'manajer'], warna: 0xe0b98a, x: -18, z: -7, lantaiTambahan: 0 },
   { id: 'pasar', nama: 'Menara Pasar', agen: ['pasar', 'radar', 'altcoin'], warna: 0x9cc0e4, x: -6, z: -7, lantaiTambahan: 0 },
   { id: 'usaha', nama: 'Kantor OFU & NTA', agen: ['juru-catat-ofu', 'mentor-ofu', 'juru-invoice-nta', 'cadangan'], warna: 0xe0a0a0, x: 6, z: -7, lantaiTambahan: 0 },
   { id: 'galeri', nama: 'Galeri Web2 & Web3', jenis: 'galeri', x: 18, z: -7 },
@@ -514,7 +521,34 @@ function bukaPanel(a) { pilih = a; const k = keadaan(a), R = DATA?.riwayat?.[a.k
     <div style="font-size:12px;color:var(--redup);margin-top:10px">Perintah diambil karyawan saat ia jalan berikutnya. Yang di laptop (n8n) membacanya tiap 10 menit saat laptop menyala.</div></div>`;
   $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel;
   $('#bSuruh').onclick = async () => { $('#bSuruh').disabled = true; try { const r = await rpc('kantor_perintah', { p_token: sesi.baca(), p_agen: a.kode, p_perintah: 'jalan' }); if (!r.ok) throw new Error(r.pesan); pesan(a.nama + ' disuruh kerja'); await muat(); bukaPanel(a); } catch (e) { pesan(e.message); $('#bSuruh').disabled = false; } }; }
-function tutupPanel() { pilih = null; $('#tirai').classList.remove('buka'); }
+function tutupPanel() { pilih = null; $('#tirai').classList.remove('buka'); clearInterval(bukaManajer.t); }
+// Ruang Manajer (5 Okt 2026): pemilik menulis perintah atau pertanyaan bebas; Pak Hadi (routine Claude) membalas lewat
+// jembatan GitHub dalam 1 sampai 3 menit. Halaman menyegarkan percakapan tiap 15 detik selama ruang terbuka.
+const CHAT_SARAN = ['Bagaimana keadaan kantor hari ini?', 'Susun ulang draf Instagram hari ini', 'Tahan posting hari ini', 'Jalankan radar sekarang'];
+async function bukaManajer() {
+  pilih = null; clearInterval(bukaManajer.t);
+  $('#tirai').innerHTML = `<div class="panel" style="display:flex;flex-direction:column;max-height:88vh"><h2>Ruang Manajer <span class="status istirahat" style="font-size:12px;vertical-align:middle">Pak Hadi</span></h2>
+    <div class="peran">Tulis perintah atau pertanyaan apa saja. Pak Hadi menerima, membagi ke karyawan, memeriksa, lalu membalas di sini (biasanya 1 sampai 3 menit).</div>
+    <div class="chat" id="chatIsi"><div class="kosong">Memuat percakapan…</div></div>
+    <div class="pil-baris" id="chatSaran">${CHAT_SARAN.map(t => `<button type="button" class="pil kecil" data-saran="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <form class="chatForm" id="chatForm"><textarea id="chatTeks" rows="2" placeholder="Tulis untuk Pak Hadi…" maxlength="2000"></textarea><button class="pil utama" id="chatKirim" type="submit">Kirim</button></form>
+    <div class="aksi"><button class="pil" id="bTutup">Tutup</button></div></div>`;
+  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel;
+  const gambar = async () => { const r = await rpc('kantor_chat_baca', { p_token: sesi.baca(), p_sejak: 0 }).catch(() => null); const el = $('#chatIsi'); if (!el) return;
+    if (!r || !r.ok) { el.innerHTML = `<div class="kosong">${esc(r?.pesan || 'Tidak bisa memuat.')}</div>`; return; }
+    const P = r.pesan || []; if (!P.length) { el.innerHTML = '<div class="kosong">Belum ada percakapan. Tulis perintah pertama Anda.</div>'; return; }
+    const dekatBawah = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    el.innerHTML = P.map(m => { const nama = m.dari === 'pemilik' ? 'Anda' : m.dari === 'manajer' ? 'Pak Hadi' : (AGEN.find(a => a.kode === m.dari)?.nama || m.dari);
+      const tanda = m.dari === 'pemilik' ? (m.status === 'baru' ? ' · terkirim' : m.status === 'diambil' ? ' · sedang dikerjakan' : '') : '';
+      return `<div class="gelembung ${m.dari === 'pemilik' ? 'saya' : 'mereka'}"><div class="siapa">${esc(nama)}${tanda} · ${esc(lalu(m.dibuat))}</div><div>${esc(m.isi).replace(/\n/g, '<br>')}</div>${m.tindakan?.hasil?.length ? `<div class="tindakan">${m.tindakan.hasil.map(esc).join('<br>')}</div>` : ''}</div>`; }).join('');
+    if (dekatBawah || gambar.pertama === undefined) el.scrollTop = el.scrollHeight; gambar.pertama = false; };
+  await gambar(); bukaManajer.t = setInterval(gambar, 15000);
+  $$('[data-saran]').forEach(b => b.onclick = () => { $('#chatTeks').value = b.dataset.saran; $('#chatTeks').focus(); });
+  $('#chatForm').onsubmit = async e => { e.preventDefault(); const t = $('#chatTeks').value.trim(); if (!t) return; $('#chatKirim').disabled = true;
+    try { const r = await rpc('kantor_chat_kirim', { p_token: sesi.baca(), p_isi: t }); if (!r.ok) throw new Error(r.pesan); $('#chatTeks').value = ''; pesan(r.dikirim ? 'Terkirim ke Pak Hadi' : 'Tersimpan, tapi Pak Hadi belum bisa diketuk'); await gambar(); }
+    catch (er) { pesan(er.message); } finally { $('#chatKirim').disabled = false; } };
+  $('#chatTeks').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chatForm').requestSubmit(); } };
+}
 
 /* ---------- muat & mulai ---------- */
 async function muat() { const t = sesi.baca(); if (!t) return layarMasuk();
@@ -523,9 +557,9 @@ async function muat() { const t = sesi.baca(); if (!t) return layarMasuk();
   const p = $('#papan'); if (p) p.innerHTML = papanAngka(); segarLabel(); const kt = $('#kapan'); if (kt) kt.textContent = 'Diperbarui ' + jam(Date.now()) + (MODE === 'kota' ? ' · geser untuk memutar, ketuk gedung untuk melihat isinya' : ' · geser untuk memutar, ketuk karyawan untuk rinciannya'); }
 function mulai() { hentikan();
   akar.innerHTML = `<div id="kantor" style="position:absolute;inset:0"></div><div class="papan" id="papan"></div><div class="keterangan" id="kapan">Memuat…</div>
-    <div class="alat"><button class="pil kecil" id="bMode">${MODE === 'kota' ? 'Lihat kantor' : 'Lihat kota'}</button><button class="pil kecil" id="bMuat">Muat ulang</button><button class="pil kecil" id="bKeluar">Keluar</button></div><div class="tirai" id="tirai"></div>
+    <div class="alat"><button class="pil kecil utama" id="bManajer">Ruang Manajer</button><button class="pil kecil" id="bMode">${MODE === 'kota' ? 'Lihat kantor' : 'Lihat kota'}</button><button class="pil kecil" id="bMuat">Muat ulang</button><button class="pil kecil" id="bKeluar">Keluar</button></div><div class="tirai" id="tirai"></div>
     <div class="game" id="game"><canvas id="gameKanvas"></canvas><button class="pil kecil" id="gKeluar" style="position:absolute;top:max(12px,env(safe-area-inset-top));right:12px">Keluar</button><div class="panel gameHasil" id="gameHasil"></div></div>`;
-  $('#bMuat').onclick = muat; $('#bKeluar').onclick = keluar; $('#tirai').onclick = e => { if (e.target.id === 'tirai') tutupPanel(); };
+  $('#bMuat').onclick = muat; $('#bKeluar').onclick = keluar; $('#bManajer').onclick = bukaManajer; $('#tirai').onclick = e => { if (e.target.id === 'tirai') tutupPanel(); };
   $('#bMode').onclick = () => { MODE = MODE === 'kota' ? 'kantor' : 'kota'; try { localStorage.setItem('kantor-mode', MODE); } catch {} mulai(); };
   (MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); muat(); timer = setInterval(muat, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && sesi.baca()) muat(); }); }

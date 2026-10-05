@@ -9,6 +9,10 @@ const db = new pg.Client({ host: 'aws-0-ap-south-1.pooler.supabase.com', port: 5
 await db.connect();
 try {
   await db.query(fs.readFileSync('D:/Ai Agent/kantor-ai/supabase/konten.sql', 'utf8')); console.log('skema konten terpasang');
+  await db.query(fs.readFileSync('D:/Ai Agent/kantor-ai/supabase/chat.sql', 'utf8')); console.log('skema chat terpasang');
+  if (process.argv.includes('--github')) {   // token GitHub (rahasia/kantor-ai.txt) untuk jembatan Ruang Manajer -> repo laporan-harian
+    const g = (fs.readFileSync('D:/Ai Agent/rahasia/kantor-ai.txt', 'utf8').match(/^GITHUB_TOKEN=(\S+)$/m) || [])[1]; if (!g) throw new Error('GITHUB_TOKEN tidak ada');
+    await db.query("insert into cs_rahasia(nama, nilai) values ('github_token', $1) on conflict (nama) do update set nilai = excluded.nilai, diubah = now()", [g]); console.log(`token GitHub dipasang (${g.length} huruf)`); }
   if (process.argv.includes('--token')) {
     const t = (fs.readFileSync('D:/Ai Agent/rahasia/instagram.txt', 'utf8').match(/^IG_TOKEN=(.+)$/m) || [])[1]?.trim();
     if (!t || t.length < 20) throw new Error('IG_TOKEN kosong di rahasia/instagram.txt');
