@@ -39,6 +39,7 @@ textarea{width:100%;min-height:260px;margin-top:10px;background:var(--bg);color:
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--hijau);color:#0b2a18;padding:12px 18px;border-radius:999px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.tampil{opacity:1}
 @media (max-width:600px){.grid{grid-template-columns:1fr 1fr}h1{font-size:28px}}
+.balas-daftar{display:flex;flex-direction:column;gap:8px;margin-top:10px}.balas-item{border:1px solid var(--garis);border-radius:12px;padding:10px 12px;font-size:14px}.balas-atas{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}.balas-atas span{color:var(--redup)}.balas-isi{margin-top:4px}.balas-rina{margin-top:6px;padding-left:10px;border-left:3px solid var(--aksen,#d9a441);color:var(--redup)}
 .reel-bungkus{margin-top:10px;display:flex;justify-content:center}.reel-bungkus video{width:100%;max-width:300px;aspect-ratio:9/16;border-radius:14px;background:#000;border:1px solid var(--garis)}
 </style>
 </head>
@@ -74,6 +75,7 @@ async function muat() {
         <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--redup);font-size:13.5px">Pasang atau ganti token</summary>
         <p class="sumber">Dari developers.facebook.com, aplikasi Hanif Dossier, menu Instagram, API setup with Instagram login, tombol Generate token. Tempel di sini; nilainya langsung tersimpan ke database dan tidak ditampilkan lagi.</p>
         <div class="baris-aksi"><input id="tokenInput" type="password" placeholder="tempel token di sini" autocomplete="off" style="flex:1;min-width:200px;background:var(--bg);color:var(--teks);border:1px solid var(--garis);border-radius:12px;padding:11px 14px;font:14px var(--sans)"><button class="tombol utama" id="tokenSimpan">Simpan token</button></div></details></div>` : ''}
+      ${sesiKantor() ? `<div class="kartu" id="balasIg" style="margin-bottom:12px"><span class="label">Balas komentar dan DM</span><p class="sumber" id="balasKet" style="margin:6px 0 0">Memeriksa...</p><div id="balasDaftar"></div></div>` : ''}
       <div class="kartu" id="kendali" style="margin-bottom:12px"><span class="label">Kendali posting</span>
         ${D.status === 'terbit' ? `<p class="sumber" style="margin:8px 0 0">Sudah terbit${D.diubah ? '' : ''}. Mengubahnya dilakukan dari Instagram.</p>` : sesiKantor() ? `<div class="baris-aksi">${D.status === 'tahan' ? '<button class="tombol" data-status="draf">Lepas tahanan (posting 17.05)</button>' : '<button class="tombol" data-status="tahan">Tahan, jangan diposting</button>'}<button class="tombol utama" data-status="posting">Posting sekarang</button></div><p class="sumber">"Posting sekarang" dijalankan oleh dispatcher di laptop (saat laptop menyala) atau ikut jadwal 17.05 WIB. ${D.catatan ? 'Catatan: ' + esc(D.catatan) : ''}</p>` : `<p class="sumber" style="margin:8px 0 0">Masuk dulu di <a href="./">Kantor AI</a> dengan sandi pemilik untuk menahan atau memposting sekarang. Tanpa tindakan, draf diposting pukul 17.05 WIB.</p>`}</div>
       ${adaReel ? `<div class="kartu" style="margin-bottom:12px"><span class="label">Reels</span><div class="reel-bungkus"><video src="${DASAR}${D.tanggal}/${D.reel}" controls playsinline muted loop preload="metadata" poster="${DASAR}${D.tanggal}/${D.slides[0]}"></video></div>
@@ -87,6 +89,7 @@ async function muat() {
       <div class="nav"><a class="tombol" href="?t=${geser(D.tanggal, -1)}">← ${esc(geser(D.tanggal, -1))}</a><a class="tombol" href="?t=${geser(D.tanggal, 1)}">${esc(geser(D.tanggal, 1))} →</a></div>`;
     document.querySelectorAll('#kendali [data-status]').forEach(b => b.onclick = async () => { const st = b.dataset.status; if (st === 'posting' && !confirm('Posting draf ini ke Instagram sekarang?')) return; if (st === 'tahan' && !confirm('Tahan draf ini? Rina tidak akan mempostingnya hari ini.')) return;
       b.disabled = true; const j = await rpc('konten_status_set', { p_token: sesiKantor(), p_tanggal: D.tanggal, p_status: st }).catch(() => ({ ok: false, pesan: 'Server tidak menjawab.' })); if (!j.ok) { toast(j.pesan || 'Gagal'); b.disabled = false; return; } toast(st === 'tahan' ? 'Draf ditahan' : st === 'posting' ? 'Perintah posting dikirim' : 'Tahanan dilepas'); setTimeout(muat, 600); });
+    if (document.getElementById('balasIg')) gambarBalas();
     document.querySelectorAll('#pilihFormat [data-format]').forEach(b => b.onclick = async () => { b.disabled = true; const j = await rpc('konten_format_set', { p_token: sesiKantor(), p_tanggal: D.tanggal, p_format: b.dataset.format }).catch(() => ({ ok: false, pesan: 'Server tidak menjawab.' }));
       if (!j.ok) { toast(j.pesan || 'Gagal'); b.disabled = false; return; } toast(b.dataset.format === 'reels' ? 'Akan diposting sebagai Reels' : 'Akan diposting sebagai carousel'); setTimeout(muat, 500); });
     if (document.getElementById('tokenIg')) { rpc('konten_rahasia_ada', { p_token: sesiKantor(), p_nama: 'ig_token' }).then(j => { document.getElementById('tokenKet').textContent = !j.ok ? j.pesan : j.ada ? `Terpasang (${j.panjang} huruf), terakhir diganti ${new Date(j.diubah).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}. Diperbarui otomatis tiap minggu.` : 'Belum terpasang. Rina belum bisa memposting sampai token diisi.'; }).catch(() => {});
@@ -95,6 +98,17 @@ async function muat() {
     document.getElementById('salin').onclick = async () => { const ta = document.getElementById('caption'); try { await navigator.clipboard.writeText(ta.value); toast('Keterangan disalin'); } catch { ta.select(); document.execCommand('copy'); toast('Keterangan disalin'); } };
   } catch (e) { isi.innerHTML = `<h1>Draf <i>postingan</i></h1><div class="kartu kosong">Belum ada draf yang tersimpan. Rina menyusun draf tiap pagi pukul 07.41 WIB.</div>`; }
 }
+// Rina membalas komentar dan DM Instagram (6 Okt 2026): database memeriksa tiap 2 menit, kata-kata ditulis Claude.
+async function gambarBalas() { const j = await rpc('ig_atur_baca', { p_token: sesiKantor() }).catch(() => ({ ok: false, pesan: 'Server tidak menjawab.' })); const ket = document.getElementById('balasKet'); if (!ket) return;
+  if (!j.ok) { ket.textContent = j.pesan || 'Tidak bisa memuat.'; return; }
+  const jam = t => t ? new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+  ket.innerHTML = `${j.aktif ? '<b style="color:var(--hijau)">Aktif.</b> Rina memeriksa Instagram tiap 2 menit dan membalas komentar serta DM baru dalam sekitar 5 menit.' : '<b>Mati.</b> Komentar dan DM tidak dibalas otomatis.'} Hari ini dibalas: ${j.hariIni}${j.menunggu ? ` · sedang diproses: ${j.menunggu}` : ''} · terakhir periksa ${jam(j.terakhir)}.`
+    + `<span class="baris-aksi" style="display:flex;margin-top:8px"><button class="tombol ${j.aktif ? '' : 'utama'}" id="balasTombol">${j.aktif ? 'Matikan balasan otomatis' : 'Nyalakan balasan otomatis'}</button></span>`;
+  const LBL = { baru: 'baru masuk', dikirim: 'sedang ditulis', dibalas: 'dibalas', dilewati: 'dilewati', gagal: 'gagal' };
+  document.getElementById('balasDaftar').innerHTML = (j.pesan || []).length ? `<div class="balas-daftar">${j.pesan.map(m => `<div class="balas-item"><div class="balas-atas"><b>${m.jenis === 'dm' ? 'DM' : 'Komentar'} @${esc(m.dari || '?')}</b><span>${esc(LBL[m.status] || m.status)} · ${esc(jam(m.waktu))}</span></div>
+      <div class="balas-isi">${esc(m.isi || '(gambar atau stiker)')}</div>${m.balasan ? `<div class="balas-rina">Rina: ${esc(m.balasan)}</div>` : ''}${m.catatan ? `<div class="sumber" style="margin:4px 0 0">${esc(m.catatan)}</div>` : ''}</div>`).join('')}</div>`
+    : '<p class="sumber">Belum ada komentar atau DM baru sejak balasan otomatis dinyalakan.</p>';
+  document.getElementById('balasTombol').onclick = async () => { if (j.aktif && !confirm('Matikan balasan otomatis Rina?')) return; const r = await rpc('ig_atur_set', { p_token: sesiKantor(), p_aktif: !j.aktif }).catch(() => ({ ok: false })); toast(r.ok ? (r.aktif ? 'Balasan otomatis menyala' : 'Balasan otomatis mati') : 'Gagal'); gambarBalas(); }; }
 muat();
 </script>
 </body>
