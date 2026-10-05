@@ -118,7 +118,7 @@ const AGEN = [
   { kode: 'kabar', nama: 'Wati', peran: 'Pembaca kabar blog resmi proyek', jadwal: 'saat disuruh atau menyusul pagi', sumber: 'GitHub Actions', warna: 0xc98f3a, rambut: 0x1a1a1a },
   { kode: 'kurir', nama: 'Joko', peran: 'Kurir briefing ke gudang anggota', jadwal: 'tiap routine mendorong hasil', sumber: 'GitHub Actions', warna: 0x3a8fc9, rambut: 0x2b1b12 },
   { kode: 'cs', nama: 'Dina', peran: 'Resepsionis situs Hanif Dossier (kotak chat)', jadwal: '24 jam, tiap pengunjung bertanya', sumber: 'Supabase + Gemini', warna: 0xd46a8a, rambut: 0x2b1b12 },
-  { kode: 'sosmed', nama: 'Rina', peran: 'Social media: draf postingan Instagram harian', jadwal: 'jadwal 07.35, posting 17.05', sumber: 'Routine Claude + GitHub Actions', warna: 0x6fb3a0, rambut: 0x1a1a1a },
+  { kode: 'sosmed', nama: 'Rina', peran: 'Social media: postingan harian (carousel atau Reels), balas komentar dan DM Instagram', jadwal: 'draf 07.35, posting 17.05, balas tiap 2 menit', sumber: 'Routine Claude + Supabase + GitHub Actions', warna: 0x6fb3a0, rambut: 0x1a1a1a },
   { kode: 'manajer', nama: 'Pak Hadi', peran: 'Manajer: menerima perintah pemilik, membagi, memeriksa', jadwal: 'tiap ada pesan, periksa pagi 08.30', sumber: 'Routine Claude', warna: 0x4a5a8a, rambut: 0x3a3a3a },
   { kode: 'cadangan', nama: 'Dewi', peran: 'Penjaga cadangan database', jadwal: 'jadwal 02.17', sumber: 'GitHub Actions', warna: 0x7a6fb3, rambut: 0x2b1b12 },
   { kode: 'claude-code', nama: 'Tim Studio', peran: 'Agen Claude Code lainnya (Explore, Plan, dll.)', jadwal: 'saat disuruh', sumber: 'Claude Code', warna: 0x5e8c8c, rambut: 0x3b2a1a },
@@ -588,7 +588,7 @@ function tutupPanel() { pilih = null; $('#tirai').classList.remove('buka'); clea
 // Manajer; Pak Hadi mengerjakannya dalam lingkup pekerjaan karyawan itu dan membalas atas nama karyawan tersebut.
 const SARAN_AGEN = { _: ['Apa yang kamu kerjakan hari ini?', 'Jalankan sekarang'],
   radar: ['Jalankan radar sekarang', 'Ada peringatan apa hari ini?', 'Koin mana yang paling turun?'],
-  sosmed: ['Susun ulang draf hari ini', 'Tahan posting hari ini', 'Buat postingan tentang Bitcoin besok'],
+  sosmed: ['Posting hari ini sebagai Reels', 'Susun ulang draf hari ini', 'Tahan posting hari ini', 'Ada komentar atau DM baru?'],
   briefing: ['Ringkas briefing hari ini', 'Apa yang paling penting di pasar hari ini?'],
   bahan: ['Siapkan bahan briefing lagi', 'Sumber apa saja yang dipakai hari ini?'],
   altcoin: ['Screening ulang altcoin', 'Koin apa yang naik paling kencang pekan ini?'],
