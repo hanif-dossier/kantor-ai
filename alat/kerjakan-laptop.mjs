@@ -12,7 +12,8 @@ const SB = 'https://hzxfheydtrjhizbwbddh.supabase.co', ANON = 'sb_publishable_3c
 const KUNCI = process.env.KANTOR_KUNCI || (() => { try { return (fs.readFileSync('D:/Ai Agent/rahasia/kantor-ai.txt', 'utf8').match(/^KANTOR_KUNCI=(\S+)$/m) || [])[1] || ''; } catch { return ''; } })();
 const CLAUDE = path.join(process.env.APPDATA || '', 'npm/node_modules/@anthropic-ai/claude-code/bin/claude.exe');
 const KUNCI_BERKAS = path.join(os.tmpdir(), 'kantor-pekerja-laptop.lock'), BATAS_MENIT = 30;
-const NAMA = { 'juru-catat-ofu': 'Umar, juru catat OFU (usaha minyak)', 'juru-invoice-nta': 'Lina, juru invoice NTA', 'mentor-ofu': 'Pak Wira, mentor juru catat OFU', 'claude-code': 'Tim Studio' };
+const NAMA = { 'juru-catat-ofu': 'Umar, juru catat OFU (usaha minyak)', 'juru-invoice-nta': 'Lina, juru invoice NTA', 'mentor-ofu': 'Pak Wira, mentor juru catat OFU', 'claude-code': 'Tim Studio',
+  peneliti: 'Agus, peneliti (mengumpulkan fakta bersumber dari web dan berkas)', analis: 'Maya, analis (mengubah fakta jadi temuan)', penulis: 'Reza, penulis (menyusun tulisan jadi)', pemeriksa: 'Nina, pemeriksa (mencocokkan tulisan dengan sumbernya)' };
 const rpc = async (fn, body) => { const r = await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) }); return r.json().catch(() => ({ ok: false })); };
 
 // Alat yang boleh dipakai tanpa ditanya; penghapusan dan push paksa ditolak. Sisanya ditolak otomatis (mode -p tidak bisa bertanya).
