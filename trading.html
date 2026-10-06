@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b0f14">
+<title>Setup Trading Raka</title>
+<!-- Raka (agen `setup`, 6 Okt 2026): setup trading altcoin yang lolos saringan ketat dari repo potret-pasar-crypto.
+     Data dari tabel trading_setup lewat RPC trading_setup_baca (sesi pemilik Kantor AI). Halaman pribadi, bukan situs publik. -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{--bg:#0b0f14;--panel:#121923;--panel2:#18222e;--garis:rgba(200,215,230,.1);--teks:#eef3f7;--redup:#9fb0c0;--samar:#66788a;--aksen:#f0b35a;--hijau:#6fd39a;--merah:#f28b7d;--biru:#7fb6ff;
+  --serif:'Instrument Serif',Georgia,serif;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--teks);font:15px/1.55 var(--sans);min-height:100vh;padding:0 16px calc(32px + env(safe-area-inset-bottom))}
+a{color:inherit}.wadah{max-width:980px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 10px}
+header a.kembali{text-decoration:none;color:var(--redup);font-size:13.5px;padding:8px 12px;border:1px solid var(--garis);border-radius:999px}
+h1{font:400 34px/1.1 var(--serif);margin:14px 0 4px}h1 i{color:var(--aksen)}h2{font:400 24px/1.2 var(--serif);margin:22px 0 10px}
+.ket{color:var(--redup);margin:0 0 16px;max-width:66ch}
+.pil{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--panel2);border:1px solid var(--garis);font-size:12.5px;color:var(--redup)}
+.kartu{background:var(--panel);border:1px solid var(--garis);border-radius:18px;padding:16px}
+.label{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--samar);font-weight:700}
+.rapor{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.rapor .kartu{padding:12px 14px}.rapor b{display:block;font:700 22px var(--mono);margin-top:4px}
+.hari{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.hari button{font:600 13px var(--sans);padding:7px 12px;border-radius:999px;border:1px solid var(--garis);background:var(--panel2);color:var(--redup);cursor:pointer}.hari button.aktif{background:var(--aksen);color:#1a1206;border-color:var(--aksen)}
+.setup{border-left:4px solid var(--hijau)}.setup.mesin{border-left-color:var(--biru)}
+.setup h3{margin:0;font-size:19px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.setup h3 small{color:var(--redup);font-weight:500;font-size:13px}
+.rencana{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}.rencana div{background:var(--panel2);border-radius:12px;padding:9px 11px}.rencana span{display:block;font-size:11px;color:var(--samar);text-transform:uppercase;letter-spacing:.1em;font-weight:700}.rencana b{font:700 15px var(--mono)}
+.rencana .batal b{color:var(--merah)}.rencana .sasaran b{color:var(--hijau)}
+.bukti{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tabel{width:100%;border-collapse:collapse;font-size:13.5px}.tabel th,.tabel td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--garis);vertical-align:top}.tabel th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--samar)}
+.bungkus-tabel{overflow-x:auto}
+.teks{white-space:pre-wrap;font-size:14px;line-height:1.6;color:var(--redup)}
+.status{font-weight:700}.status.menang{color:var(--hijau)}.status.kalah{color:var(--merah)}
+.kosong{padding:28px 16px;text-align:center;color:var(--redup)}
+.tumpuk{display:flex;flex-direction:column;gap:12px}
+.catatan{font-size:12.5px;color:var(--samar);margin-top:14px}
+@media (max-width:600px){h1{font-size:28px}.rapor{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wadah">
+  <header><a class="kembali" href="./">← Kantor AI</a><span class="pil">Raka · setup trading</span></header>
+  <div id="isi"><div class="kosong">Memuat setup…</div></div>
+</div>
+<script>
+const SB = 'https://hzxfheydtrjhizbwbddh.supabase.co', ANON = 'sb_publishable_3c_5VhfP4Z9g1dSU9c00HQ_0QkuiHTm';
+const rpc = async (fn, body) => (await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+const sesi = () => { try { return localStorage.getItem('kantor-sesi'); } catch { return null; } };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const usd = n => n == null ? '-' : '$' + (+n).toLocaleString('en-US', { maximumFractionDigits: n < 1 ? 5 : n < 100 ? 3 : 2 });
+const pct = n => n == null ? '-' : (n > 0 ? '+' : '') + (+n).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + '%';
+const tglP = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+let HARI = [], pilih = 0;
+const kotakRencana = (R, rr) => `<div class="rencana"><div><span>Zona masuk</span><b>${usd(R.zona ? R.zona[0] : R.masuk)} sampai ${usd(R.zona ? R.zona[1] : R.masuk)}</b></div><div class="batal"><span>Batal di bawah</span><b>${usd(R.batal)}</b></div>
+  <div class="sasaran"><span>Sasaran 1</span><b>${usd(R.sasaran1)}</b></div><div class="sasaran"><span>Sasaran 2</span><b>${usd(R.sasaran2)}</b></div><div><span>Risiko</span><b>${R.risiko != null ? pct(-R.risiko * 100) : '-'}</b></div><div><span>Imbal / risiko</span><b>${(+(rr ?? R.rr)).toFixed(1)}</b></div></div>`;
+function gambar() { const el = document.getElementById('isi'), d = HARI[pilih];
+  if (!d) { el.innerHTML = '<h1>Setup <i>trading</i></h1><div class="kartu kosong">Belum ada hasil. Mesin Raka berjalan tiap pagi 05.07 WIB, riset dan daftar final 06.45 WIB.</div>'; return; }
+  const M = d.mesin || {}, F = d.final || [], rap = (HARI.find(h => h.rapor) || {}).rapor || {}, Rg = rap.ringkas || {};
+  el.innerHTML = `<h1>Setup <i>trading</i></h1>
+    <p class="ket">Raka menyaring 750 altcoin tiap pagi dengan aturan ketat: cukup cair, belum pump, dilusi wajar, tidak sedang runtuh, minimal tiga bukti yang datang sebelum harga, dan rencana dengan imbal/risiko paling sedikit 2,5. Setelah itu kandidat diriset (unlock, kabar buruk, pemicu) sebelum masuk daftar final. Nol setup adalah hasil yang sah.</p>
+    <div class="rapor"><div class="kartu"><span class="label">Setup final selesai</span><b>${Rg.tutup ?? 0} dari ${Rg.n ?? 0}</b></div><div class="kartu"><span class="label">Winrate</span><b>${Rg.winrate != null ? Rg.winrate + '%' : '-'}</b></div>
+      <div class="kartu"><span class="label">Rata-rata hasil</span><b>${Rg.rataR != null ? Rg.rataR + 'R' : '-'}</b></div><div class="kartu"><span class="label">Total</span><b>${Rg.totalR != null ? Rg.totalR + 'R' : '-'}</b></div></div>
+    <p class="catatan">R = kelipatan risiko. Kena batal dulu dihitung -1R, kena sasaran 1 dulu dihitung +imbal/risiko, lewat 14 hari dihitung pada harga terakhir.</p>
+    <div class="hari" style="margin-top:16px">${HARI.map((h, i) => `<button class="${i === pilih ? 'aktif' : ''}" data-i="${i}">${esc(tglP(h.tanggal))}</button>`).join('')}</div>
+    <h2>Daftar final Raka</h2>
+    ${F.length ? `<div class="tumpuk">${F.map(x => `<div class="kartu setup"><h3>${esc(x.simbol)} <small>${esc(x.alasan || '')}</small></h3>${kotakRencana(x, x.rr)}${x.batal_kalau ? `<div class="ket" style="margin:0"><b style="color:var(--merah)">Batal kalau:</b> ${esc(x.batal_kalau)}</div>` : ''}</div>`).join('')}</div>`
+      : d.teks ? '<div class="kartu kosong">Tidak ada setup final hari ini. Alasannya ada di catatan Raka di bawah.</div>' : '<div class="kartu kosong">Raka belum menulis daftar final untuk hari ini (jadwal 06.45 WIB). Kandidat mesin di bawah belum diriset.</div>'}
+    ${d.teks ? `<details class="kartu" style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Catatan riset Raka</summary><div class="teks" style="margin-top:10px">${esc(d.teks)}</div></details>` : ''}
+    <h2>Kandidat mesin <span class="pil">${(M.kandidat || []).length} lolos penuh</span></h2>
+    ${(M.kandidat || []).length ? `<div class="tumpuk">${M.kandidat.map(x => `<div class="kartu setup mesin"><h3>${esc(x.simbol)} <small>${esc(x.nama)} · peringkat ${x.peringkat} · 7 hari ${pct(x.u7)} · 30 hari ${pct(x.u30)}</small></h3>
+        <div class="bukti">${x.bukti.map(b => `<span class="pil" title="${esc(b.isi)}">${esc(b.nama)}</span>`).join('')}</div>${kotakRencana(x.rencana)}
+        <div class="ket" style="margin:0;font-size:13px">${x.bukti.map(b => esc(b.nama) + ': ' + esc(b.isi)).join('<br>')}</div></div>`).join('')}</div>` : '<div class="kartu kosong">Tidak ada koin yang lolos semua gerbang hari ini.</div>'}
+    <h2>Siaga <span class="pil">dipantau, belum layak masuk</span></h2>
+    ${(M.siaga || []).length ? `<div class="kartu bungkus-tabel"><table class="tabel"><thead><tr><th>Koin</th><th>7 hari</th><th>Bukti</th><th>Imbal/risiko</th><th>Yang masih kurang</th></tr></thead><tbody>${M.siaga.map(x => `<tr><td><b>${esc(x.simbol)}</b></td><td>${pct(x.u7)}</td><td>${esc(x.bukti.join(', '))}</td><td>${x.rr}</td><td>${esc(x.kurang.join('; '))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="kartu kosong">Kosong.</div>'}
+    ${M.gugur ? `<h2>Saringan hari itu</h2><div class="kartu bungkus-tabel"><table class="tabel"><tbody>${Object.entries(M.gugur).map(([k, v]) => `<tr><td>${esc(k)}</td><td style="text-align:right;font-family:var(--mono)">${v} gugur</td></tr>`).join('')}<tr><td><b>Diperiksa</b></td><td style="text-align:right;font-family:var(--mono)"><b>${M.diperiksa ?? '-'}</b></td></tr></tbody></table></div>` : ''}
+    ${(rap.setup || []).length ? `<h2>Riwayat setup final</h2><div class="kartu bungkus-tabel"><table class="tabel"><thead><tr><th>Tanggal</th><th>Koin</th><th>Masuk</th><th>Batal</th><th>Sasaran 1</th><th>Hasil</th></tr></thead><tbody>${rap.setup.slice().reverse().map(s => `<tr><td>${esc(s.tanggal)}</td><td><b>${esc(s.simbol)}</b></td><td>${usd(s.masuk)}</td><td>${usd(s.batal)}</td><td>${usd(s.sasaran1)}</td><td class="status ${esc(s.status)}">${esc(s.status)} ${s.status !== 'terbuka' ? (s.R > 0 ? '+' : '') + s.R + 'R' : '(' + s.hari + ' hari)'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    <p class="catatan">Bukan ajakan beli atau jual. Riset, bukan nasihat investasi berizin; besar posisi keputusan pemilik uang.</p>`;
+  document.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { pilih = +b.dataset.i; gambar(); }); }
+(async () => { const el = document.getElementById('isi'); if (!sesi()) { el.innerHTML = '<h1>Setup <i>trading</i></h1><div class="kartu kosong">Masuk dulu di <a href="./">Kantor AI</a> dengan sandi pemilik. Halaman ini pribadi.</div>'; return; }
+  const r = await rpc('trading_setup_baca', { p_token: sesi(), p_jumlah: 14 }).catch(() => ({ ok: false, pesan: 'Server tidak menjawab.' }));
+  if (!r.ok) { el.innerHTML = `<div class="kartu kosong">${esc(r.pesan || 'Gagal memuat.')}</div>`; return; } HARI = r.hari || []; gambar(); })();
+</script>
+</body>
+</html>
