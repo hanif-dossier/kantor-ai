@@ -678,7 +678,8 @@ function bangunKota(wadah) {
       const l = document.createElement('div'); l.className = 'label istirahat kecil'; l.innerHTML = `<div class="nama">${esc(a.nama)}</div>`; l.onclick = () => bukaPanel(a); labels.appendChild(l); o.label = l; o.x = kedai.x + x; o.z = kedai.z + z; kedai.orang[a.kode] = o; });
     kedai.label.innerHTML = `<div class="gelembung">${nongkrong.length ? nongkrong.length + ' orang lagi ngopi' : 'sepi, semua lagi kerja'}</div><div class="nama">Kedai Kopi</div>`;
     const rekor = +(localStorage.getItem('kantor-rekor') || 0);
-    arkade.label.innerHTML = `<div class="gelembung">Tangkap koin, 30 detik${rekor ? ' · rekor ' + rekor : ''}</div><div class="nama">Arkade</div>`;
+    const rekorFps = +(localStorage.getItem('kantor-fps-rekor') || 0);
+    arkade.label.innerHTML = `<div class="gelembung">Operasi Brankas dan tangkap koin${rekorFps ? ' · rekor ' + rekorFps.toLocaleString('id-ID') : rekor ? ' · rekor ' + rekor : ''}</div><div class="nama">Arkade</div>`;
     galeri.label.innerHTML = `<div class="gelembung">${PRODUK.web2.length} produk Web2 · ${PRODUK.web3.length} produk Web3</div><div class="nama">Galeri</div>`;
     const taman = GEDUNG.find(g => g.jenis === 'taman'); if (taman) taman.label.innerHTML = `<div class="gelembung">Lahan untuk gedung berikutnya</div><div class="nama">Taman</div>`; }
   const v3 = new THREE.Vector3(); let t0 = performance.now();
@@ -729,7 +730,7 @@ function papanTeks(teks, latar, tinta, w = 4, h = 1) { const c = document.create
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.encoding = THREE.sRGBEncoding; return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t })); }
 
 /* ---------- panel gedung, galeri, permainan ---------- */
-function bukaGedung(g) { if (g.jenis === 'arkade') return mulaiGame();
+function bukaGedung(g) {
   const K = Object.fromEntries(AGEN.map(a => [a.kode, keadaan(a)])); let isi = '';
   if (g.agen) { const kosong = (g.lantaiTambahan || 0);
     isi = `<div class="peran">${g.agen.length + kosong} lantai · ${g.agen.length} karyawan${kosong ? ` · ${kosong} lantai kosong` : ''}</div><div class="sub">Siapa di gedung ini</div>` +
@@ -737,11 +738,17 @@ function bukaGedung(g) { if (g.jenis === 'arkade') return mulaiGame();
       `<div style="font-size:12px;color:var(--redup);margin-top:10px">Satu lantai satu karyawan. Jendela menyala hijau saat kerja, kuning kalau selesai hari ini, merah kalau gagal. Ketuk nama untuk riwayatnya.</div>`; }
   else if (g.jenis === 'kedai') { const n = AGEN.filter(a => K[a.kode].st === 'istirahat');
     isi = `<div class="peran">Tempat nongkrong karyawan yang sedang tidak ada tugas</div><div class="sub">Lagi ngopi</div>` + (n.map(a => `<div class="baris pilihA" data-k="${a.kode}"><span><b>${esc(a.nama)}</b><small>${esc(K[a.kode].teks)}</small></span><span class="kanan">${esc(a.peran)}</span></div>`).join('') || '<div class="baris"><span style="color:var(--redup)">Kosong. Semua sedang bekerja.</span></div>'); }
+  else if (g.jenis === 'arkade') { const rf = +(localStorage.getItem('kantor-fps-rekor') || 0), rk = +(localStorage.getItem('kantor-rekor') || 0);
+    // 6 Okt 2026: Operasi Brankas, tembak-tembakan sudut pandang pertama (arkade.html); tangkap koin tetap ada.
+    isi = `<div class="peran">Dua permainan, rekor disimpan di perangkat ini</div>
+      <div class="baris"><span><b>Operasi Brankas</b><small>Tembak-tembakan sudut pandang pertama. Bot peretas menyerbu gudang, tahan mereka gelombang demi gelombang. Senapan dan pistol, bidik, isi peluru.${rf ? ' Rekor ' + rf.toLocaleString('id-ID') + ' poin.' : ''}</small></span><span class="kanan"><a class="pil hijau kecil" href="arkade.html" style="text-decoration:none">Main</a></span></div>
+      <div class="baris"><span><b>Tangkap Koin</b><small>Geser keranjang, koin emas tambah satu, token merah kurang tiga, 30 detik.${rk ? ' Rekor ' + rk + ' koin.' : ''}</small></span><span class="kanan"><button class="pil kecil" id="bKoin">Main</button></span></div>`; }
   else if (g.jenis === 'galeri') { const kartu = p => `<a class="kartu" href="${esc(p.url)}" target="_blank" rel="noopener"><b>${esc(p.nama)}</b><small>${esc(p.ket)}</small><span>${esc(p.url.replace('https://', ''))}</span></a>`;
     isi = `<div class="peran">Semua produk yang dibangun karyawan di kota ini</div><div class="sub" style="color:var(--biru)">Web2</div><div class="kisi">${PRODUK.web2.map(kartu).join('')}</div><div class="sub" style="color:var(--kuning)">Web3</div><div class="kisi">${PRODUK.web3.map(kartu).join('')}</div>`; }
   else isi = `<div class="peran">Lahan kosong</div><div style="font-size:14px">Gedung berikutnya dibangun di sini saat ada karyawan AI baru.</div>`;
   $('#tirai').innerHTML = `<div class="panel"><h2>${esc(g.nama)}</h2>${isi}<div class="aksi"><button class="pil" id="bTutup">Tutup</button></div></div>`;
-  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel; $$('.pilihA').forEach(el => el.onclick = () => bukaPanel(agenKode(el.dataset.k))); }
+  $('#tirai').classList.add('buka'); $('#bTutup').onclick = tutupPanel; $$('.pilihA').forEach(el => el.onclick = () => bukaPanel(agenKode(el.dataset.k)));
+  if ($('#bKoin')) $('#bKoin').onclick = () => { tutupPanel(); mulaiGame(); }; }
 let GAME = null;
 // Tangkap koin: geser keranjang, koin emas +1, token merah -3, 30 detik. Rekor disimpan di HP ini saja.
 function mulaiGame() { const ov = $('#game'); ov.style.display = 'block'; $('#gameHasil').style.display = 'none'; const cv = $('#gameKanvas'), ctx = cv.getContext('2d');
