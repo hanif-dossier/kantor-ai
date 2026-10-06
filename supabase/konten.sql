@@ -103,3 +103,18 @@ begin
 end $$;
 grant execute on function public.konten_format_tulis(text, date, text) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- Pemicu posting tepat waktu (6 Okt 2026): cron GitHub 17.05 WIB pernah telat 9 jam. pg_cron 10:05 UTC (17.05 WIB)
+-- menyalakan ig-posting.yml lewat workflow_dispatch (pg_net, token github_token di cs_rahasia). Cron GitHub tetap
+-- cadangan; skrip berhenti sendiri kalau draf sudah terbit, ditahan, atau jadwal jalan di luar 16.00-23.59 WIB.
+create or replace function public.konten__picu_posting() returns bigint language plpgsql security definer set search_path = public, extensions as $$
+declare tok text;
+begin
+  select nilai into tok from cs_rahasia where nama = 'github_token'; if tok is null then return null; end if;
+  return net.http_post('https://api.github.com/repos/hanif-dossier/laporan-harian/actions/workflows/ig-posting.yml/dispatches',
+    jsonb_build_object('ref', 'main'), '{}'::jsonb,
+    jsonb_build_object('Authorization', 'Bearer ' || tok, 'Accept', 'application/vnd.github+json', 'User-Agent', 'kantor-ai', 'Content-Type', 'application/json'), 15000);
+end $$;
+revoke all on function public.konten__picu_posting() from public, anon, authenticated;
+select cron.unschedule(jobid) from cron.job where jobname = 'rina-posting-1705';
+select cron.schedule('rina-posting-1705', '5 10 * * *', $c$select public.konten__picu_posting()$c$);
