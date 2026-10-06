@@ -212,6 +212,12 @@ function bangunKantor(wadah) {
   const emas = bahan(0xc9a24a, { roughness: .26, metalness: .92 }), daunM = [0x3f8f4a, 0x5c9a49, 0x7fb556];
   const pohon = (x, z, s = 1, y = 0) => { silinder(.55 * s, .42 * s, .9 * s, 0xf3f1ec, x, y + .45 * s, z).material.roughness = .22; const lis = new THREE.Mesh(new THREE.TorusGeometry(.55 * s, .04, 8, 32), emas); lis.rotation.x = Math.PI / 2; lis.position.set(x, y + .9 * s, z); scene.add(lis);
     kotak(.12 * s, 1.1 * s, .12 * s, 0x6b4a2e, x, y + 1.4 * s, z); bola(.95 * s, daunM[0], x, y + 2.2 * s, z); bola(.7 * s, daunM[1], x + .45 * s, y + 2.6 * s, z - .2 * s); bola(.6 * s, daunM[2], x - .4 * s, y + 2.55 * s, z + .25 * s); };
+  // permadani dari kanvas: warna dasar, bingkai emas berlapis, motif belah ketupat halus (6 Okt 2026, "semua ruangan lebih mewah")
+  const permadani = (w, d, dasar, x, y, z, motif = 'ketupat') => { const c = document.createElement('canvas'), PX2 = 96; c.width = Math.round(w * PX2 / 2); c.height = Math.round(d * PX2 / 2); const g2 = c.getContext('2d'), W2 = c.width, H2 = c.height;
+    g2.fillStyle = dasar; g2.fillRect(0, 0, W2, H2); g2.strokeStyle = '#c9a24a'; [[10, 5], [22, 1.5], [28, 1.5]].forEach(([p, lw]) => { g2.lineWidth = lw; g2.strokeRect(p, p, W2 - 2 * p, H2 - 2 * p); });
+    g2.strokeStyle = 'rgba(201,162,74,.22)'; g2.lineWidth = 1.2; if (motif === 'ketupat') for (let i = -H2; i < W2; i += 26) { g2.beginPath(); g2.moveTo(i, 36); g2.lineTo(i + H2, H2 - 36); g2.stroke(); g2.beginPath(); g2.moveTo(i + H2, 36); g2.lineTo(i, H2 - 36); g2.stroke(); }
+    else for (let i = 0; i < 8; i++) { g2.beginPath(); g2.arc(W2 / 2, H2 / 2, 18 + i * 16, 0, 7); g2.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: t, roughness: .95 })); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; };
   const tekMarmerK = (() => { const c = document.createElement('canvas'); c.width = c.height = 1024; const x = c.getContext('2d'); x.fillStyle = '#efece6'; x.fillRect(0, 0, 1024, 1024);
     for (let i = 0; i < 40; i++) { x.strokeStyle = `rgba(150,140,128,${.12 + Math.random() * .25})`; x.lineWidth = .8 + Math.random() * 2.5; x.beginPath(); let px = Math.random() * 1024, py = Math.random() * 1024; x.moveTo(px, py); for (let k = 0; k < 9; k++) { px += (Math.random() - .3) * 140; py += (Math.random() - .5) * 110; x.lineTo(px, py); } x.stroke(); }
     x.strokeStyle = 'rgba(160,150,135,.35)'; x.lineWidth = 2; for (let i = 0; i <= 1024; i += 256) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 1024); x.stroke(); x.beginPath(); x.moveTo(0, i); x.lineTo(1024, i); x.stroke(); }
@@ -235,27 +241,29 @@ function bangunKantor(wadah) {
 
   // ----- balkon lantai 2: pelat, karpet, tiang, pagar kaca (celah di atas tangga), tangga di kanan
   const dalamBalkon = BALKON_Z + D / 2, tengahBalkon = (BALKON_Z - D / 2) / 2;
-  kotak(W, .4, dalamBalkon, 0xf3f0ea, 0, LT2 - .2, tengahBalkon); const karpetAtas = kotak(W - 1.2, .04, 2.6, 0xb9a58a, -.6, LT2 + .02, BALKON_Z - 1.4, false); karpetAtas.material.roughness = .35;
+  kotak(W, .4, dalamBalkon, 0xf3f0ea, 0, LT2 - .2, tengahBalkon); const karpetAtas = kotak(W - 1.2, .04, 2.6, 0x1b2638, -.6, LT2 + .02, BALKON_Z - 1.4, false); karpetAtas.material.roughness = .9; [-1.15, 1.15].forEach(dz => KI.kk(emas, W - 1.4, .02, .06, -.6, LT2 + .045, BALKON_Z - 1.4 + dz, 0, false));
   { const led = new THREE.Mesh(new THREE.BoxGeometry(W - .4, .05, .05), bahan(0x222222, { emissive: 0xfff0d2, emissiveIntensity: MALAM ? 2.4 : 1 })); led.position.set(0, LT2 - .43, BALKON_Z + .02); scene.add(led);
     for (const zz of [-10, -15.5, -21]) for (let x = -26; x <= 22; x += 4) { const dl = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, .03, 16), bahan(0x222222, { emissive: 0xffe6c0, emissiveIntensity: MALAM ? 2 : .8 })); dl.position.set(x, LT2 - .42, zz); scene.add(dl); } }
   [-25, -12, 0, 12].forEach(x => silinder(.25, .25, LT2 - .4, 0x8d8d8d, x, (LT2 - .4) / 2, BALKON_Z + .3));
   const pagar = (x1, x2) => { const w = x2 - x1, cx = (x1 + x2) / 2; kaca(w, 1.1, .06, cx, LT2 + .55, BALKON_Z - .05); KI.kk(emas, w, .08, .12, cx, LT2 + 1.12, BALKON_Z - .05, 0, false); };
   pagar(-W / 2, TANGGA_X - 1.3);
-  const anak = (AISLE_Z - BALKON_Z) / 15; for (let i = 0; i < 15; i++) { const h = (i + 1) * .5; kotak(2.6, h, anak, i % 2 ? 0xb08a5c : 0xa67f52, TANGGA_X, h / 2, AISLE_Z - (i + .5) * anak); }
-  kotak(.08, .08, Math.hypot(LT2, AISLE_Z - BALKON_Z), 0x2b3c55, TANGGA_X - 1.3, LT2 / 2 + 1.1, (AISLE_Z + BALKON_Z) / 2, false).rotation.x = Math.atan2(LT2, AISLE_Z - BALKON_Z);
+  const anak = (AISLE_Z - BALKON_Z) / 15; for (let i = 0; i < 15; i++) { const h = (i + 1) * .5; const t = kotak(2.6, h, anak, i % 2 ? 0xf1ede6 : 0xe6e0d6, TANGGA_X, h / 2, AISLE_Z - (i + .5) * anak); t.material.roughness = .16; KI.kk(emas, 2.62, .03, .04, TANGGA_X, h + .005, AISLE_Z - (i + 1) * anak + .02, 0, false); }
+  { const r = kotak(.09, .09, Math.hypot(LT2, AISLE_Z - BALKON_Z), 0xc9a24a, TANGGA_X - 1.3, LT2 / 2 + 1.1, (AISLE_Z + BALKON_Z) / 2, false); r.rotation.x = Math.atan2(LT2, AISLE_Z - BALKON_Z); Object.assign(r.material, { metalness: .9, roughness: .26 }); }
 
   // ----- lantai 1: zona kategori, meja, karyawan
   const PX = 5.8, PZ = 5.6, orang = [], dapatDiketuk = [], penanda = [];
-  const mejaKerja = (x, z, i, y = 0) => { kotak(2.6, .12, 1.3, 0xf2efe9, x, y + 1.3, z); [-1.1, 1.1].forEach(dx => [-.5, .5].forEach(dz => kotak(.08, 1.24, .08, 0x23262b, x + dx, y + .64, z + dz)));
+  const marmerMeja = bahan(0xf3efe8, { roughness: .14, metalness: .05 }), walnutMeja = bahan(0x3d2618, { roughness: .42 }), kulitHitam = bahan(0x1d1d20, { roughness: .4 });
+  const mejaKerja = (x, z, i, y = 0) => { KI.kk(marmerMeja, 2.6, .1, 1.3, x, y + 1.3, z); [-1.22, 1.22].forEach(dx => KI.kk(walnutMeja, .1, 1.24, 1.2, x + dx, y + .64, z)); KI.kk(walnutMeja, 2.34, .8, .06, x, y + .85, z + .58);
+    KI.kk(emas, 2.62, .03, .03, x, y + 1.3, z - .66, 0, false); KI.kk(emas, .04, .38, .04, x + 1.05, y + 1.54, z + .45); bola(.07, 0xfff3dc, x + 1.05, y + 1.75, z + .42, 0xffe2b0);
     kotak(1.1, .7, .06, 0x1c1c1c, x, y + 1.75, z + .35); kotak(.3, .25, .2, 0x3a3a3a, x, y + 1.42, z + .35); kotak(.8, .04, .3, 0xd9d9d9, x, y + 1.38, z - .2, false);
-    if (i % 2) kotak(.22, .26, .22, [0xd13b3b, 0x3b6fd1, 0xf3c550][i % 3], x + 1, y + 1.5, z - .2); else { kotak(.3, .3, .3, 0xa0522d, x - 1, y + 1.52, z + .25); bola(.3, 0x3f8f4a, x - 1, y + 1.9, z + .25); }
-    kotak(.9, .12, .9, 0x2b3c55, x, y + .9, z - 1.1); kotak(.9, 1, .12, 0x2b3c55, x, y + 1.45, z - 1.5); kotak(.1, .84, .1, 0x555555, x, y + .42, z - 1.1); };
+    if (i % 2) silinder(.1, .08, .24, 0xf3efe8, x + 1, y + 1.47, z - .2); else { silinder(.17, .13, .3, 0xf3efe8, x - 1, y + 1.5, z + .25); bola(.3, 0x3f8f4a, x - 1, y + 1.88, z + .25); }
+    KI.kk(kulitHitam, .9, .14, .9, x, y + .9, z - 1.1); KI.kk(kulitHitam, .9, 1.25, .14, x, y + 1.55, z - 1.52); KI.kk(emas, .08, .84, .08, x, y + .42, z - 1.1); KI.kk(emas, .7, .04, .7, x, y + .04, z - 1.1, 0, false); };
   const tambahOrang = (a, x, z, y, celah, tetap = false) => { const o = buatOrang(a); o.g.position.set(x, y - .08, z); o.g.rotation.y = Math.PI; o.g.userData.agen = a; scene.add(o.g); dapatDiketuk.push(o.g);
     orang.push({ a, o, kursi: { x, z, y }, celah, tetap, pos: new THREE.Vector3(x, y, z), path: [], rute: null, mode: 'santai', fase: Math.random() * 7, jadwal: 0, tempat: null }); };
   const labels = document.createElement('div'); labels.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; wadah.appendChild(labels);
   const tandai = (html, kelas, x, y, z, klik) => { const l = document.createElement('div'); l.className = 'label ' + kelas; l.innerHTML = html; if (klik) { l.style.pointerEvents = 'auto'; l.style.cursor = 'pointer'; l.onclick = klik; } labels.appendChild(l); penanda.push({ l, x, y, z, kiri: kelas.includes('kiri') }); return l; };
   ZONA.forEach(zn => { const n = zn.agen.length, cols = n <= 2 ? n : n === 4 ? 2 : 3, rows = Math.ceil(n / cols), lebarZ = cols * PX + 1.8, dalam = rows * PZ + 1.2, depan = zn.z + dalam / 2;
-    kotak(lebarZ, .05, dalam, zn.warna, zn.x, .03, zn.z, false);
+    { const c3 = new THREE.Color(zn.warna).multiplyScalar(.82); permadani(lebarZ, dalam, '#' + c3.getHexString(), zn.x, .03, zn.z); }
     const lukis = papanTeks(zn.nama.toUpperCase(), '#1a2430', '#ffffff', Math.min(lebarZ - 1, 8.4), .7); lukis.rotation.x = -Math.PI / 2; lukis.position.set(zn.x, .07, depan - .5); scene.add(lukis);
     const w = '#' + zn.warna.toString(16).padStart(6, '0');
     tandai(`<div class="papan-zona" style="--w:${w}">${esc(zn.nama)}<small>${esc(zn.ket)}</small></div>`, 'zona kiri', zn.x - lebarZ / 2 + .2, .1, depan + .2);
@@ -308,18 +316,22 @@ function bangunKantor(wadah) {
     const lampuLobi = new THREE.PointLight(0xffe2b8, MALAM ? 1.1 : .55, 16, 2); lampuLobi.position.set(LX, 4.2, 16.5); scene.add(lampuLobi);
     tandai('<div class="papan-zona lantai">Lobi · Resepsionis</div>', 'zona', 19.2, .1, 11.4); }
   // area tamu dekat pintu depan: sofa kecil dan meja kopi
-  kotak(3.4, .5, 1.1, 0x3d4a5c, 20.5, .4, 6); kotak(3.4, .8, .25, 0x3d4a5c, 20.5, .85, 5.45); kotak(1.6, .08, .9, 0xf2efe9, 20.5, .55, 7.3);
+  kotak(3.4, .5, 1.1, 0xe9e0cf, 20.5, .4, 6); kotak(3.4, .8, .25, 0xe9e0cf, 20.5, .85, 5.45); KI.kk(marmerMeja, 1.6, .07, .9, 20.5, .55, 7.3); KI.kk(emas, 1.4, .5, .04, 20.5, .27, 7.3);
   silinder(.35, .35, 1.2, 0x9fc9e8, KORIDOR_X + 1.2, .6, LOUNGE_Z + 1.4); kotak(.5, .9, .5, 0xf2efe9, KORIDOR_X + 1.2, .45, LOUNGE_Z + 1.4);   // dispenser air
 
   // ----- pojok santai di bawah balkon: pantry kiri, dua sofa di tengah, rak arsip di kanan
-  kotak(9, 1.1, 1.3, 0xe9e4d8, -20, .55, -21); kotak(9.2, .1, 1.5, 0x5a3b2a, -20, 1.12, -21); kotak(.7, .8, .6, 0x222222, -16.6, 1.55, -21.1); kotak(.5, .3, .4, 0xd9d9d9, -16.6, 1.3, -20.7, false);
+  KI.kk(walnutMeja, 9, 1.1, 1.3, -20, .55, -21); KI.kk(marmerMeja, 9.2, .1, 1.5, -20, 1.12, -21); KI.kk(emas, 9.2, .03, .03, -20, 1.07, -20.24, 0, false); kotak(.7, .8, .6, 0x222222, -16.6, 1.55, -21.1); kotak(.5, .3, .4, 0xd9d9d9, -16.6, 1.3, -20.7, false);
   kotak(1.3, 2.5, 1.3, 0xd9dde3, -26.2, 1.25, -21); [[-23, 0xffffff], [-22.3, 0xd13b3b], [-21.6, 0xffffff], [-20.9, 0xf3c550]].forEach(([x, c]) => silinder(.14, .11, .26, c, x, 1.3, -21));
   const pantryTempat = [-23.4, -21.6, -19.8, -18].map(x => ({ x, z: -19.6, y: 0, hadap: 0, mode: 'kopi', dipakai: null }));
-  const sofa = x => { kotak(4.6, .55, 1.2, 0x7a5c99, x, .45, -20.3); kotak(4.6, .9, .3, 0x7a5c99, x, .95, -20.75); [-2.1, 2.1].forEach(dx => kotak(.4, .75, 1.2, 0x6a4c89, x + dx, .55, -20.3));
-    kotak(2.2, .08, 1, 0xf2efe9, x, .75, -18.4); [-.9, .9].forEach(dx => [-.35, .35].forEach(dz => kotak(.08, .72, .08, 0x8d8d8d, x + dx, .38, -18.4 + dz))); };
+  const beludru = bahan(0x1f4d3d, { roughness: .7 }), beludru2 = bahan(0x173b2f, { roughness: .7 });
+  const sofa = x => { KI.kk(beludru, 4.6, .55, 1.2, x, .45, -20.3); KI.kk(beludru, 4.6, .9, .3, x, .95, -20.75); [-2.1, 2.1].forEach(dx => KI.kk(beludru2, .4, .75, 1.2, x + dx, .55, -20.3)); KI.kk(emas, 4.6, .04, 1.2, x, .15, -20.3, 0, false);
+    [-1.3, 0, 1.3].forEach(dx => KI.kk(bahan(0xc9a24a, { roughness: .6 }), .6, .4, .14, x + dx, .9, -20.55));
+    KI.kk(marmerMeja, 2.2, .07, 1, x, .75, -18.4); [-.9, .9].forEach(dx => [-.35, .35].forEach(dz => KI.kk(emas, .05, .72, .05, x + dx, .38, -18.4 + dz))); };
+  permadani(13.5, 4.6, '#d9cdb6', 2.75, .025, -19.3, 'lingkaran');
+  [[-23, -21], [-20, -21], [-17, -21], [-1, -18.4], [6.5, -18.4]].forEach(([x, z]) => { KI.kk(emas, .025, LT2 - 4.1, .025, x, (LT2 - .4 + 3.7) / 2, z, 0, false); const kap = new THREE.Mesh(new THREE.ConeGeometry(.42, .38, 24, 1, true), bahan(0xc9a24a, { roughness: .3, metalness: .9, side: THREE.DoubleSide })); kap.position.set(x, 3.6, z); scene.add(kap); bola(.14, 0xfff3dc, x, 3.45, z, 0xffe2b0); });
   sofa(-1); sofa(6.5); kotak(.5, .2, .35, 0x3b6fd1, 6.9, .85, -18.4, false);
   const sofaTempat = [[-2.6, -20.3], [.6, -20.3], [4.9, -20.3], [8.1, -20.3]].map(([x, z]) => ({ x, z, y: 0, hadap: Math.PI, mode: 'sofa', dipakai: null }));
-  kotak(5, 3, .8, 0x8a6a4a, 17, 1.5, -24.4); [0xd13b3b, 0x3b6fd1, 0xf3c550, 0x5e9c6a, 0x9a5fa8].forEach((c, i) => kotak(.7, .9, .5, c, 15.2 + i * .9, 2.2, -24.1, false));
+  KI.kk(walnutMeja, 5, 3, .8, 17, 1.5, -24.4); [.75, 1.65, 2.55].forEach(y => { const l = kotak(4.8, .03, .03, 0x222222, 17, y, -24, false); l.material.emissive = warnaL(0xffd9a0); l.material.emissiveIntensity = MALAM ? 2 : 1; }); [0xd13b3b, 0x3b6fd1, 0xf3c550, 0x5e9c6a, 0x9a5fa8].forEach((c, i) => kotak(.7, .9, .5, c, 15.2 + i * .9, 2.2, -24.1, false));
   const TEMPAT = [...pantryTempat, ...sofaTempat];
 
   // ----- lantai 2 (6 Okt 2026, pemilik: ruang manajer seperti kantor eksekutif, ada ruang rapat, lantai 2 dilebarkan).
@@ -418,11 +430,12 @@ function bangunKantor(wadah) {
 
   // Ruang Rapat: x 1 sampai 24,6
   const RX1 = 1, RX2 = TANGGA_X - 1.8, RCX = (RX1 + RX2) / 2, MEJA_X = 13, MEJA_Z = -16.6;
-  KI.kk(lantaiAbu, RX2 - RX1, .04, D_RUANG, RCX, atas + .03, Z_RUANG, 0, false); KI.kk(bahan(0x6b5b4b, { roughness: .9 }), 15, .03, 6.4, MEJA_X, atas + .06, MEJA_Z, 0, false);
+  KI.kk(lantaiKayu, RX2 - RX1, .04, D_RUANG, RCX, atas + .03, Z_RUANG, 0, false); permadani(15.6, 6.8, '#2a2d33', MEJA_X, atas + .065, MEJA_Z);
   ruangKaca(RX1, RX2, 3.8); sekat(RX1);
   KI.kk(bahan(0x2a2d33, { roughness: .6 }), RX2 - RX1, 5.2, .2, RCX, atas + 2.6, BELAKANG + .45);
   for (let x = RX1 + .3; x < RX2; x += .34) if (Math.abs(x - MEJA_X) > 4) KI.kk(bahan(0xa87245, { roughness: .5 }), .14, 5, .1, x, atas + 2.6, BELAKANG + .6);
-  kotak(7.4, 3.6, .06, 0x111318, MEJA_X, atas + 2.9, BELAKANG + .6, false);
+  kotak(7.4, 3.6, .06, 0x111318, MEJA_X, atas + 2.9, BELAKANG + .6, false); [[0, 1.84, 7.6, .08], [0, -1.84, 7.6, .08], [-3.76, 0, .08, 3.76], [3.76, 0, .08, 3.76]].forEach(([dx, dy, w, h]) => KI.kk(emas, w, h, .06, MEJA_X + dx, atas + 2.9 + dy, BELAKANG + .64, 0, false));
+  kotak(RX2 - RX1, .04, .05, 0x222222, RCX, atas + 5.15, BELAKANG + .6, false).material.emissive = warnaL(0xffd9a0);
   const tugasKanvas = document.createElement('canvas'); tugasKanvas.width = 1024; tugasKanvas.height = 480; const tugasTex = new THREE.CanvasTexture(tugasKanvas); tugasTex.anisotropy = 4; tugasTex.encoding = THREE.sRGBEncoding;
   const tugasMesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.28), new THREE.MeshBasicMaterial({ map: tugasTex })); tugasMesh.position.set(13, atas + 2.9, -D / 2 + .64); scene.add(tugasMesh);
   function gambarPerintah() { const c = tugasKanvas.getContext('2d'), P = (DATA?.perintah || []).slice(0, 5); c.fillStyle = '#f4f7f2'; c.fillRect(0, 0, 1024, 480); c.fillStyle = '#1f4a3a'; c.fillRect(0, 0, 1024, 86);
@@ -432,9 +445,14 @@ function bangunKantor(wadah) {
     if (!P.length) { c.fillStyle = '#6b7680'; c.font = '600 30px "Plus Jakarta Sans", sans-serif'; c.fillText('Tidak ada perintah yang menunggu.', 36, 160); }
     c.fillStyle = '#6b7680'; c.font = '600 24px "Plus Jakarta Sans", sans-serif'; c.fillText('Kirim perintah lewat kolom chat tiap karyawan atau Ruang Manajer', 36, 445); tugasTex.needsUpdate = true; } gambarPerintah();
   // meja panjang walnut dengan garis marmer, 14 kursi, balok lampu gantung
-  KI.kk(walnut, 12, .12, 2.6, MEJA_X, atas + 1.12, MEJA_Z); KI.kk(marmer, 11.4, .02, .5, MEJA_X, atas + 1.19, MEJA_Z, 0, false);
-  [-4.5, 0, 4.5].forEach(dx => KI.kk(bingkai, .5, 1.05, 1.6, MEJA_X + dx, atas + .55, MEJA_Z));
-  KI.kk(bingkai, 13, .12, .25, MEJA_X, atas + 5.4, MEJA_Z); for (let dx = -5; dx <= 5; dx += 2.5) { KI.kk(bingkai, .03, 1.6, .03, MEJA_X + dx, atas + 4.6, MEJA_Z, 0, false); bola(.3, 0xfff1d6, MEJA_X + dx, atas + 3.75, MEJA_Z, 0xffe2b0); }
+  KI.kk(walnut, 12, .12, 2.6, MEJA_X, atas + 1.12, MEJA_Z); KI.kk(marmer, 12.1, .04, 2.7, MEJA_X, atas + 1.2, MEJA_Z, 0, false); [-1.36, 1.36].forEach(dz => KI.kk(emas, 12.1, .03, .03, MEJA_X, atas + 1.2, MEJA_Z + dz, 0, false));
+  [-4.5, 0, 4.5].forEach(dx => { KI.kk(walnut, .5, 1.05, 1.6, MEJA_X + dx, atas + .55, MEJA_Z); KI.kk(emas, .52, .05, 1.62, MEJA_X + dx, atas + .2, MEJA_Z, 0, false); });
+  KI.kk(emas, 13, .12, .25, MEJA_X, atas + 5.4, MEJA_Z);
+  // dua lampu gantung kristal: dua cincin emas bertingkat, kristal bercahaya di sekelilingnya
+  [-3.2, 3.2].forEach(dx => { const cx = MEJA_X + dx; KI.kk(emas, .03, 1.2, .03, cx, atas + 4.8, MEJA_Z, 0, false);
+    [[.95, atas + 4.05, 14], [.6, atas + 3.75, 10]].forEach(([r, y, n]) => { const c2 = new THREE.Mesh(new THREE.TorusGeometry(r, .03, 8, 48), emas); c2.rotation.x = Math.PI / 2; c2.position.set(cx, y, MEJA_Z); scene.add(c2);
+      for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; const kr = new THREE.Mesh(new THREE.OctahedronGeometry(.08), bahan(0xffffff, { emissive: 0xfff0d2, emissiveIntensity: MALAM ? 2.2 : 1.1, roughness: .05, metalness: .2 })); kr.scale.y = 1.8; kr.position.set(cx + Math.cos(a) * r, y - .14, MEJA_Z + Math.sin(a) * r); scene.add(kr); } });
+    bola(.18, 0xfff3dc, cx, atas + 3.55, MEJA_Z, 0xffe2b0); });
   const rapatTempat = [];
   for (let i = 0; i < 6; i++) { const x = MEJA_X - 5 + i * 2; [[MEJA_Z - 1.95, 0], [MEJA_Z + 1.95, Math.PI]].forEach(([z, hadap]) => rapatTempat.push({ x, z, y: atas, hadap, mode: 'rapat', dipakai: null })); }
   [[MEJA_X - 7.1, -Math.PI / 2], [MEJA_X + 7.1, Math.PI / 2]].forEach(([x, hadap]) => rapatTempat.push({ x, z: MEJA_Z, y: atas, hadap, mode: 'rapat', dipakai: null }));
@@ -442,9 +460,9 @@ function bangunKantor(wadah) {
   rapatTempat.forEach(t => { const depanMeja = MEJA_Z + 3.1, belakangMeja = MEJA_Z - 3.1;
     t.jalan = [[3.8, ATAS_Z], [3.8, depanMeja], ...(t.z < MEJA_Z - .5 ? [[MEJA_X - 8.2, depanMeja], [MEJA_X - 8.2, belakangMeja], [t.x, belakangMeja]] : [[t.x, depanMeja]])]; });
   rapatTempat.forEach(t => { const kebalikan = t.hadap === 0 ? -1 : t.hadap === Math.PI ? 1 : 0; KI.kk(kulit, .8, .12, .8, t.x, atas + .88, t.z); KI.kk(kulit, t.hadap === 0 || t.hadap === Math.PI ? .8 : .14, .9, t.hadap === 0 || t.hadap === Math.PI ? .14 : .8,
-    t.x + (t.hadap === -Math.PI / 2 ? -.4 : t.hadap === Math.PI / 2 ? .4 : 0), atas + 1.35, t.z + kebalikan * .4); KI.kk(bingkai, .08, .82, .08, t.x, atas + .42, t.z); });
-  KI.kk(walnut, 5, .9, .55, RX1 + 3.4, atas + .45, BELAKANG + .9); tanaman(RX2 - 1, BELAKANG + 1.6, 1.1); tanaman(RX2 - 1, DEPAN_RUANG - 1.2, .9); tanaman(RX1 + 1, DEPAN_RUANG - 1.2, .9);
-  const papanR = papanTeks('RUANG RAPAT', '#1c1f24', '#ffffff', 2.8, .42); papanR.position.set(3.8, atas + 3.75, DEPAN_RUANG + .1); scene.add(papanR);
+    t.x + (t.hadap === -Math.PI / 2 ? -.4 : t.hadap === Math.PI / 2 ? .4 : 0), atas + 1.35, t.z + kebalikan * .4); KI.kk(emas, .08, .82, .08, t.x, atas + .42, t.z); KI.kk(emas, .6, .04, .6, t.x, atas + .05, t.z, 0, false); });
+  KI.kk(walnut, 5, .9, .55, RX1 + 3.4, atas + .45, BELAKANG + .9); KI.kk(marmer, 5.1, .05, .6, RX1 + 3.4, atas + .92, BELAKANG + .9); silinder(.18, .12, .5, 0xc9a24a, RX1 + 2.2, atas + 1.2, BELAKANG + .9); bola(.12, 0xf7f0fa, RX1 + 2.2, atas + 1.55, BELAKANG + .9); KI.kk(bahan(0x1b2638), .8, .5, .1, RX1 + 4.4, atas + 1.2, BELAKANG + .75); tanaman(RX2 - 1, BELAKANG + 1.6, 1.1); tanaman(RX2 - 1, DEPAN_RUANG - 1.2, .9); tanaman(RX1 + 1, DEPAN_RUANG - 1.2, .9);
+  const papanR = papanTeks('RUANG RAPAT', '#1c1f24', '#e2c27a', 2.8, .42); papanR.position.set(3.8, atas + 3.75, DEPAN_RUANG + .1); scene.add(papanR);
   const jamDinding = silinder(.55, .55, .08, 0xffffff, RX2 - 2.4, atas + 4.4, BELAKANG + .62); jamDinding.rotation.x = Math.PI / 2;   // jangan bernama jam: itu fungsi pemformat waktu
   kotak(.08, .4, .03, 0x222222, RX2 - 2.4, atas + 4.58, BELAKANG + .68, false); kotak(.3, .08, .03, 0x222222, RX2 - 2.25, atas + 4.4, BELAKANG + .68, false);
   // lampu ruang lantai 2 (siang lembut, malam hangat)
