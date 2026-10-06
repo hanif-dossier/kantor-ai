@@ -263,7 +263,50 @@ function bangunKantor(wadah) {
       mejaKerja(x, z, i); tambahOrang(a, x, z - 1.05, 0, x + PX / 2); }); });
   tandai('<div class="papan-zona lantai">Lantai 1 · Karyawan</div>', 'zona', 21, .1, DEPAN - .4);
   tandai('<div class="papan-zona lantai">Lantai 2 · Ruang Manajer</div>', 'zona', -10, LT2 + 1.6, BALKON_Z, () => bukaManajer());
-  [[-27, AISLE_Z, .8], [-27, DEPAN - 1.4], [20, DEPAN - 1.4], [-4, DEPAN - 1.4, .7], [21, AISLE_Z - 3, .8], [21, 15, .9], [-27, 0, .8]].forEach(([x, z, s]) => pohon(x, z, s));
+  [[-27, AISLE_Z, .8], [-27, DEPAN - 1.4], [-4, DEPAN - 1.4, .7], [21, AISLE_Z - 3, .8], [-27, 0, .8]].forEach(([x, z, s]) => pohon(x, z, s));
+  // ===== lobi resepsionis (6 Okt 2026, pemilik: "buat ruang manager dan loby lebih mewah"). Di pojok kanan depan (x 17,5 sampai
+  // 28,5, z 9,5 sampai 23,5), di luar jalur jalan karyawan: lantai marmer berbingkai emas, meja resepsionis marmer melengkung,
+  // dinding walnut berhuruf emas, kolam dengan air mancur, ruang tunggu sofa krem, patung emas, dinding hidup, gerbang emas.
+  const kain = (w, h, gambar) => { const c = document.createElement('canvas'); c.width = w; c.height = h; gambar(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; return t; };
+  const marmerL = bahan(0xf3efe8, { roughness: .14, metalness: .05 }), walnutL = bahan(0x3d2618, { roughness: .42 }), kulitKrem = bahan(0xe9e0cf, { roughness: .5 }), kulitTanL = bahan(0xa8744b, { roughness: .45 }), airL = bahan(0x3fb6d8, { roughness: .04, metalness: .3, emissive: 0x0b5c7a, emissiveIntensity: .3 });
+  const nyala = [];   // api perapian berkedip (dipakai juga di Ruang Manajer)
+  { const LX = 23, LZ = 16.5;
+    const inlay = new THREE.Mesh(new THREE.PlaneGeometry(10.6, 13.6), new THREE.MeshStandardMaterial({ roughness: .18, metalness: .1, map: kain(540, 700, (x, w, h) => { x.fillStyle = '#e9e3d8'; x.fillRect(0, 0, w, h);
+      x.strokeStyle = '#c9a24a'; [[14, 5], [30, 2], [40, 1.5]].forEach(([p, lw]) => { x.lineWidth = lw; x.strokeRect(p, p, w - 2 * p, h - 2 * p); });
+      x.save(); x.translate(w / 2, h * .55); x.fillStyle = 'rgba(201,162,74,.85)'; for (let i = 0; i < 16; i++) { x.rotate(Math.PI / 8); x.beginPath(); x.moveTo(0, 0); x.lineTo(i % 2 ? 9 : 14, -(i % 2 ? 70 : 120)); x.lineTo(0, -(i % 2 ? 60 : 110)); x.closePath(); x.fill(); } x.restore();
+      x.strokeStyle = 'rgba(160,150,135,.3)'; x.lineWidth = 1; for (let i = 0; i < 18; i++) { x.beginPath(); let px = Math.random() * w, py = Math.random() * h; x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (Math.random() - .4) * 70; py += (Math.random() - .5) * 60; x.lineTo(px, py); } x.stroke(); } }) }));
+    inlay.rotation.x = -Math.PI / 2; inlay.position.set(LX, .012, LZ); inlay.receiveShadow = true; scene.add(inlay);
+    // meja resepsionis melengkung: cincin setengah lingkaran diekstrusi, atas marmer, list emas, lampu bawah
+    const busur = (r1, r2, a1, a2) => { const sh = new THREE.Shape(); sh.absarc(0, 0, r2, a1, a2, false); sh.absarc(0, 0, r1, a2, a1, true); return sh; };
+    const ekstrusi = (sh, tebal, mat, y) => { const g2 = new THREE.ExtrudeGeometry(sh, { depth: tebal, bevelEnabled: false, curveSegments: 36 }); g2.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g2, mat); m.position.set(LX, y, 13.6); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
+    ekstrusi(busur(1.85, 2.45, Math.PI + .3, 2 * Math.PI - .3), 1.1, walnutL, 0); ekstrusi(busur(1.75, 2.55, Math.PI + .28, 2 * Math.PI - .28), .08, marmerL, 1.1);
+    ekstrusi(busur(2.5, 2.56, Math.PI + .3, 2 * Math.PI - .3), .04, emas, 1.04); ekstrusi(busur(2.45, 2.5, Math.PI + .3, 2 * Math.PI - .3), .04, bahan(0x222222, { emissive: 0xffd9a0, emissiveIntensity: MALAM ? 2.4 : 1.2 }), .06);
+    kotak(.9, .05, .5, 0x1c1c1c, LX - .6, 1.42, 13.2); kotak(.06, .4, .06, 0xc9a24a, LX - .6, 1.32, 13.1); bola(.16, 0xf6f2ff, LX + .9, 1.34, 13.4);
+    // dinding fitur walnut dengan huruf emas dan cahaya tepi
+    kotak(7.6, 3.8, .3, 0x3d2618, LX, 1.9, 10.25); for (let x = LX - 3.6; x <= LX + 3.6; x += .3) KI.kk(walnutL, .1, 3.6, .08, x, 1.9, 10.44, 0, false);
+    const logo = papanTeks('KANTOR AI', '#2a190f', '#e2c27a', 4.6, 1.15); logo.position.set(LX, 2.35, 10.5); scene.add(logo);
+    const sub = papanTeks('HANIF DOSSIER · MARKASKU · OFU · NTA', '#2a190f', '#c9a24a', 4.6, .42); sub.position.set(LX, 1.55, 10.5); scene.add(sub);
+    [[3.85, .04], [.04, 3.85]].forEach(([w, h], i) => { if (i === 0) [3.82, -.01].forEach(y => kotak(7.6, .04, .04, 0xffe6bf, LX, y + .05, 10.42, false).material.emissive = warnaL(0xffd9a0)); });
+    // kolam dengan air mancur
+    kotak(2.7, .45, 4.4, 0xf3efe8, 19.2, .22, 14.2); const air = new THREE.Mesh(new THREE.BoxGeometry(2.3, .05, 4), airL); air.position.set(19.2, .46, 14.2); scene.add(air);
+    for (let i = 0; i < 5; i++) { const sem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .04, .9, 6), bahan(0xbfe6f5, { emissive: 0x9fd8ee, emissiveIntensity: .8, transparent: true, opacity: .7 })); sem.position.set(19.2, .9, 12.6 + i * .8); scene.add(sem); }
+    // ruang tunggu: permadani, dua sofa krem berhadapan, kursi tan, meja marmer berkaki emas, lampu lantai melengkung
+    const karpet = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 4.6), new THREE.MeshStandardMaterial({ roughness: .95, map: kain(512, 368, (x, w, h) => { x.fillStyle = '#d9cdb6'; x.fillRect(0, 0, w, h); x.strokeStyle = '#8a6a3a'; x.lineWidth = 6; x.strokeRect(16, 16, w - 32, h - 32); x.lineWidth = 2; x.strokeRect(30, 30, w - 60, h - 60); for (let i = 0; i < 9; i++) { x.strokeStyle = 'rgba(138,106,58,.35)'; x.beginPath(); x.arc(w / 2, h / 2, 20 + i * 14, 0, 7); x.stroke(); } }) }));
+    karpet.rotation.x = -Math.PI / 2; karpet.position.set(LX, .03, 19.6); scene.add(karpet);
+    const sofaMewah = (z, arah) => { KI.kk(kulitKrem, 3.4, .5, 1.05, LX, .38, z, 0); KI.kk(kulitKrem, 3.4, .8, .26, LX, .8, z + arah * .45, 0); [-1, 1].forEach(s2 => KI.kk(kulitKrem, .26, .66, 1.05, LX + s2 * 1.6, .55, z, 0));
+      [-.9, 0, .9].forEach(dx => KI.kk(kulitTanL, .7, .45, .16, LX + dx, .85, z + arah * .3, 0)); KI.kk(emas, 3.4, .04, 1.05, LX, .11, z, 0, false); };
+    sofaMewah(17.8, -1); sofaMewah(21.4, 1);
+    KI.kk(marmerL, 2, .07, 1.1, LX, .56, 19.6); [[-.85, -.4], [.85, -.4], [-.85, .4], [.85, .4]].forEach(([a, b]) => KI.kk(emas, .05, .5, .05, LX + a, .28, 19.6 + b)); bola(.14, 0xf3efe8, LX - .4, .7, 19.6); kotak(.3, .06, .22, 0x2b3c55, LX + .4, .62, 19.5, false);
+    [[19.6, 19.6], [26.4, 19.6]].forEach(([x, z]) => { KI.kk(kulitTanL, .95, .45, .95, x, .38, z); KI.kk(kulitTanL, .2, .75, .95, x + (x < LX ? -.4 : .4), .75, z); KI.kk(emas, .05, .3, .05, x, .1, z); });
+    [[19.4, 17.2], [26.6, 22]].forEach(([x, z]) => { KI.kk(emas, .06, 2.4, .06, x, 1.2, z); const ar = new THREE.Mesh(new THREE.TorusGeometry(.7, .03, 8, 24, Math.PI / 1.6), emas); ar.position.set(x + .05, 2.35, z); scene.add(ar); bola(.22, 0xfff3dc, x + .7, 2.2, z, 0xffe2b0); });
+    // patung emas di alas marmer, pohon besar dalam pot, gerbang emas berpintu kaca
+    kotak(.9, 1.1, .9, 0xf3efe8, 18.4, .55, 22.2); const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(.42, .12, 96, 12), emas); knot.position.set(18.4, 1.75, 22.2); knot.castShadow = true; scene.add(knot);
+    pohon(27.3, 11.2, 1.1); pohon(27.3, 23, 1); pohon(17.9, 10.6, .9);
+    [20.3, 25.7].forEach(x => KI.kk(emas, .14, 3.4, .14, x, 1.7, DEPAN - .2)); KI.kk(emas, 5.6, .16, .16, LX, 3.4, DEPAN - .2); [21.7, 24.3].forEach(x => kaca(1.25, 3.2, .05, x, 1.6, DEPAN - .2));
+    // dinding hidup di dinding samping kanan setinggi dinding depan
+    for (let zz = 9.6; zz <= 23.2; zz += .42) for (let yy = .3; yy < 2.3; yy += .42) KI.pasang('b', bahan([0x3f8f4a, 0x5c9a49, 0x7fb556][Math.abs(Math.round(zz * 3 + yy * 5)) % 3], { roughness: .9 }), .44, .44, .3, W / 2 - .45, yy, zz, 0, 0, false);
+    const lampuLobi = new THREE.PointLight(0xffe2b8, MALAM ? 1.1 : .55, 16, 2); lampuLobi.position.set(LX, 4.2, 16.5); scene.add(lampuLobi);
+    tandai('<div class="papan-zona lantai">Lobi · Resepsionis</div>', 'zona', 19.2, .1, 11.4); }
   // area tamu dekat pintu depan: sofa kecil dan meja kopi
   kotak(3.4, .5, 1.1, 0x3d4a5c, 20.5, .4, 6); kotak(3.4, .8, .25, 0x3d4a5c, 20.5, .85, 5.45); kotak(1.6, .08, .9, 0xf2efe9, 20.5, .55, 7.3);
   silinder(.35, .35, 1.2, 0x9fc9e8, KORIDOR_X + 1.2, .6, LOUNGE_Z + 1.4); kotak(.5, .9, .5, 0xf2efe9, KORIDOR_X + 1.2, .45, LOUNGE_Z + 1.4);   // dispenser air
@@ -285,8 +328,8 @@ function bangunKantor(wadah) {
   // skor). Kanan: Ruang Rapat (meja panjang 14 kursi, layar "Perintah berjalan", lampu gantung pada balok, dinding bilah
   // kayu). Di depan keduanya koridor kaca. Pintu tiap ruang menghadap koridor.
   const atas = LT2, BELAKANG = -D / 2, DEPAN_RUANG = -8.8, Z_RUANG = (BELAKANG + DEPAN_RUANG) / 2, D_RUANG = DEPAN_RUANG - BELAKANG;
-  const walnut = bahan(0x4a2f1f, { roughness: .45 }), marmer = bahan(0xece8e1, { roughness: .18, metalness: .05 }), kulit = bahan(0x1d1d20, { roughness: .4 }), kulitTan = bahan(0x9a6b47, { roughness: .45 });
-  const bingkai = bahan(0x1c1f24, { roughness: .35, metalness: .6 }), abuSofa = bahan(0x8c9097, { roughness: .9 }), lantaiKayu = bahan(0x7a5537, { roughness: .4 }), lantaiAbu = bahan(0x9aa0a6, { roughness: .55 });
+  const walnut = bahan(0x4a2f1f, { roughness: .4 }), marmer = bahan(0xf1ede6, { roughness: .14, metalness: .05 }), kulit = bahan(0x1d1d20, { roughness: .4 }), kulitTan = bahan(0x9a6b47, { roughness: .45 });
+  const bingkai = bahan(0x1c1f24, { roughness: .35, metalness: .6 }), abuSofa = bahan(0xe9e0cf, { roughness: .5 }), lantaiKayu = bahan(0x7a5537, { roughness: .4 }), lantaiAbu = bahan(0x9aa0a6, { roughness: .55 });
   const ruangKaca = (x1, x2, pintuX) => {   // dinding depan kaca dengan pintu, plus tiang bingkai
     const kiri = pintuX - .9, kanan = pintuX + .9;
     kaca(kiri - x1, 3.4, .06, (x1 + kiri) / 2, atas + 1.7, DEPAN_RUANG); kaca(x2 - kanan, 3.4, .06, (kanan + x2) / 2, atas + 1.7, DEPAN_RUANG);
@@ -319,6 +362,43 @@ function bangunKantor(wadah) {
   KI.kk(walnut, 2.2, .45, 1.3, -6.6, atas + .25, -16.2); KI.kk(marmer, 2.3, .05, 1.4, -6.6, atas + .5, -16.2);
   KI.kk(bingkai, .06, 2.2, .06, -3.2, atas + 1.1, -20.3); bola(.32, 0xfff1d6, -3.2, atas + 2.3, -20.3, 0xffe2b0);
   tanaman(MX1 + 1, BELAKANG + 1.6); tanaman(MX1 + 1, DEPAN_RUANG - 1.2, .9); tanaman(MX2 - 1, DEPAN_RUANG - 1.2, .9);
+  // ===== kelas direksi (6 Okt 2026, "buat ruang manager lebih mewah"): permadani biru dongker bermedali emas, perapian marmer
+  // dengan api berkedip dan lukisan di atasnya, dua kursi baca kulit, lemari bar walnut berlampu dengan botol, lukisan abstrak
+  // berbingkai emas, globe, anggrek di meja, list emas pada meja, bantal tan di sofa krem, lampu tersembunyi di dinding walnut.
+  { const per = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 6.6), new THREE.MeshStandardMaterial({ roughness: .95, map: kain(720, 504, (x, w, h) => { x.fillStyle = '#1b2638'; x.fillRect(0, 0, w, h);
+      x.strokeStyle = '#c9a24a'; [[16, 7], [34, 2], [44, 2]].forEach(([p, lw]) => { x.lineWidth = lw; x.strokeRect(p, p, w - 2 * p, h - 2 * p); });
+      x.save(); x.translate(w / 2, h / 2); for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.fillStyle = 'rgba(201,162,74,.7)'; x.beginPath(); x.ellipse(0, -78, 16, 52, 0, 0, 7); x.fill(); } x.fillStyle = '#1b2638'; x.beginPath(); x.arc(0, 0, 40, 0, 7); x.fill(); x.strokeStyle = '#c9a24a'; x.lineWidth = 4; x.beginPath(); x.arc(0, 0, 40, 0, 7); x.stroke(); x.restore();
+      [[70, 70], [w - 70, 70], [70, h - 70], [w - 70, h - 70]].forEach(([cx, cy]) => { x.save(); x.translate(cx, cy); x.rotate(Math.PI / 4); x.strokeStyle = '#c9a24a'; x.lineWidth = 3; x.strokeRect(-14, -14, 28, 28); x.restore(); }); }) }));
+    per.rotation.x = -Math.PI / 2; per.position.set(-15, atas + .07, -15.2); per.receiveShadow = true; scene.add(per);
+    // perapian di dinding kiri
+    const PX2 = MX1 + .3; KI.kk(marmer, .5, 5, 5.2, PX2, atas + 2.5, -19.6); KI.kk(bahan(0x0c0c0e, { roughness: .9 }), .12, .75, 3.6, PX2 + .26, atas + 1.05, -19.6, 0, false);
+    [[3.8, .06, 0, 1.45], [3.8, .06, 0, .65], [.06, .86, -1.86, 1.05], [.06, .86, 1.86, 1.05]].forEach(([d, h, dz, y]) => KI.kk(emas, .06, h, d, PX2 + .29, atas + y, -19.6 + dz, 0, false));
+    for (let i = 0; i < 6; i++) { const m = bahan(0x200800, { emissive: i % 2 ? 0xffa040 : 0xff6a20, emissiveIntensity: 1.8 }); nyala.push(m); const f = new THREE.Mesh(new THREE.ConeGeometry(.16, .5 + (i % 3) * .12, 8), m); f.position.set(PX2 + .25, atas + .95, -21 + i * .55); scene.add(f); }
+    const api = new THREE.PointLight(0xff9a50, .8, 6, 2); api.position.set(PX2 + 1, atas + 1.2, -19.6); scene.add(api); nyala.cahaya = api;
+    const lukis1 = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.9), new THREE.MeshStandardMaterial({ roughness: .7, map: kain(512, 304, (x, w, h) => { const g2 = x.createLinearGradient(0, 0, w, h); g2.addColorStop(0, '#0f2a3a'); g2.addColorStop(1, '#1f4a4a'); x.fillStyle = g2; x.fillRect(0, 0, w, h);
+      for (let i = 0; i < 7; i++) { x.strokeStyle = i % 2 ? 'rgba(201,162,74,.85)' : 'rgba(240,230,210,.6)'; x.lineWidth = 6 + i * 2; x.beginPath(); x.moveTo(-20, h * (.2 + i * .1)); x.bezierCurveTo(w * .3, h * (.9 - i * .08), w * .6, h * (.1 + i * .05), w + 20, h * (.6 - i * .04)); x.stroke(); } }) }));
+    lukis1.rotation.y = Math.PI / 2; lukis1.position.set(PX2 + .27, atas + 3.3, -19.6); scene.add(lukis1); [[2, .06], [-2, .06]].forEach(() => {});
+    [[1.98, 0], [-.01, 0]].forEach(([dy]) => KI.kk(emas, .05, .06, 3.3, PX2 + .28, atas + 2.33 + dy, -19.6, 0, false)); [-1.63, 1.63].forEach(dz => KI.kk(emas, .05, 2.02, .06, PX2 + .28, atas + 3.3, -19.6 + dz, 0, false));
+    // dua kursi baca kulit menghadap perapian, meja bulat marmer
+    [-21.1, -18.1].forEach(z => { KI.kk(kulitTan, 1, .5, 1, MX1 + 3.1, atas + .45, z); KI.kk(kulitTan, .24, 1, 1, MX1 + 3.6, atas + .95, z); [-1, 1].forEach(s2 => KI.kk(kulitTan, 1, .62, .2, MX1 + 3.1, atas + .62, z + s2 * .45)); KI.kk(emas, .06, .2, .06, MX1 + 2.7, atas + .1, z - .4); });
+    silinder(.42, .42, .06, 0xf1ede6, MX1 + 3.1, atas + .7, -19.6); silinder(.05, .05, .65, 0xc9a24a, MX1 + 3.1, atas + .35, -19.6);
+    // lemari bar walnut berlampu di dinding belakang, botol, lukisan abstrak berbingkai emas di atasnya
+    KI.kk(walnut, 3.6, 1.1, .6, -7.5, atas + .55, BELAKANG + 1); KI.kk(marmer, 3.7, .06, .66, -7.5, atas + 1.13, BELAKANG + 1); KI.kk(emas, 3.6, .04, .04, -7.5, atas + 1.08, BELAKANG + 1.32, 0, false);
+    [[-8.8, 0x5a1e1e, .42], [-8.4, 0x2a4a2a, .5], [-8, 0xc9a24a, .38], [-6.9, 0x3a2a1a, .46], [-6.5, 0xe8e2d6, .34], [-6.1, 0x5a1e1e, .44]].forEach(([x, c, h]) => silinder(.07, .07, h, c, x, atas + 1.16 + h / 2, BELAKANG + 1));
+    kotak(3.4, .03, .05, 0x222222, -7.5, atas + .1, BELAKANG + 1.31, false).material.emissive = warnaL(0xffd9a0);
+    const lukis2 = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), new THREE.MeshStandardMaterial({ roughness: .7, map: kain(512, 316, (x, w, h) => { x.fillStyle = '#efe7d6'; x.fillRect(0, 0, w, h);
+      [['#1b2638', 160, 150, 120], ['#c9a24a', 330, 120, 80], ['#7a3a2a', 250, 220, 60], ['#2f5a4a', 400, 230, 50]].forEach(([c, cx, cy, r]) => { x.fillStyle = c; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); });
+      x.strokeStyle = '#1b2638'; x.lineWidth = 5; x.beginPath(); x.moveTo(40, 280); x.bezierCurveTo(200, 40, 320, 300, 480, 60); x.stroke(); }) }));
+    lukis2.position.set(-7.5, atas + 2.9, BELAKANG + .66); scene.add(lukis2);
+    [[0, 1.08, 3.56, .07], [0, -1.08, 3.56, .07], [-1.75, 0, .07, 2.2], [1.75, 0, .07, 2.2]].forEach(([dx, dy, w, h]) => KI.kk(emas, w, h, .05, -7.5 + dx, atas + 2.9 + dy, BELAKANG + .67, 0, false));
+    // globe di kaki emas, anggrek di meja, list emas meja eksekutif
+    silinder(.05, .18, 1.1, 0xc9a24a, -4.6, atas + .55, -12.3); const glob = bola(.42, 0x2f5f8a, -4.6, atas + 1.5, -12.3); glob.material.roughness = .35; const mer = new THREE.Mesh(new THREE.TorusGeometry(.48, .025, 8, 40), emas); mer.position.set(-4.6, atas + 1.5, -12.3); mer.rotation.y = Math.PI / 2; scene.add(mer);
+    silinder(.12, .1, .2, 0xf1ede6, -13.3, atas + 1.23, -15.1); [[0, .5], [.08, .42], [-.07, .38]].forEach(([dx, y]) => bola(.07, 0xf7f0fa, -13.3 + dx, atas + 1.13 + y, -15.1 + dx));
+    KI.kk(emas, 4.62, .03, .03, -15, atas + 1.06, -14.63, 0, false); KI.kk(emas, 1.82, .03, .03, -12.1, atas + 1.06, -15.72, 0, false);
+    [-5.1, -3.9].forEach(z => KI.kk(kulitTan, .2, .45, .55, -4.15, atas + .82, z === -5.1 ? -17.4 : -15.6));
+    // lampu tersembunyi di puncak dinding walnut dan cahaya hangat ruang
+    kotak(MX2 - MX1, .04, .05, 0x222222, MCX, atas + 5.15, BELAKANG + .6, false).material.emissive = warnaL(0xffd9a0);
+    const hangat = new THREE.PointLight(0xffe2b8, MALAM ? 1.1 : .6, 18, 2); hangat.position.set(-15, atas + 3.4, -16); scene.add(hangat); }
   kotak(7.4, 3.6, .06, 0x3a3a42, -22.5, atas + 3.1, BELAKANG + .6, false);
   const skorKanvas = document.createElement('canvas'); skorKanvas.width = 1024; skorKanvas.height = 480; const skorTex = new THREE.CanvasTexture(skorKanvas); skorTex.anisotropy = 4; skorTex.encoding = THREE.sRGBEncoding;
   const skorMesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.28), new THREE.MeshBasicMaterial({ map: skorTex })); skorMesh.position.set(-22.5, atas + 3.1, -D / 2 + .64); scene.add(skorMesh);
@@ -418,6 +498,7 @@ function bangunKantor(wadah) {
   const proyeksi = (el, x, y, z, r, kiri) => { v3.set(x, y, z).project(camera); el.style.transform = `translate(${(v3.x + 1) / 2 * r.width}px, ${(1 - v3.y) / 2 * r.height}px) translate(${kiri ? '0' : '-50%'},-100%)`; el.style.opacity = v3.z < 1 ? 1 : 0; };
   // dt dibatasi .25 detik: di HP lambat (sedikit bingkai per detik) karyawan tetap berjalan dengan kecepatan wajar
   function gambar(now) { if (!T) return; const t = now / 1000, dt = Math.min(.25, (now - t0) / 1000); t0 = now; const r = wadah.getBoundingClientRect();
+    nyala.forEach((m, i) => { m.emissiveIntensity = 1.5 + Math.sin(t * 9 + i * 2) * .45 + Math.sin(t * 23 + i) * .25; }); if (nyala.cahaya) nyala.cahaya.intensity = .7 + Math.sin(t * 11) * .15;
     for (const p of orang) { const o = p.o, f = p.fase;
       if (p.path.length) {   // berjalan; y mengikuti tangga sepanjang ruas
         const [tx, tz, ty = 0] = p.path[0], dx = tx - p.pos.x, dz = tz - p.pos.z, jarak = Math.hypot(dx, dz), langkah = 2.4 * dt;
