@@ -680,58 +680,80 @@ function bangunKota(wadah) {
     [[-1.9, -1.5], [2, -1.6], [-2.2, 1.2]].forEach(([lx, lz], k) => { const [px, pz] = titik(lx, lz); ps('s', P.batang, .14, 1.2, .14, px, puncak + .84, pz); ps('b', HIJAU[k % 3], 1.5, 1.25, 1.5, px, puncak + 1.85, pz); });
     kotakTak(grp, 9, puncak + 1.6, 9.4, -.2); g.puncak = puncak + 2.3; dapatDiketuk.push(grp); g.grup = grp; }
 
-  // ----- kedai kopi kelas atas (6 Okt 2026, pemilik: "kayak Starbucks, jangan warkop kampung"): gedung hijau tua dengan
-  // pelapis kayu vertikal, etalase kaca besar memperlihatkan interior hangat (meja bar, lampu gantung, papan menu menyala),
-  // pita atap dengan nama dan lambang bundar sendiri, kanopi hitam, teras dek kayu dengan pagar tanaman, meja bundar
-  // hitam, payung hijau tua. Lambang dan nama milik sendiri, bukan merek orang lain.
+  // ----- kedai kopi kelas reserve (6 Okt 2026, "buat coffee shop lebih mewah"; sebelumnya "kayak Starbucks, jangan warkop").
+  // Lambang dan nama milik sendiri. Bangunan hijau-hitam di atas alas marmer, etalase kaca tiga lengkung berbingkai emas,
+  // interior lantai marmer: pemanggang kopi tembaga, meja bar marmer berlis emas, mesin espreso krom, kursi bar kuningan,
+  // lampu gantung bola, rak kantong kopi bercahaya. Teras dek jati berbingkai marmer, meja marmer berkaki kuningan, kursi
+  // kulit cognac, payung kanvas krem, lampu untai, pohon zaitun. Atap: taman dengan pergola emas berlampu untai.
+  // Titik duduk g.kursi tidak berubah (dipakai segar() untuk karyawan yang sedang ngopi).
   function buatKedai(g) { const X = g.x, Z = g.z, grp = new THREE.Group(); grp.position.set(X, 0, Z); grp.userData.gedung = g; scene.add(grp);
-    const hijau = bahan(0x1d3b31, { roughness: .45, metalness: .1 }), hijauMuda = bahan(0x2c5a49, { roughness: .5 }), krem = bahan(0xf1e9dc, { roughness: .6 });
-    const W = 8.2, D = 4.6, H = 3.3, cz = Z - 2.1, depan = cz + D / 2;
-    kk(P.beton, W + .4, .22, D + .4, X, y0 + .11, cz);
-    kk(hijau, W, H, .3, X, y0 + .22 + H / 2, cz - D / 2 + .15); [-1, 1].forEach(sx => kk(hijau, .3, H, D, X + sx * (W / 2 - .15), y0 + .22 + H / 2, cz));
-    // sisi kiri depan: dinding hijau berlapis bilah kayu; sisanya etalase kaca
-    kk(hijau, 2.3, H, .3, X - W / 2 + 1.15, y0 + .22 + H / 2, depan - .15); for (let i = 0; i < 9; i++) kk(P.kayu, .12, H - .2, .12, X - W / 2 + .2 + i * .25, y0 + .22 + H / 2, depan + .04);
-    // interior terbuka: dinding belakang hangat (bata kayu), lantai kayu gelap, langit-langit; meja bar dan lampu terlihat lewat kaca
-    mesh(bahan(0x6a4630, { emissive: 0xffb877, emissiveIntensity: MALAM ? .9 : .22 }), W - .6, H, .1, X, y0 + .22 + H / 2, cz - D / 2 + .32, false);
-    kk(P.kayuGelap, W - .6, .04, D - .6, X, y0 + .24, cz, 0, false); kk(bahan(0x2a1d14, { emissive: 0xffd2a0, emissiveIntensity: MALAM ? .5 : .1 }), W - .6, .05, D - .6, X, y0 + .22 + H - .05, cz, 0, false);
-    [-1.4, 2.6].forEach(x => { kk(P.kayu, 1.4, .06, .35, X + x, y0 + 1.8, cz - D / 2 + .55); kk(P.kayu, 1.4, .06, .35, X + x, y0 + 2.3, cz - D / 2 + .55); });
-    mesh(P.kaca, W - 2.6, H - .1, .08, X + 1.25, y0 + .22 + (H - .1) / 2, depan - .1, false);
-    for (let i = 0; i <= 5; i++) kk(P.baja, .06, H, .1, X - W / 2 + 2.3 + i * (W - 2.6) / 5, y0 + .22 + H / 2, depan - .06);
-    kk(P.baja, W - 2.6, .08, .1, X + 1.25, y0 + 1.1, depan - .06, 0, false);
-    // interior yang terlihat dari luar: meja bar kayu dengan lampu bawah, lampu gantung, papan menu menyala
-    kk(P.kayu, W - 3.4, 1, .55, X + 1.2, y0 + .72, cz - .9); kk(krem, W - 3.3, .07, .65, X + 1.2, y0 + 1.25, cz - .9); kk(P.lampu, W - 3.5, .03, .03, X + 1.2, y0 + .3, cz - .6, 0, false);
-    [-1.2, .2, 1.6, 3].forEach(x => { ps('s', P.baja, .02, .7, .02, X + x, y0 + H - .1, cz + .2); ps('b', P.lampu, .32, .26, .32, X + x, y0 + H - .5, cz + .2, 0, 0, false); });
-    mesh(bahan(0x101614, { emissive: 0xf4e7c8, emissiveIntensity: MALAM ? 1.5 : .7 }), 3.2, .9, .04, X + 1.3, y0 + 2.6, cz - D / 2 + .39, false);
-    [[-2.6, .6], [2.9, .9]].forEach(([x, z]) => { ps('s', bahan(0x1a1a1a, { roughness: .35, metalness: .5 }), .7, .05, .7, X + x, y0 + .95, cz + z); ps('s', P.baja, .05, .7, .05, X + x, y0 + .58, cz + z); });
-    // pita atap hijau dengan nama, lambang bundar di sudut, kanopi hitam di atas etalase
-    kk(hijau, W + .3, .55, D + .3, X, y0 + .22 + H + .27, cz); kk(P.lampu, W + .3, .03, .03, X, y0 + .22 + H, depan + .16, 0, false);
-    papan('KEDAI KOPI', 3.6, .46, .6, y0 + .22 + H + .28, cz + D / 2 - Z + .17, grp, '#1d3b31', '#f1e9dc');
+    const hijau = bahan(0x16211d, { roughness: .35, metalness: .15 }), tembaga = bahan(0xb87333, { roughness: .28, metalness: .92 }), krom = bahan(0xd9dde2, { roughness: .12, metalness: 1 }),
+      kulitC = bahan(0x8a4f2a, { roughness: .45 }), kanvasK = bahan(0xf1e9dc, { roughness: .85, side: THREE.DoubleSide }), jati = bahan(0x9a6a40, { roughness: .55 }), kraft = bahan(0xb8946a, { roughness: .9 }), kantongHitam = bahan(0x1b1b1b, { roughness: .6 }),
+      garisRak = bahan(0x222222, { emissive: 0xffd9a0, emissiveIntensity: MALAM ? 2.2 : 1 }), bohlam = bahan(0x2a2a2a, { emissive: 0xffd9a0, emissiveIntensity: MALAM ? 2.6 : .5 });
+    const W = 8.2, D = 4.6, H = 3.6, cz = Z - 2.1, depan = cz + D / 2, lt = y0 + .22;
+    lempeng(bentukBulat(W + .9, D + .9, .45), .22, L.marmer, X, y0, cz, 0, false);
+    // dinding hijau-hitam, pilaster emas
+    kk(hijau, W, H, .3, X, lt + H / 2, cz - D / 2 + .15); [-1, 1].forEach(sx => kk(hijau, .3, H, D, X + sx * (W / 2 - .15), lt + H / 2, cz));
+    kk(hijau, 2.3, H, .3, X - W / 2 + 1.15, lt + H / 2, depan - .15); [X - W / 2 + .02, X - W / 2 + 2.3, X + W / 2 - .02].forEach(x => kk(L.emas, .1, H, .1, x, lt + H / 2, depan + .02));
+    // interior: dinding belakang hangat, lantai marmer, plafon
+    mesh(bahan(0x5a3a26, { emissive: 0xffb877, emissiveIntensity: MALAM ? 1 : .25 }), W - .6, H, .1, X, lt + H / 2, cz - D / 2 + .32, false);
+    kk(L.marmer, W - .6, .04, D - .6, X, lt + .02, cz, 0, false); kk(bahan(0x2a1d14, { emissive: 0xffd2a0, emissiveIntensity: MALAM ? .55 : .12 }), W - .6, .05, D - .6, X, lt + H - .05, cz, 0, false);
+    // rak kantong kopi bercahaya
+    [.95, 1.6, 2.25].forEach(y => { kk(jati, W - 1.2, .05, .32, X, lt + y, cz - D / 2 + .52); kk(garisRak, W - 1.3, .02, .02, X, lt + y - .03, cz - D / 2 + .66, 0, false);
+      for (let i = 0; i < 12; i++) kk(i % 3 ? kraft : kantongHitam, .24, .32, .14, X - W / 2 + 1 + i * .55, lt + y + .19, cz - D / 2 + .52); });
+    // pemanggang kopi tembaga: drum mendatar, corong terbalik, nampan pendingin
+    ps('s', tembaga, .78, 1.1, .78, X - 2.3, lt + 1.25, cz - .5, 0, Math.PI / 2); ps('c', tembaga, .62, .65, .62, X - 2.3, lt + 2, cz - .5, 0, Math.PI); ps('s', krom, .12, .5, .12, X - 2.3, lt + 2.5, cz - .5);
+    ps('s', krom, 1.1, .12, 1.1, X - 1.5, lt + .78, cz + .1); ps('s', tembaga, .12, .75, .12, X - 1.5, lt + .38, cz + .1); [[-.3, -.3], [.3, -.3], [-.3, .3], [.3, .3]].forEach(([a2, b2]) => ps('s', krom, .06, .7, .06, X - 2.3 + a2, lt + .35, cz - .5 + b2));
+    // meja bar marmer berlis emas, mesin espreso krom, cangkir, kursi bar kuningan berdudukan kulit
+    kk(jati, W - 3.4, 1, .55, X + 1.2, lt + .5, cz - .9); kk(L.marmer, W - 3.3, .07, .72, X + 1.2, lt + 1.04, cz - .9); kk(L.emas, W - 3.3, .03, .03, X + 1.2, lt + 1, cz - .54, 0, false); kk(garisRak, W - 3.5, .03, .03, X + 1.2, lt + .1, cz - .6, 0, false);
+    kk(krom, 1, .5, .45, X + 2.6, lt + 1.33, cz - 1.05); kk(hijau, 1.02, .08, .47, X + 2.6, lt + 1.6, cz - 1.05); [-.25, .25].forEach(d => ps('s', krom, .06, .2, .06, X + 2.6 + d, lt + 1.18, cz - .8));
+    [.3, .5, .7].forEach(d => ps('s', L.putih, .1, .1, .1, X + 1 + d, lt + 1.13, cz - .95));
+    [-.4, .5, 1.4, 2.3, 3.2].forEach(x => { ps('s', L.emas, .05, .75, .05, X + x, lt + .37, cz - .15); ps('s', kulitC, .38, .08, .38, X + x, lt + .78, cz - .15); ps('s', L.emas, .32, .03, .32, X + x, lt + .3, cz - .15); });
+    // lampu gantung bola kaca berbatang kuningan
+    [-1.2, .2, 1.6, 3].forEach(x => { ps('s', L.emas, .02, .8, .02, X + x, lt + H - .45, cz + .25); ps('b', P.lampu, .38, .38, .38, X + x, lt + H - .95, cz + .25, 0, 0, false); ps('s', L.emas, .14, .06, .14, X + x, lt + H - .78, cz + .25); });
+    // etalase kaca tiga lengkung berbingkai emas, pintu ganda di lengkung tengah
+    mesh(P.kaca, W - 2.6, H - .1, .08, X + 1.25, lt + (H - .1) / 2, depan - .1, false);
+    const lebarBay = (W - 2.6) / 3; kk(L.emas, W - 2.6, .05, .07, X + 1.25, lt + 2.35, depan - .05, 0, false); kk(L.emas, W - 2.6, .06, .07, X + 1.25, lt + .04, depan - .05, 0, false);
+    for (let i = 0; i < 3; i++) { const cx = X - W / 2 + 2.3 + lebarBay * (i + .5), ar = new THREE.Mesh(new THREE.TorusGeometry(lebarBay / 2 - .06, .035, 8, 28, Math.PI), L.emas); ar.position.set(cx - X, lt + 2.38, depan - Z - .05); grp.add(ar);
+      [-1, 1].forEach(sx => kk(L.emas, .05, 2.35, .07, cx + sx * lebarBay / 2, lt + 1.18, depan - .05, 0, false)); }
+    { const cx = X - W / 2 + 2.3 + lebarBay * 1.5; kk(L.emas, .04, 2.3, .07, cx, lt + 1.15, depan - .03, 0, false); [-.12, .12].forEach(d => kk(L.emas, .03, .5, .06, cx + d, lt + 1.1, depan + .03, 0, false)); }
+    // pita atap berlis emas, papan nama emas, lambang emas di fasad kiri dan samping
+    kk(hijau, W + .3, .62, D + .3, X, lt + H + .31, cz); [lt + H + .02, lt + H + .6].forEach(y => kk(L.emas, W + .34, .05, .05, X, y, depan + .17, 0, false));
+    papan('KEDAI KOPI  ·  RESERVE', 4.8, .46, .4, lt + H + .31, depan - Z + .17, grp, '#16211d', '#e2c27a');
     { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
-      x.fillStyle = '#f1e9dc'; x.beginPath(); x.arc(128, 128, 124, 0, 7); x.fill(); x.fillStyle = '#1f5a45'; x.beginPath(); x.arc(128, 128, 112, 0, 7); x.fill();
-      x.strokeStyle = '#f1e9dc'; x.lineWidth = 6; x.beginPath(); x.arc(128, 128, 92, 0, 7); x.stroke();
-      x.fillStyle = '#f1e9dc'; x.beginPath(); x.moveTo(84, 112); x.lineTo(172, 112); x.lineTo(160, 182); x.quadraticCurveTo(128, 196, 96, 182); x.closePath(); x.fill();
-      x.lineWidth = 9; x.beginPath(); x.arc(176, 140, 17, -1.4, 1.4); x.stroke();
-      x.lineWidth = 6; [100, 128, 156].forEach(sx => { x.beginPath(); x.moveTo(sx, 98); x.bezierCurveTo(sx - 12, 82, sx + 12, 72, sx, 56); x.stroke(); });
+      x.fillStyle = '#e2c27a'; x.beginPath(); x.arc(128, 128, 124, 0, 7); x.fill(); x.fillStyle = '#16211d'; x.beginPath(); x.arc(128, 128, 112, 0, 7); x.fill();
+      x.strokeStyle = '#e2c27a'; x.lineWidth = 5; x.beginPath(); x.arc(128, 128, 94, 0, 7); x.stroke();
+      x.fillStyle = '#e2c27a'; x.beginPath(); x.moveTo(84, 112); x.lineTo(172, 112); x.lineTo(160, 182); x.quadraticCurveTo(128, 196, 96, 182); x.closePath(); x.fill();
+      x.lineWidth = 9; x.beginPath(); x.arc(176, 140, 17, -1.4, 1.4); x.stroke(); x.lineWidth = 6; [100, 128, 156].forEach(sx => { x.beginPath(); x.moveTo(sx, 98); x.bezierCurveTo(sx - 12, 82, sx + 12, 72, sx, 56); x.stroke(); });
+      x.font = 'bold 20px "Plus Jakarta Sans", sans-serif'; x.textAlign = 'center'; x.fillText('RESERVE', 128, 224);
       const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
-      const lambang = new THREE.Mesh(new THREE.CircleGeometry(.62, 40), new THREE.MeshBasicMaterial({ map: tx })); lambang.position.set(-W / 2 + 1.15, y0 + 2.45, depan - Z + .12); grp.add(lambang);
-      const lambang2 = lambang.clone(); lambang2.scale.setScalar(.55); lambang2.position.set(-W / 2 - .32, y0 + .22 + H + .27, cz - Z + .9); lambang2.rotation.y = -Math.PI / 2; grp.add(lambang2); }
-    kk(P.baja, W - 2.4, .07, 1.1, X + 1.25, y0 + 2.75, depan + .5); [-1, 1].forEach(s => kk(P.baja, .04, .04, 1.1, X + 1.25 + s * (W - 2.6) / 2, y0 + 2.68, depan + .5));
-    // teras: dek kayu, pagar tanaman rendah, meja bundar hitam dengan kursi, payung hijau tua
-    kk(P.kayu, W + .4, .1, 4.2, X, y0 + .05, Z + 2.35, 0, false);
-    [-1, 1].forEach(s => { kk(hijau, .35, .5, 3.8, X + s * (W / 2 + .05), y0 + .35, Z + 2.4); for (let z = .9; z < 4.3; z += .7) semak(X + s * (W / 2 + .05), Z + z, .5, y0 + .55); });
-    kk(hijau, 2.6, .5, .35, X - 2.75, y0 + .35, Z + 4.3); kk(hijau, 2.6, .5, .35, X + 2.75, y0 + .35, Z + 4.3); [-3.6, -2.7, -1.9, 1.9, 2.7, 3.6].forEach(x => semak(X + x, Z + 4.3, .5, y0 + .55));
-    const hitamMeja = bahan(0x1a1a1a, { roughness: .35, metalness: .5 });
-    [[-2.3, 2.6], [0, 3], [2.3, 2.6]].forEach(([x, z]) => { ps('s', hitamMeja, .95, .05, .95, X + x, y0 + .82, Z + z); ps('s', P.baja, .07, .74, .07, X + x, y0 + .46, Z + z);
-      ps('s', P.baja, .05, 1.9, .05, X + x, y0 + 1.75, Z + z); ps('c', hijauMuda, 2.2, .45, 2.2, X + x, y0 + 2.62, Z + z); ps('s', P.krem, .06, .06, .06, X + x, y0 + 2.88, Z + z);
-      [-.75, .75].forEach(dx => { ps('k', hitamMeja, .5, .06, .5, X + x + dx, y0 + .55, Z + z); ps('k', hitamMeja, .5, .55, .05, X + x + dx * 1.35, y0 + .82, Z + z); }); });
-    [-1, 1].forEach(s => { kk(P.beton, .8, .7, .8, X + s * 3.4, y0 + .35, Z - 4.4); ps('b', P.daun2, 1, 1.3, 1, X + s * 3.4, y0 + 1.25, Z - 4.4); });
-    // biofilik: taman atap di atas pita hijau, dinding hidup di sisi kiri, list emas, pohon dalam pot marmer
-    lempeng(bentukBulat(W - .1, D - .1, .3), .05, L.rumputHalus, X, y0 + .22 + H + .55, cz, 0, false); tepiHijau(bentukBulat(W, D, .3), X, y0 + .22 + H + .58, cz, 0, .5, .32, 5);
-    for (let yy = .55; yy < H + .1; yy += .42) for (let zz = cz - D / 2 + .3; zz < cz + D / 2; zz += .42) ps('b', HIJAU[Math.round(yy * 10 + zz * 7) % 3], .42, .42, .26, X - W / 2 - .22, y0 + .22 + yy, zz, 0, 0, false);
-    kk(L.emas, W + .34, .04, .04, X, y0 + .22 + H + .56, depan + .18, 0, false);
-    [-1, 1].forEach(s2 => { kk(L.marmer, .8, .7, .8, X + s2 * 3.4, y0 + .35, Z - 4.4); });
+      const lambang = new THREE.Mesh(new THREE.CircleGeometry(.66, 48), new THREE.MeshBasicMaterial({ map: tx })); lambang.position.set(-W / 2 + 1.15, lt + 2.25, depan - Z + .12); grp.add(lambang);
+      const l2 = lambang.clone(); l2.scale.setScalar(.55); l2.position.set(-W / 2 - .32, lt + H + .31, cz - Z + .9); l2.rotation.y = -Math.PI / 2; grp.add(l2);
+      const cincinL = new THREE.Mesh(new THREE.TorusGeometry(.68, .03, 8, 48), L.emas); cincinL.position.copy(lambang.position); grp.add(cincinL); }
+    // kanopi kuningan di atas etalase, lentera di kiri kanan pintu
+    kk(L.emas, W - 2.4, .06, 1.1, X + 1.25, lt + 2.98, depan + .5); [-1, 1].forEach(s2 => kk(L.emas, .04, .04, 1.1, X + 1.25 + s2 * (W - 2.6) / 2, lt + 2.91, depan + .5));
+    [-1, 1].forEach(s2 => { const lx = X + 1.25 + s2 * .9; kk(L.emas, .2, .34, .2, lx, lt + 1.9, depan + .12); kk(bohlam, .13, .24, .13, lx, lt + 1.9, depan + .12, 0, false); });
+    // dinding hidup di sisi kiri
+    for (let yy = .5; yy < H + .1; yy += .42) for (let zz = cz - D / 2 + .3; zz < cz + D / 2; zz += .42) ps('b', HIJAU[Math.round(yy * 10 + zz * 7) % 3], .42, .42, .26, X - W / 2 - .22, lt + yy, zz, 0, 0, false);
+    // taman atap dengan pergola emas berlampu untai
+    const atapY = lt + H + .62; lempeng(bentukBulat(W - .1, D - .1, .3), .05, L.rumputHalus, X, atapY, cz, 0, false); tepiHijau(bentukBulat(W, D, .3), X, atapY + .03, cz, 0, .5, .32, 5);
+    [[-2, -1.2], [2, -1.2], [-2, 1.2], [2, 1.2]].forEach(([a2, b2]) => ps('s', L.emas, .07, 1.5, .07, X + a2, atapY + .75, cz + b2)); for (let i = -2; i <= 2; i += .5) kk(L.emas, .06, .06, 2.6, X + i, atapY + 1.52, cz, 0, false);
+    for (let i = 0; i <= 16; i++) { const t = i / 16, xx = X - 2 + t * 4; ps('b', bohlam, .09, .09, .09, xx, atapY + 1.45 - Math.sin(t * Math.PI) * .25, cz - 1.2, 0, 0, false); ps('b', bohlam, .09, .09, .09, xx, atapY + 1.45 - Math.sin(t * Math.PI) * .25, cz + 1.2, 0, 0, false); }
+    [[-1, -.2], [1, .3]].forEach(([a2, b2]) => { kk(L.putih, 1.2, .35, .5, X + a2, atapY + .2, cz + b2); kk(kulitC, 1.1, .1, .45, X + a2, atapY + .42, cz + b2); });
+    // teras: dek jati berbingkai marmer, pot marmer berpagar semak, meja marmer berkaki kuningan, kursi kulit cognac, payung krem
+    kk(jati, W + .4, .1, 4.2, X, y0 + .05, Z + 2.35, 0, false); kk(L.marmer, W + .8, .12, .22, X, y0 + .06, Z + 4.52, 0, false);
+    [-1, 1].forEach(s2 => { kk(L.marmer, .42, .55, 3.8, X + s2 * (W / 2 + .05), y0 + .33, Z + 2.4); kk(L.emas, .44, .03, 3.82, X + s2 * (W / 2 + .05), y0 + .6, Z + 2.4, 0, false); for (let z = .9; z < 4.3; z += .6) semak(X + s2 * (W / 2 + .05), Z + z, .5, y0 + .6); });
+    [-2.75, 2.75].forEach(x => { kk(L.marmer, 2.6, .55, .4, X + x, y0 + .33, Z + 4.3); kk(L.emas, 2.62, .03, .42, X + x, y0 + .6, Z + 4.3, 0, false); for (let i = -1.1; i <= 1.1; i += .55) semak(X + x + i, Z + 4.3, .5, y0 + .6); });
+    [[-2.3, 2.6], [0, 3], [2.3, 2.6]].forEach(([x, z]) => { ps('s', L.marmer, .95, .05, .95, X + x, y0 + .82, Z + z); ps('s', L.emas, .07, .72, .07, X + x, y0 + .46, Z + z); ps('s', L.emas, .5, .04, .5, X + x, y0 + .12, Z + z);
+      ps('s', L.emas, .05, 1.95, .05, X + x, y0 + 1.78, Z + z); ps('c', kanvasK, 2.3, .48, 2.3, X + x, y0 + 2.62, Z + z); ps('b', L.emas, .12, .12, .12, X + x, y0 + 2.9, Z + z); ps('s', L.emas, 2.3, .03, 2.3, X + x, y0 + 2.39, Z + z);
+      [-.75, .75].forEach(dx => { ps('k', kulitC, .5, .08, .5, X + x + dx, y0 + .56, Z + z); ps('k', kulitC, .07, .55, .5, X + x + dx * 1.42, y0 + .83, Z + z); [-.2, .2].forEach(dz => ps('s', L.emas, .035, .52, .035, X + x + dx, y0 + .27, Z + z + dz)); });
+      ps('s', L.putih, .09, .1, .09, X + x + .2, y0 + .9, Z + z); });
+    // lampu untai di atas teras, pohon zaitun dalam pot marmer di depan
+    for (let i = 0; i <= 20; i++) { const t = i / 20, xx = X - W / 2 + t * W; ps('b', bohlam, .09, .09, .09, xx, y0 + 2.75 - Math.sin(t * Math.PI) * .35, Z + 4.35, 0, 0, false); }
+    [-1, 1].forEach(s2 => { const px = X + s2 * 4.35, pz = Z + 4.85; ps('s', L.marmer, .9, .7, .9, px, y0 + .35, pz); ps('s', L.emas, .92, .04, .92, px, y0 + .7, pz); ps('s', P.batang, .1, 1.3, .1, px, y0 + 1.3, pz);
+      ps('b', P.daun2, 1.3, .9, 1.3, px, y0 + 2.1, pz); ps('b', L.daun3, .9, .7, .9, px + .3, y0 + 2.4, pz - .2); });
     g.kursi = [[-3.1, 2.4, .9], [-1.5, 2.4, -.9], [-.8, 3.6, 0], [.8, 3.6, 0], [1.5, 2.4, -.9], [3.1, 2.4, .9]];
-    g.orang = {}; g.grup = grp; g.puncak = 4.4; kotakTak(grp, 8.6, 4, 9); dapatDiketuk.push(grp); }
+    g.orang = {}; g.grup = grp; g.puncak = atapY + 1.9; kotakTak(grp, 8.6, 4.4, 9); dapatDiketuk.push(grp); }
 
   // ----- arkade: paviliun hiburan mewah. Kubah putih melayang di atas cincin kaca yang menyala ungu, sabuk tanaman di badan
   // kubah, layar ARKADE melengkung, gapura emas berlampu kelap-kelip, kolam dan palem di kiri kanan pintu.
