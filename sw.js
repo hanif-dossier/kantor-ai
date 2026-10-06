@@ -1,6 +1,6 @@
 // Service worker Kantor AI: selalu tanya server dulu (versi baru langsung terpakai), simpanan dipakai saat tanpa sinyal.
 // Data status tidak pernah disimpan di sini.
-const NAMA = 'kantor-v18';
+const NAMA = 'kantor-v19';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(NAMA).then(c => c.addAll(['./', 'manifest.json']))); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== NAMA).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
