@@ -651,7 +651,7 @@ function buatPrajurit() { const g = new THREE.Group(), rompi = new THREE.MeshSta
 let AC = null, derau = null;
 function siapSuara() { if (AC) { if (AC.state === 'suspended') AC.resume(); return; } try { AC = new (window.AudioContext || window.webkitAudioContext)(); derau = AC.createBuffer(1, AC.sampleRate * 1.2, AC.sampleRate); const d = derau.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch { AC = null; } }
 function suara(jenis, kuat = 1) { if (!AC || !PENG.suara || kuat < .02) return; const t = AC.currentTime, akhir = AC.createGain(); akhir.connect(AC.destination);
-  const tembakan = { tembak: [2000, .12, 140], smg: [2600, .09, 170], runduk: [1300, .35, 70], pistol: [2600, .16, 150], musuh: [1400, .12, 240] }[jenis];
+  const tembakan = { tembak: [2000, .12, 140], smg: [2600, .09, 170], runduk: [1300, .35, 70], pistol: [2600, .16, 150], musuh: [1400, .12, 240], tabur: [900, .42, 55], lmg: [1800, .11, 115], jitu: [1600, .24, 90] }[jenis];
   if (tembakan) { const [frek, lama, bas] = tembakan, s = AC.createBufferSource(); s.buffer = derau; const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = frek; s.connect(f); f.connect(akhir);
     akhir.gain.setValueAtTime(.55 * kuat, t); akhir.gain.exponentialRampToValueAtTime(.001, t + lama); s.start(t); s.stop(t + lama + .05);
     const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(bas, t); o.frequency.exponentialRampToValueAtTime(40, t + .1); g.gain.setValueAtTime(.5 * kuat, t); g.gain.exponentialRampToValueAtTime(.001, t + .12); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + .13); return; }
@@ -676,11 +676,34 @@ const MODEL = {
   runduk() { const g = new THREE.Group(); balok(g, .07, .09, .62, 0, 0, 0, M.gelap); balok(g, .04, .04, .55, 0, .015, -.58, M.gelap); balok(g, .07, .1, .26, 0, -.01, .38, M.aksen); balok(g, .045, .14, .07, 0, -.11, .02, M.gelap).rotation.x = .25; balok(g, .05, .08, .06, 0, -.06, -.12, M.gelap);
     const tb = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .34, 14), M.gelap); tb.rotation.x = Math.PI / 2; tb.position.set(0, .09, -.06); g.add(tb); const lensa = new THREE.Mesh(new THREE.CylinderGeometry(.038, .038, .05, 14), M.gelap); lensa.rotation.x = Math.PI / 2; lensa.position.set(0, .09, -.24); g.add(lensa);
     tangan(g, [.01, -.1, .2], [.0, -.05, -.25]); const k = buatKilat(.28); k.position.set(0, .015, -.88); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .015, -.88), ads: new THREE.Vector3(0, -.09, -.2), pinggul: new THREE.Vector3(.21, -.2, -.45) }; },
+  // Senapan Tabur: laras panjang, tabung peluru di bawah, pegangan pompa kayu, popor kayu
+  tabur() { const g = new THREE.Group(), kayu = M.kayu; balok(g, .065, .085, .34, 0, 0, 0, M.gelap); const laras = new THREE.Mesh(new THREE.CylinderGeometry(.019, .019, .5, 10), M.gelap); laras.rotation.x = Math.PI / 2; laras.position.set(0, .022, -.41); g.add(laras);
+    const tabung = new THREE.Mesh(new THREE.CylinderGeometry(.017, .017, .42, 10), M.aksen); tabung.rotation.x = Math.PI / 2; tabung.position.set(0, -.018, -.36); g.add(tabung); balok(g, .062, .055, .15, 0, -.02, -.3, kayu);
+    balok(g, .045, .15, .07, 0, -.1, .06, kayu).rotation.x = .3; balok(g, .06, .09, .26, 0, -.04, .3, kayu).rotation.x = -.12; balok(g, .012, .02, .012, 0, .045, -.64, M.emas);
+    tangan(g, [.01, -.1, .1], [.0, -.06, -.3]); const k = buatKilat(.3); k.position.set(0, .022, -.68); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .022, -.68), ads: new THREE.Vector3(0, -.075, -.24), pinggul: new THREE.Vector3(.2, -.2, -.4) }; },
+  // Senapan Mesin Ringan: badan tebal, kotak peluru di bawah, pelindung panas berlubang, pegangan angkat, kaki dua terlipat
+  lmg() { const g = new THREE.Group(); balok(g, .09, .11, .46, 0, 0, 0, M.gelap); balok(g, .1, .1, .12, .01, -.1, -.02, M.aksen); balok(g, .02, .04, .1, .065, -.06, -.02, M.emas);
+    const laras = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .42, 10), M.gelap); laras.rotation.x = Math.PI / 2; laras.position.set(0, .02, -.44); g.add(laras);
+    for (let i = 0; i < 5; i++) balok(g, .055, .055, .035, 0, .02, -.3 - i * .055, M.aksen);
+    balok(g, .02, .05, .16, 0, .09, -.02, M.gelap); balok(g, .02, .02, .05, 0, .07, -.1, M.gelap); balok(g, .02, .02, .05, 0, .07, .06, M.gelap);
+    balok(g, .045, .15, .07, 0, -.12, .1, M.gelap).rotation.x = .25; balok(g, .07, .1, .22, 0, -.01, .33, M.aksen);
+    [-.025, .025].forEach(x => { const kk = balok(g, .012, .012, .26, x, -.03, -.5, M.gelap); kk.rotation.x = .08; });
+    holo(g, .14, -.12); tangan(g, [.01, -.12, .14], [.0, -.07, -.3]); const k = buatKilat(.26); k.position.set(0, .02, -.66); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .02, -.66), ads: new THREE.Vector3(0, -.14, -.3), pinggul: new THREE.Vector3(.21, -.22, -.42), berat: true }; },
+  // Senapan Jitu: laras panjang ramping, teropong kecil di atas, magasin lurus, popor dengan bantalan pipi
+  jitu() { const g = new THREE.Group(); balok(g, .066, .09, .5, 0, 0, 0, M.gelap); balok(g, .042, .042, .48, 0, .014, -.47, M.gelap); balok(g, .06, .07, .26, 0, -.008, -.33, M.aksen);
+    balok(g, .045, .17, .07, 0, -.12, -.06, M.gelap).rotation.x = .05; balok(g, .045, .14, .07, 0, -.1, .1, M.aksen).rotation.x = -.3; balok(g, .066, .1, .24, 0, -.01, .36, M.aksen); balok(g, .05, .03, .12, 0, .055, .3, M.aksen);
+    const tb = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .22, 12), M.gelap); tb.rotation.x = Math.PI / 2; tb.position.set(0, .085, -.06); g.add(tb); [-.18, .06].forEach(z => { const r = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .04, 12), M.gelap); r.rotation.x = Math.PI / 2; r.position.set(0, .085, z - .01); g.add(r); });
+    balok(g, .02, .03, .02, 0, .06, -.12, M.gelap); balok(g, .02, .03, .02, 0, .06, .01, M.gelap);
+    const titik = new THREE.Mesh(new THREE.CircleGeometry(.0025, 10), new THREE.MeshBasicMaterial({ color: '#ff3020', fog: false })); titik.position.set(0, .085, .05); g.add(titik);
+    tangan(g, [.01, -.11, .12], [.0, -.06, -.32]); const k = buatKilat(.24); k.position.set(0, .014, -.74); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .014, -.74), ads: new THREE.Vector3(0, -.085, -.24), pinggul: new THREE.Vector3(.2, -.2, -.44) }; },
   pistol() { const g = new THREE.Group(); balok(g, .045, .06, .22, 0, 0, -.05, M.gelap); balok(g, .04, .13, .06, 0, -.08, .03, M.aksen).rotation.x = .2; balok(g, .046, .012, .04, 0, -.03, -.03, M.emas); tangan(g, [.0, -.13, .07], [-.02, -.14, .05]); const k = buatKilat(.16); k.position.set(0, .005, -.2); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .005, -.2), ads: new THREE.Vector3(0, -.065, -.3), pinggul: new THREE.Vector3(.18, -.17, -.38) }; } };
 const DEF = {
   serbu: { nama: 'Senapan Serbu', ket: 'Serba bisa. Otomatis, stabil di jarak sedang.', mag: 30, rpm: 640, dmg: 26, otomatis: true, sebarPinggul: .03, sebarBidik: .004, hentak: .012, isiUlang: 1.8, zoom: .66, jatuh: 35, suara: 'tembak', stat: [55, 65, 70, 65] },
   smg: { nama: 'SMG', ket: 'Sangat cepat, unggul di jarak dekat dan gang sempit.', mag: 32, rpm: 920, dmg: 18, otomatis: true, sebarPinggul: .032, sebarBidik: .009, hentak: .0075, isiUlang: 1.5, zoom: .8, jatuh: 18, suara: 'smg', stat: [38, 95, 55, 35] },
   runduk: { nama: 'Senapan Runduk', ket: 'Tembakan ke kepala pasti melumpuhkan. Teropong pembesaran tinggi.', mag: 5, rpm: 48, dmg: 115, otomatis: false, sebarPinggul: .07, sebarBidik: .0004, hentak: .05, isiUlang: 2.6, zoom: .24, jatuh: 200, suara: 'runduk', teropong: true, stat: [98, 12, 95, 100] },
+  tabur: { nama: 'Senapan Tabur', ket: 'Sekali tembak menyebar 8 butir. Sangat kuat di lorong dan tikungan labirin, lemah di jarak jauh.', mag: 8, rpm: 80, dmg: 17, pelet: 8, sebarPelet: .055, otomatis: false, sebarPinggul: .015, sebarBidik: .01, hentak: .05, isiUlang: 2.5, zoom: .82, jatuh: 9, suara: 'tabur', stat: [96, 15, 30, 15] },
+  lmg: { nama: 'Senapan Mesin Ringan', ket: '100 peluru tanpa henti untuk menahan gelombang bot. Berat: lari sedikit lebih pelan, isi ulang lama.', mag: 100, rpm: 700, dmg: 23, otomatis: true, sebarPinggul: .05, sebarBidik: .008, hentak: .009, isiUlang: 4.2, zoom: .7, jatuh: 40, suara: 'lmg', berat: .86, stat: [58, 82, 48, 70] },
+  jitu: { nama: 'Senapan Jitu', ket: 'Semi-otomatis dengan teropong kecil. Dua tembakan ke badan melumpuhkan, cocok untuk lorong panjang.', mag: 15, rpm: 260, dmg: 58, otomatis: false, sebarPinggul: .045, sebarBidik: .0012, hentak: .03, isiUlang: 2.2, zoom: .45, jatuh: 90, suara: 'jitu', teropong: true, stat: [80, 40, 86, 86] },
   pistol: { nama: 'Pistol', ket: '', mag: 12, rpm: 330, dmg: 42, otomatis: false, sebarPinggul: .02, sebarBidik: .006, hentak: .024, isiUlang: 1.2, zoom: .8, jatuh: 30, suara: 'pistol' } };
 let SLOT = [];
 function siapkanSenjata() { SLOT.forEach(s => kamera.remove(s.model.g)); SLOT = [PENG.utama, 'pistol'].map(k => { const d = DEF[k], model = MODEL[k](); model.g.visible = false; kamera.add(model.g); return Object.assign({ kunci: k, model, isi: d.mag }, d); }); }
@@ -767,13 +790,19 @@ function tembak() { const s = senjata(); if (tIsi > 0 || tGanti > 0 || cdTembak 
   s.isi--; tembakan++; cdTembak = 60 / s.rpm; perbaruiPeluru();
   kamera.getWorldPosition(_posKam); kamera.getWorldDirection(_dir); _kanan.set(1, 0, 0).applyQuaternion(kamera.quaternion); _atas.set(0, 1, 0).applyQuaternion(kamera.quaternion);
   const bergerak = Math.hypot(gerakX, gerakZ) > .2, sebar = (bidik ? s.sebarBidik : s.sebarPinggul) * (bergerak ? 1.7 : 1) * (P.diTanah ? 1 : 2.5) * (P.jongkok ? .65 : 1) + panas * (bidik && s.teropong ? .2 : 1);
-  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * sebar; _dir.addScaledVector(_kanan, Math.cos(a) * r).addScaledVector(_atas, Math.sin(a) * r).normalize();
-  raycaster.set(_posKam, _dir); raycaster.far = 160; const hasil = raycaster.intersectObjects(sasaranMusuh.concat(padat), false);
-  _ujung.copy(s.model.ujung); s.model.g.localToWorld(_ujung); if (s.teropong && nilaiBidik > .85) _ujung.copy(_posKam).addScaledVector(_dir, .5).addScaledVector(_atas, -.1);
-  if (hasil.length) { const h = hasil[0]; garisPeluru(_ujung, h.point);
-    if (h.object.userData.musuh) { const kepala = h.object.userData.bagian === 'kepala'; kena++; kenaiMusuh(h.object.userData.musuh, s.dmg * (kepala ? 2 : 1) * (h.distance > s.jatuh ? .75 : 1), kepala, h.point, true); }
-    else percik(h.point, '#ffcf7a', 5); }
-  else garisPeluru(_ujung, _v.copy(_posKam).addScaledVector(_dir, 90));
+  _ujung.copy(s.model.ujung); s.model.g.localToWorld(_ujung); const arah0 = _dir.clone(), sasaran = sasaranMusuh.concat(padat); let adaKena = false;
+  for (let b = 0; b < (s.pelet || 1); b++) { _dir.copy(arah0); const sb = sebar + (s.pelet ? s.sebarPelet : 0);
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * sb; _dir.addScaledVector(_kanan, Math.cos(a) * r).addScaledVector(_atas, Math.sin(a) * r).normalize();
+    raycaster.set(_posKam, _dir); raycaster.far = s.pelet ? 60 : 160; const hasil = raycaster.intersectObjects(sasaran, false);
+    if (s.teropong && nilaiBidik > .85) _ujung.copy(_posKam).addScaledVector(_dir, .5).addScaledVector(_atas, -.1);
+    const garis = !s.pelet || b % 2 === 0;   // senapan tabur: separuh butir saja yang diberi garis supaya ringan
+    if (hasil.length) { const h = hasil[0]; if (garis) garisPeluru(_ujung, h.point);
+      if (h.object.userData.musuh) { const kepala = h.object.userData.bagian === 'kepala'; adaKena = true;
+        const jauh = s.pelet ? Math.max(.25, Math.min(1, s.jatuh / h.distance)) : (h.distance > s.jatuh ? .75 : 1);
+        kenaiMusuh(h.object.userData.musuh, s.dmg * (kepala ? (s.pelet ? 1.5 : 2) : 1) * jauh, kepala, h.point, true); }
+      else percik(h.point, '#ffcf7a', s.pelet ? 2 : 5); }
+    else if (garis) garisPeluru(_ujung, _v.copy(_posKam).addScaledVector(_dir, s.pelet ? 40 : 90)); }
+  if (adaKena) kena++;
   P.pitch += s.hentak * (bidik ? .55 : 1) * (P.jongkok ? .7 : 1); P.yaw += (Math.random() - .5) * s.hentak * .6; panas = Math.min(.035, panas + (s.otomatis ? .0035 : .006)); hentakan = 1;
   s.model.kilat.visible = !(s.teropong && nilaiBidik > .85); s.model.kilat.rotation.z = Math.random() * 6; kilatCahaya.intensity = 3; tKilat = .045;
   suara(s.suara); if (s.isi === 0) setTimeout(isiUlang, 120); }
@@ -945,7 +974,7 @@ function fotoSenjata() { if (FOTO.serbu) return FOTO;
     const box = new THREE.Box3(); g.traverse(o => { if (o.isMesh && o.visible) box.expandByObject(o); }); const c = box.getCenter(new THREE.Vector3()), u = box.getSize(new THREE.Vector3());
     w.position.sub(c); const hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect), jarak = Math.max(u.x / isi / 2 / Math.tan(hf / 2), u.y / isi / 2 / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)));
     cam.position.set(0, 0, jarak + u.z / 2); cam.lookAt(0, 0, 0); r.render(sc, cam); FOTO[k] = kan.toDataURL('image/png'); sc.remove(w); };
-  try { ['serbu', 'smg', 'runduk', 'pistol'].forEach(k => foto(k, MODEL[k]().g, undefined, k === 'pistol' ? .5 : .82));
+  try { ['serbu', 'smg', 'runduk', 'tabur', 'lmg', 'jitu', 'pistol'].forEach(k => foto(k, MODEL[k]().g, undefined, k === 'pistol' ? .5 : .82));
     const gr = new THREE.Group(), badan = new THREE.Mesh(geoGranat, matGranat); badan.scale.y = 1.25; gr.add(badan); balok(gr, .05, .05, .05, 0, .12, 0, M.gelap); const tuas = balok(gr, .02, .02, .14, .02, .1, .04, M.gelap); tuas.rotation.x = .5;
     const cincin = new THREE.Mesh(new THREE.TorusGeometry(.03, .006, 6, 16), M.emas); cincin.position.set(-.04, .14, 0); gr.add(cincin); foto('granat', gr, .4, .42); } catch (e) { console.warn('foto senjata', e); }
   r.dispose(); if (r.forceContextLoss) r.forceContextLoss(); return FOTO; }
@@ -966,7 +995,7 @@ function isiPanelLobi() { const P2 = $('#lobiPanel'); P2.innerHTML = '';
     P2.insertAdjacentHTML('beforeend', `<div class="judulBag">Tingkat kesulitan</div><div class="pilBaris">${Object.entries(TINGKAT).map(([k, t]) => `<button data-t="${k}" class="${PENG.tingkat === k ? 'aktif' : ''}">${t.nama}</button>`).join('')}</div>`);
     P2.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { PENG.tingkat = b.dataset.t; simpanPeng(); suara('pilih'); isiPanelLobi(); }); }
   else if (tabLobi === 'senjata') { const F = fotoSenjata(); P2.insertAdjacentHTML('beforeend', '<div class="judulBag">Senjata utama</div>');
-    ['serbu', 'smg', 'runduk'].forEach(k => { const d = DEF[k], b = document.createElement('button'); b.className = 'kartuSenjata' + (PENG.utama === k ? ' aktif' : ''); b.type = 'button';
+    ['serbu', 'smg', 'tabur', 'lmg', 'jitu', 'runduk'].forEach(k => { const d = DEF[k], b = document.createElement('button'); b.className = 'kartuSenjata' + (PENG.utama === k ? ' aktif' : ''); b.type = 'button';
       b.innerHTML = `<div class="foto">${F[k] ? `<img src="${F[k]}" alt="${d.nama}">` : ''}${PENG.utama === k ? '<span class="lencana">Dipakai</span>' : ''}<span class="mag">${d.mag} peluru · ${d.rpm} rpm</span></div>
         <div class="teks"><b>${d.nama}</b><small>${d.ket}</small><div class="statSenjata">${['Kerusakan', 'Laju tembak', 'Ketepatan', 'Jangkauan'].map((n, i) => `<span>${n}</span><i style="--n:${d.stat[i]}%"></i>`).join('')}</div></div>`;
       b.onclick = () => { PENG.utama = k; simpanPeng(); suara('pilih'); pasangSenjataPrajurit(); isiPanelLobi(); }; P2.appendChild(b); });
@@ -1107,7 +1136,7 @@ function perbarui(dt, dtAsli) { waktuMain += dt;
   const K = PENG.tombol; let sx = 0, fz = 0; if (tombol[K.maju] || tombol.ArrowUp) fz += 1; if (tombol[K.mundur] || tombol.ArrowDown) fz -= 1; if (tombol[K.kanan] || tombol.ArrowRight) sx += 1; if (tombol[K.kiri] || tombol.ArrowLeft) sx -= 1;
   if (stik.aktif) { sx += stik.x; fz -= stik.y; } const pj = Math.hypot(sx, fz); if (pj > 1) { sx /= pj; fz /= pj; }
   const lari = (tombol[K.lari] || (stik.aktif && Math.hypot(stik.x, stik.y) > .95)) && fz > .5 && !bidik; if (lari && P.jongkok) setJongkok(false);
-  const laju = 5.2 * (lari ? 1.55 : 1) * (bidik ? .58 : 1) * (P.jongkok ? .5 : 1);
+  const laju = 5.2 * (lari ? 1.55 : 1) * (bidik ? .58 : 1) * (P.jongkok ? .5 : 1) * (senjata()?.berat || 1);
   const fx = -Math.sin(P.yaw), fzz = -Math.cos(P.yaw), rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw), tx = (rx * sx + fx * fz) * laju, tz = (rz * sx + fzz * fz) * laju;
   // gerak halus: kecepatan mendekati tujuan dengan cepat (di darat) supaya mulai dan berhenti tidak patah-patah
   const kec = PENG.gerakHalus ? Math.min(1, dt * (P.diTanah ? 13 : 3)) : 1; P.vx += (tx - P.vx) * kec; P.vz += (tz - P.vz) * kec;
