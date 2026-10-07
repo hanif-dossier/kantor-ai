@@ -2,193 +2,172 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Juragan Sewa</title>
-<meta name="theme-color" content="#070a10">
+<meta name="theme-color" content="#0b1428">
 <link rel="icon" href="ikon-192.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,800&family=JetBrains+Mono:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Fraunces:opsz,wght@9..144,700;9..144,800&family=JetBrains+Mono:wght@600;700&display=swap">
 <style>
-/* Juragan Sewa (8 Okt 2026). Game strategi arus kas di Arkade Kantor AI: beli properti sewaan dengan tunai atau KPR,
-   kelola penyewa dan kejadian tak terduga, sampai pemasukan pasif bersih melebihi biaya hidup. Satu berkas, tanpa server;
-   permainan tersimpan di localStorage perangkat ini. Angka disederhanakan supaya satu permainan selesai dalam sekitar
-   30 sampai 60 giliran. */
-:root{--latar:#070a10;--panel:#0f1620;--panel2:#141d29;--garis:#243142;--tinta:#eef3f6;--redup:#9fb0bd;--samar:#64768a;
-  --emas:#f3c550;--emas2:#c99a2e;--hijau:#5fd08f;--merah:#f0715f;--biru:#6fb6ff;
-  --sans:'Plus Jakarta Sans',system-ui,sans-serif;--serif:'Fraunces',Georgia,serif;--mono:'JetBrains Mono',ui-monospace,monospace}
+/* Juragan Sewa 3D (8 Okt 2026). Pemilik: "game seperti cashflow, tapi dalam bentuk visual 3D real time seperti game
+   Play Store". Kota 3D (three.js r128) dengan waktu berjalan: tiap awal bulan gaji dan sewa masuk, koin sewa melayang di
+   atas properti dan diketuk untuk ditagih, peluang muncul sebagai bangunan transparan bertanda DIJUAL di kavling kosong.
+   Ekonomi (KPR anuitas, batas bank, kejadian, resesi) sama dengan versi 2D sebelumnya. Tersimpan di localStorage. */
+:root{--panel:rgba(12,18,28,.9);--panel2:#141d29;--garis:rgba(255,255,255,.1);--tinta:#eef3f6;--redup:#a9b8c6;--samar:#6f8194;
+  --emas:#f3c550;--emas2:#c99a2e;--hijau:#5fd08f;--merah:#f0715f;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--serif:'Fraunces',Georgia,serif;--mono:'JetBrains Mono',ui-monospace,monospace}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--latar);color:var(--tinta);font:15px/1.5 var(--sans)}
-body{min-height:100vh;background:radial-gradient(1200px 600px at 70% -10%,#16233a 0%,transparent 60%),var(--latar)}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1428;color:var(--tinta);font:15px/1.45 var(--sans);user-select:none;-webkit-user-select:none}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 :focus-visible{outline:2px solid var(--emas);outline-offset:2px}
-.angka{font-family:var(--mono);font-variant-numeric:tabular-nums}
+#dunia{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .naik{color:var(--hijau)}.turun{color:var(--merah)}.redup{color:var(--redup)}
-.pil{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:9px 16px;font-weight:800;font-size:14px;background:var(--panel2);border:1px solid var(--garis);white-space:nowrap}
-a.pil{color:var(--tinta)}.pil:hover{border-color:#3a4c63}.pil.utama{background:linear-gradient(180deg,#ffd75e,#e9a91f);color:#1c1405;border:0}.pil.kecil{padding:6px 12px;font-size:12.5px}
-.pil.bahaya{color:var(--merah);border-color:rgba(240,113,95,.35)}.pil:disabled{opacity:.4;cursor:not-allowed}
+.pil{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;padding:9px 16px;font-weight:800;font-size:14px;background:var(--panel2);border:1px solid var(--garis);white-space:nowrap;text-decoration:none;color:var(--tinta)}
+.pil.utama{background:linear-gradient(180deg,#ffd75e,#e9a91f);color:#1c1405;border:0}.pil.kecil{padding:6px 12px;font-size:12.5px}.pil.bahaya{color:var(--merah);border-color:rgba(240,113,95,.35)}.pil:disabled{opacity:.4;cursor:not-allowed}
 
-/* kepala */
-.kepala{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:12px max(16px,env(safe-area-inset-left));background:rgba(7,10,16,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--garis)}
-.logo{font:800 20px/1 var(--serif);letter-spacing:.01em}.logo small{display:block;font:700 10px/1.3 var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--emas);margin-top:3px}
-.kepala .isi{flex:1;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
-.kepala .isi div{display:flex;flex-direction:column;align-items:center}.kepala .isi small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--redup);font-weight:800}
-.kepala .isi b{font:700 17px var(--mono)}
-@media (max-width:640px){.kepala .isi .hp-sembunyi{display:none}.logo small{display:none}}
+/* HUD */
+.hud{position:fixed;z-index:10;pointer-events:none}.hud>*{pointer-events:auto}
+.atasKiri{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:8px}
+.kartuHud{background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--garis);border-radius:16px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.tanggal{display:flex;align-items:center;gap:10px}.tanggal b{font:800 15px var(--serif)}.tanggal small{display:block;font-size:11px;color:var(--redup)}
+.jam{width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--emas) var(--p,0%),rgba(255,255,255,.12) 0);display:grid;place-items:center;flex:none}.jam i{width:26px;height:26px;border-radius:50%;background:#101826;display:grid;place-items:center;font:700 10px var(--mono);font-style:normal}
+.laju{display:flex;gap:4px}.laju button{min-width:40px;padding:5px 8px;border-radius:10px;font:800 12px var(--sans);background:rgba(255,255,255,.06);border:1px solid var(--garis)}.laju button.aktif{background:var(--emas);color:#1c1405;border-color:var(--emas)}
+.atasKanan{top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));width:min(300px,52vw)}
+.kas{display:flex;align-items:center;gap:10px}.kas .koinIkon{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a0,#e9a91f 60%,#9a6b1c);display:grid;place-items:center;font:800 11px var(--sans);color:#5a3a08;flex:none;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.kas b{font:700 19px var(--mono)}.kas small{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--redup);font-weight:800}
+.tujuan{margin-top:8px;font-size:11.5px}.tujuan .baris{display:flex;justify-content:space-between;gap:8px}.tujuan b{font-family:var(--mono)}
+.batang{height:8px;border-radius:8px;background:rgba(255,255,255,.1);margin-top:5px;overflow:hidden}.batang i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#3fa76b,#5fd08f,#f3c550);transition:width .5s}
+.bawah{left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:6px;background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--garis);border-radius:20px;padding:6px}
+.bawah button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:74px;padding:7px 10px;border-radius:14px;font-size:11.5px;font-weight:800;color:var(--redup)}
+.bawah button svg{width:22px;height:22px}.bawah button.aktif,.bawah button:hover{background:rgba(255,255,255,.07);color:var(--tinta)}
+.lencanaN{position:absolute;top:2px;right:10px;min-width:18px;height:18px;border-radius:9px;background:var(--merah);color:#fff;font:800 10.5px/18px var(--sans);text-align:center;padding:0 4px}
+@media (max-width:640px){.atasKanan{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;padding:7px 11px}.atasKiri{top:calc(max(10px,env(safe-area-inset-top)) + 92px);left:max(10px,env(safe-area-inset-left));flex-direction:row}.kas b{font-size:16px}.bawah button{min-width:62px;padding:6px 6px}.tanggal b{font-size:13px}.tanggal small{font-size:10px}.kartuHud{padding:6px 9px}.laju button{min-width:34px}.panel{height:56vh}}
 
-/* tata letak */
-.bungkus{max-width:1260px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-left)) 120px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
-@media (max-width:980px){.bungkus{grid-template-columns:1fr}}
-.kartu{background:var(--panel);border:1px solid var(--garis);border-radius:20px;padding:16px}
-h2{font:700 13px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--redup);margin:0 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
-h2 span{letter-spacing:0;text-transform:none;font-weight:600;color:var(--samar);font-size:12px}
-.samping{position:sticky;top:76px;display:flex;flex-direction:column;gap:16px}
-@media (max-width:980px){.samping{position:static}}
+/* label di atas bangunan */
+#label{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;pointer-events:auto;white-space:nowrap;will-change:transform;display:flex;flex-direction:column;align-items:center}
+.lbl.sembunyi{display:none}
+.koin{display:flex;align-items:center;gap:6px;background:linear-gradient(180deg,#fff3c4,#f3c550);color:#4a3008;border-radius:999px;padding:4px 10px 4px 4px;font:800 13px var(--sans);box-shadow:0 6px 16px rgba(0,0,0,.35);animation:goyang 1.6s ease-in-out infinite}
+.koin i{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a0,#e9a91f 60%,#9a6b1c);display:grid;place-items:center;font:800 9px var(--sans);font-style:normal;color:#5a3a08}
+@keyframes goyang{0%,100%{translate:0 0}50%{translate:0 -6px}}
+.dijual{background:rgba(12,18,28,.92);border:1.5px solid var(--emas);border-radius:12px;padding:5px 10px;font-size:12px;text-align:center;box-shadow:0 6px 16px rgba(0,0,0,.35)}.dijual b{display:block;color:var(--emas);font-size:10.5px;letter-spacing:.12em}
+.disewakan{background:#d0392b;color:#fff;border-radius:8px;padding:3px 8px;font:800 11px var(--sans);letter-spacing:.06em}
+.tanda{background:#f0715f;color:#fff;border-radius:8px;padding:3px 8px;font:800 11px var(--sans);margin-bottom:4px}
+.terbang{position:fixed;z-index:30;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a0,#e9a91f 60%,#9a6b1c);pointer-events:none;transition:transform .7s cubic-bezier(.5,-.3,.6,1),opacity .7s}
 
-/* kota */
-.kota{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--garis);background:#0b1220}
-.kota canvas{display:block;width:100%;height:260px}
-@media (max-width:640px){.kota canvas{height:200px}}
-.kota .tujuan{position:absolute;left:16px;right:16px;bottom:14px;background:rgba(7,10,16,.72);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px}
-.tujuan .baris{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}.tujuan .baris b{font-family:var(--mono)}
-.batang{height:9px;border-radius:9px;background:rgba(255,255,255,.08);margin-top:7px;overflow:hidden}.batang i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#3fa76b,#5fd08f,#f3c550);transition:width .5s}
+/* kabar */
+#kabar{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 76px);z-index:9;display:flex;flex-direction:column;gap:6px;max-width:min(380px,calc(100vw - 24px));pointer-events:none}
+.toast{background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--garis);border-left:3px solid var(--emas);border-radius:12px;padding:7px 11px;font-size:12.5px;animation:masuk .3s ease both;transition:opacity .5s}
+.toast.baik{border-left-color:var(--hijau)}.toast.buruk{border-left-color:var(--merah)}
+@keyframes masuk{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-/* peluang */
-.peluang{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:760px){.peluang{grid-template-columns:1fr}}
-.tawar{background:var(--panel2);border:1px solid var(--garis);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
-.tawar canvas{display:block;width:100%;height:110px;background:linear-gradient(180deg,#1a2a44,#0e1726)}
-.tawar .teks{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+/* panel samping */
+.panel{position:fixed;z-index:15;right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 128px);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px);width:min(400px,calc(100vw - 24px));background:var(--panel);backdrop-filter:blur(10px);border:1px solid var(--garis);border-radius:20px;padding:14px;overflow:auto;transform:translateX(calc(100% + 30px));transition:transform .3s ease}
+.panel.buka{transform:none}
+@media (max-width:640px){.panel{top:auto;height:62vh;left:8px;right:8px;width:auto;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px);transform:translateY(calc(100% + 90px))}}
+.panel h2{font:800 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--redup);margin:4px 0 10px;display:flex;justify-content:space-between;align-items:center}
+.panel h2 button{font-size:22px;line-height:1;color:var(--redup);padding:0 4px}
+.tawar{background:var(--panel2);border:1px solid var(--garis);border-radius:14px;padding:11px 12px;margin-bottom:10px}
 .tawar b{font-size:15px}.tawar .lok{font-size:12px;color:var(--redup)}
-.tawar dl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:4px 0 6px;font-size:12.5px}.tawar dt{color:var(--redup)}.tawar dd{margin:0;text-align:right;font-family:var(--mono);font-weight:600}
-.lencana{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:2px 7px;background:rgba(95,208,143,.14);color:var(--hijau);align-self:flex-start}
-.lencana.mahal{background:rgba(240,113,95,.14);color:var(--merah)}
-.tawar .pil{margin-top:auto;justify-content:center}
-
-/* properti saya */
-.daftar{display:flex;flex-direction:column;gap:10px}
-.prop{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--panel2);border:1px solid var(--garis);border-radius:14px;padding:10px}
-.prop canvas{width:64px;height:52px;border-radius:10px;background:#0e1726}
-.prop .nama{font-weight:800}.prop .ket{font-size:12px;color:var(--redup)}
-.prop .aksi{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.prop .arus{text-align:right;font-family:var(--mono);font-weight:700}.prop .arus small{display:block;font:600 10.5px var(--sans);color:var(--redup)}
-.status{display:inline-block;font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
-.status.isi{background:rgba(95,208,143,.14);color:var(--hijau)}.status.kosong{background:rgba(240,113,95,.14);color:var(--merah)}
-.kosongan{color:var(--redup);font-size:13.5px;padding:8px 2px}
-
-/* laporan arus kas */
-.lap{width:100%;border-collapse:collapse;font-size:13.5px}
-.lap td{padding:4px 0}.lap td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lap tr.judul td{padding-top:10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--samar);font-weight:800}
-.lap tr.pos td:first-child{padding-left:10px;color:#cdd7df}
-.lap tr.jumlah td{border-top:1px solid var(--garis);font-weight:800}
+.tawar dl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:6px 0 8px;font-size:12.5px}.tawar dt{color:var(--redup)}.tawar dd{margin:0;text-align:right;font-family:var(--mono);font-weight:600}
+.lencana{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;padding:2px 7px;background:rgba(95,208,143,.14);color:var(--hijau);margin-left:6px}.lencana.mahal{background:rgba(240,113,95,.14);color:var(--merah)}.lencana.biasa{background:rgba(255,255,255,.07);color:var(--redup)}
+.baris2{display:flex;gap:6px;flex-wrap:wrap}
+.prop{display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--garis);border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.prop .ket{font-size:12px;color:var(--redup)}.prop .arus{text-align:right;font:700 13.5px var(--mono)}.prop .arus small{display:block;font:600 10.5px var(--sans);color:var(--redup)}
+.status{display:inline-block;font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:6px}.status.isi{background:rgba(95,208,143,.14);color:var(--hijau)}.status.kosong{background:rgba(240,113,95,.14);color:var(--merah)}
+.lap{width:100%;border-collapse:collapse;font-size:13.5px}.lap td{padding:4px 0}.lap td:last-child{text-align:right;font-family:var(--mono);white-space:nowrap}
+.lap tr.judul td{padding-top:10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--samar);font-weight:800}.lap tr.pos td:first-child{padding-left:10px;color:#cdd7df}
 .lap tr.total td{border-top:2px solid var(--tinta);font-weight:800;font-size:15px;padding-top:8px}
-.grafik{width:100%;height:120px;display:block}
-.legenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--redup);margin-top:6px}.legenda i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:3px}
-.tip{font-size:12.5px;color:var(--redup);border-left:3px solid var(--emas2);padding-left:10px}
-
-/* bar bawah */
-.bawah{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;gap:10px;align-items:center;padding:12px max(16px,env(safe-area-inset-left)) max(12px,env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(7,10,16,0),rgba(7,10,16,.95) 40%)}
-.bawah .pil.utama{font-size:16px;padding:14px 28px;box-shadow:0 10px 30px rgba(233,169,31,.25)}
+.grafik{width:100%;height:120px;display:block;margin-top:10px}
+.legenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--redup);margin-top:4px}.legenda i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:3px}
+.tip{font-size:12.5px;color:var(--redup);border-left:3px solid var(--emas2);padding-left:10px;margin-top:12px}
+.kosongan{color:var(--redup);font-size:13.5px}
 
 /* modal */
-.layar{position:fixed;inset:0;z-index:50;background:rgba(3,5,9,.72);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:16px}
-.layar.buka{display:flex}
-.modal{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--garis);border-radius:22px;padding:20px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.layar{position:fixed;inset:0;z-index:50;background:rgba(3,5,9,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}.layar.buka{display:flex}
+.modal{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#0f1620;border:1px solid var(--garis);border-radius:22px;padding:20px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:masuk .25s ease both}
 .modal h3{font:800 22px/1.2 var(--serif);margin:0 0 6px}.modal .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--emas)}
-.modal p{color:#cdd7df;margin:8px 0}
-.modal .tombol{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
-.opsi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.opsi button{border:1px solid var(--garis);background:var(--panel2);border-radius:12px;padding:8px 4px;font-weight:800;font-size:13px}
-.opsi button.aktif{border-color:var(--emas);background:rgba(243,197,80,.12);color:var(--emas)}
-.rinci{display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:13.5px;background:var(--panel2);border-radius:14px;padding:12px;margin-top:8px}.rinci dd{margin:0;text-align:right;font-family:var(--mono);font-weight:700}.rinci dt{color:var(--redup)}
-.rinci .garis{grid-column:1/-1;border-top:1px solid var(--garis);margin:2px 0}
+.modal p{color:#cdd7df;margin:8px 0}.modal .tombol{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
+.opsi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.opsi button{border:1px solid var(--garis);background:var(--panel2);border-radius:12px;padding:8px 4px;font-weight:800;font-size:13px}.opsi button.aktif{border-color:var(--emas);background:rgba(243,197,80,.12);color:var(--emas)}
+.rinci{display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:13.5px;background:var(--panel2);border-radius:14px;padding:12px;margin:8px 0 0}.rinci dd{margin:0;text-align:right;font-family:var(--mono);font-weight:700}.rinci dt{color:var(--redup)}.rinci .garis{grid-column:1/-1;border-top:1px solid var(--garis);margin:2px 0}
 .peringatan{background:rgba(240,113,95,.1);border:1px solid rgba(240,113,95,.35);color:#f7b2a7;border-radius:12px;padding:9px 12px;font-size:13px;margin-top:10px}
 
 /* layar awal */
-.awal{max-width:980px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-left)) 60px}
-.awal h1{font:800 clamp(34px,6vw,56px)/1.02 var(--serif);margin:6px 0 10px;letter-spacing:-.01em}
-.awal .pengantar{max-width:62ch;color:#cdd7df}
-.profesi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px}
+.awal{position:fixed;inset:0;z-index:40;overflow:auto;background:linear-gradient(180deg,rgba(6,10,20,.1),rgba(6,10,20,.88) 55%);display:flex;align-items:flex-end}
+.awal .isi{width:100%;max-width:1040px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left)) max(24px,env(safe-area-inset-bottom))}
+.awal .kecil{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--emas);font-weight:800}
+.awal h1{font:800 clamp(36px,7vw,64px)/1 var(--serif);margin:6px 0 10px;text-shadow:0 4px 30px rgba(0,0,0,.5)}
+.awal p{max-width:62ch;color:#dbe4ea;margin:0}
+.profesi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
 @media (max-width:760px){.profesi{grid-template-columns:1fr}}
-.profesi button{text-align:left;background:var(--panel);border:1px solid var(--garis);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,transform .15s}
-.profesi button:hover{border-color:var(--emas);transform:translateY(-2px)}
-.profesi b{font:800 19px var(--serif)}.profesi small{color:var(--redup);font-size:12.5px}
+.profesi button{text-align:left;background:rgba(12,18,28,.9);border:1px solid var(--garis);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s,transform .15s}
+.profesi button:hover{border-color:var(--emas);transform:translateY(-2px)}.profesi b{font:800 19px var(--serif)}.profesi small{color:var(--redup);font-size:12.5px}
 .profesi dl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:6px 0 0;font-size:13px}.profesi dd{margin:0;text-align:right;font-family:var(--mono)}.profesi dt{color:var(--redup)}
-.aturan{margin-top:26px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:760px){.aturan{grid-template-columns:1fr}}
-.aturan div{border-top:2px solid var(--emas2);padding-top:10px;font-size:13.5px;color:#cdd7df}.aturan b{display:block;color:var(--tinta);margin-bottom:3px}
 .sembunyi{display:none!important}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){.koin{animation:none}}
 </style>
 </head>
 <body>
-<header class="kepala">
-  <div class="logo">Juragan Sewa<small>Arkade Kantor AI</small></div>
-  <div class="isi" id="ringkas"></div>
-  <a class="pil kecil" href="arkade.html" style="text-decoration:none">Keluar</a>
-</header>
+<canvas id="dunia"></canvas>
+<div id="label"></div>
 
-<section class="awal" id="layarAwal">
-  <div class="logo" style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--emas);font-family:var(--sans)">Game strategi arus kas</div>
-  <h1>Bangun pemasukan pasif dari properti sewaan</h1>
-  <p class="pengantar">Kamu mulai sebagai pekerja bergaji. Tiap bulan muncul peluang properti: kamar kos, kios, rumah kontrakan, apartemen, ruko, gudang, sampai kos sepuluh pintu. Beli tunai atau dengan KPR, cari penyewa, hadapi atap bocor dan suku bunga yang naik. Kamu menang saat sewa bersih per bulan sudah menutup seluruh biaya hidup.</p>
+<div class="hud atasKiri sembunyi" id="hudKiri">
+  <div class="kartuHud tanggal"><div class="jam" id="jam"><i id="jamTeks"></i></div><div><b id="tglBulan"></b><small id="tglHari"></small></div></div>
+  <div class="kartuHud laju" id="laju"><button data-v="0">Jeda</button><button data-v="1" class="aktif">1x</button><button data-v="2">2x</button><button data-v="4">4x</button></div>
+</div>
+<div class="hud atasKanan kartuHud sembunyi" id="hudKanan">
+  <div class="kas"><span class="koinIkon">Rp</span><div><small>Kas</small><b id="hKas"></b></div></div>
+  <div class="tujuan"><div class="baris"><span class="redup">Sewa bersih / biaya hidup</span></div><div class="baris"><b id="hPasif"></b><b class="redup" id="hBiaya"></b></div><div class="batang"><i id="hBatang"></i></div></div>
+</div>
+<nav class="hud bawah sembunyi" id="hudBawah" aria-label="Menu permainan">
+  <button data-tab="peluang"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/></svg>Peluang<span class="lencanaN" id="nPeluang"></span></button>
+  <button data-tab="properti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5h9v16M13 9h7v12M7 9h3M7 13h3M7 17h3M16 13h1M16 17h1"/></svg>Properti</button>
+  <button data-tab="laporan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/></svg>Laporan</button>
+  <button data-tab="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</button>
+</nav>
+<aside class="panel" id="panel" aria-live="polite"></aside>
+<div id="kabar"></div>
+
+<section class="awal" id="layarAwal"><div class="isi">
+  <div class="kecil">Arkade Kantor AI · game arus kas</div>
+  <h1>Juragan Sewa</h1>
+  <p>Bangun kerajaan properti sewaan di kota yang hidup. Beli kavling yang dijual, tunggu penyewa datang, tagih koin sewa tiap awal bulan, dan hadapi atap bocor, resesi, serta bunga KPR yang naik. Kamu menang saat sewa bersih per bulan sudah menutup seluruh biaya hidup.</p>
   <div id="lanjutSimpan"></div>
   <div class="profesi" id="pilihProfesi"></div>
-  <div class="aturan">
-    <div><b>Arus kas dulu</b>Properti yang cicilannya lebih besar dari sewanya menguras kas tiap bulan. Hitung arus kas bersih sebelum membeli.</div>
-    <div><b>Bank menghitung kemampuanmu</b>Total cicilan dibatasi 40% gaji ditambah 60% sewa. Kalau lewat, pengajuan KPR ditolak.</div>
-    <div><b>Sisakan dana darurat</b>Kas yang minus otomatis jadi pinjaman darurat berbunga 3% per bulan. Kalau minusnya lebih dari 2,5 kali penghasilan bulanan, permainan selesai.</div>
-  </div>
-</section>
-
-<main class="bungkus sembunyi" id="layarMain">
-  <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
-    <div class="kota"><canvas id="kanvasKota"></canvas>
-      <div class="tujuan"><div class="baris"><span>Pemasukan pasif bersih</span><b id="tPasif"></b></div><div class="baris redup"><span>Target: biaya hidup per bulan</span><b id="tTarget"></b></div><div class="batang"><i id="tBatang"></i></div></div></div>
-    <section class="kartu"><h2>Peluang bulan ini <span id="bulanPeluang"></span></h2><div class="peluang" id="peluang"></div></section>
-    <section class="kartu"><h2>Properti saya <span id="jumlahProp"></span></h2><div class="daftar" id="properti"></div></section>
-  </div>
-  <aside class="samping">
-    <section class="kartu"><h2>Arus kas <span id="lapBulan"></span></h2><table class="lap" id="laporan"></table></section>
-    <section class="kartu"><h2>Neraca</h2><table class="lap" id="neraca"></table></section>
-    <section class="kartu"><h2>Perjalanan</h2><canvas class="grafik" id="grafik"></canvas>
-      <div class="legenda"><span><i style="background:var(--hijau)"></i>Pasif bersih</span><span><i style="background:var(--merah)"></i>Biaya hidup</span><span><i style="background:var(--emas)"></i>Kas</span></div></section>
-    <p class="tip" id="tip"></p>
-  </aside>
-</main>
-<div class="bawah sembunyi" id="barBawah"><button class="pil" id="bMulaiUlang">Mulai ulang</button><button class="pil utama" id="bLanjut">Lanjut ke bulan berikutnya</button></div>
+  <p class="redup" style="font-size:12.5px;margin-top:12px">Geser layar untuk memutar kota, cubit atau gulir untuk mendekat, klik kanan atau dua jari untuk menggeser. Ketuk bangunan untuk membeli atau mengelola. <a href="arkade.html" style="color:var(--emas)">Kembali ke Arkade</a></p>
+</div></section>
 
 <div class="layar" id="layar"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
-const $ = s => document.querySelector(s);
-const SIMPAN = 'juragan-sewa', REKOR = 'juragan-rekor';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const SIMPAN = 'juragan-sewa', REKOR = 'juragan-rekor', HP = matchMedia('(pointer:coarse)').matches;
 const baca = (k, b) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : b; } catch { return b; } };
 const tulis = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const diAwal = () => !$('#layarAwal').classList.contains('sembunyi');
 
-/* ---------- angka dan format ---------- */
-const rpPenuh = n => (n < 0 ? '-Rp ' : 'Rp ') + Math.round(Math.abs(n)).toLocaleString('id-ID');
+/* =============================== angka =============================== */
 function rp(n) { const a = Math.abs(n), t = n < 0 ? '-' : '';
   if (a >= 1e9) return t + 'Rp ' + (a / 1e9).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' M';
   if (a >= 1e6) return t + 'Rp ' + (a / 1e6).toLocaleString('id-ID', { maximumFractionDigits: a >= 1e8 ? 0 : 1 }) + ' jt';
   if (a >= 1e3) return t + 'Rp ' + Math.round(a / 1e3).toLocaleString('id-ID') + ' rb'; return t + 'Rp ' + Math.round(a); }
 const bulat = (n, k = 50000) => Math.round(n / k) * k;
 const persen = (n, d = 0) => (n * 100).toLocaleString('id-ID', { maximumFractionDigits: d }) + '%';
-let acak = Math.random;
-const antara = (a, b) => a + acak() * (b - a);
-const pilihAcak = a => a[acak() * a.length | 0];
+const antara = (a, b) => a + Math.random() * (b - a), pilihAcak = a => a[Math.random() * a.length | 0];
 const cicilanDari = (pokok, bunga, bulan) => { const r = bunga / 12; return pokok <= 0 ? 0 : pokok * r / (1 - Math.pow(1 + r, -bulan)); };
-const namaBulan = n => ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][(n - 1) % 12] + ' tahun ' + (Math.floor((n - 1) / 12) + 1);
+const BLN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const namaBulan = n => BLN[(n - 1) % 12] + ' tahun ' + (Math.floor((n - 1) / 12) + 1);
 
-/* ---------- data permainan ---------- */
-// hasil = sewa per bulan dibagi nilai pasar; rawat = perawatan dan pengelolaan sebagai bagian dari sewa penuh
+/* =============================== data ekonomi =============================== */
+// hasil = sewa per bulan / nilai pasar; rawat = perawatan dan pengelolaan sebagai bagian sewa penuh
 const JENIS = {
-  kos: { nama: 'Kamar kos', harga: [45e6, 75e6], hasil: [.013, .017], hunian: .85, rawat: .12, w: 58 },
-  kios: { nama: 'Kios pasar', harga: [80e6, 140e6], hasil: [.012, .016], hunian: .8, rawat: .08, w: 66 },
-  kontrakan: { nama: 'Rumah kontrakan', harga: [170e6, 320e6], hasil: [.0095, .0125], hunian: .92, rawat: .07, w: 88 },
-  apartemen: { nama: 'Apartemen studio', harga: [240e6, 420e6], hasil: [.0085, .011], hunian: .9, rawat: .14, w: 56 },
-  ruko: { nama: 'Ruko dua lantai', harga: [600e6, 1e9], hasil: [.009, .0115], hunian: .88, rawat: .05, w: 78 },
-  kos10: { nama: 'Kos 10 pintu', harga: [650e6, 1.1e9], hasil: [.0145, .0185], hunian: .86, rawat: .15, kamar: 10, w: 120 },
-  gudang: { nama: 'Gudang', harga: [900e6, 1.6e9], hasil: [.0105, .0135], hunian: .9, rawat: .04, w: 126 } };
+  kos: { nama: 'Kamar kos', harga: [45e6, 75e6], hasil: [.013, .017], hunian: .85, rawat: .12 },
+  kios: { nama: 'Kios pasar', harga: [80e6, 140e6], hasil: [.012, .016], hunian: .8, rawat: .08 },
+  kontrakan: { nama: 'Rumah kontrakan', harga: [170e6, 320e6], hasil: [.0095, .0125], hunian: .92, rawat: .07 },
+  apartemen: { nama: 'Apartemen studio', harga: [240e6, 420e6], hasil: [.0085, .011], hunian: .9, rawat: .14 },
+  ruko: { nama: 'Ruko tiga lantai', harga: [600e6, 1e9], hasil: [.009, .0115], hunian: .88, rawat: .05 },
+  kos10: { nama: 'Kos 10 pintu', harga: [650e6, 1.1e9], hasil: [.0145, .0185], hunian: .86, rawat: .15, kamar: 10 },
+  gudang: { nama: 'Gudang', harga: [900e6, 1.6e9], hasil: [.0105, .0135], hunian: .9, rawat: .04 } };
 const BOBOT = { kos: 26, kios: 18, kontrakan: 20, apartemen: 12, ruko: 9, kos10: 8, gudang: 7 };
 const LOKASI = [['dekat kampus', .06], ['pinggir jalan raya', .03], ['dekat pasar', .02], ['kawasan industri', 0], ['pusat kota', .04], ['perumahan baru', -.04], ['dekat rumah sakit', .03], ['gang sempit', -.07], ['dekat stasiun', .05], ['pinggiran kota', -.05]];
 const PROFESI = [
@@ -198,41 +177,45 @@ const PROFESI = [
 const TIP = ['Arus kas bersih properti = sewa yang diterima dikurangi cicilan dan perawatan. Kalau minus, properti itu menguras gajimu.', 'DP kecil membuat uang keluar sekarang sedikit, tapi cicilan besar. Cocok untuk properti yang sewanya tinggi.',
   'Properti yang kosong tetap harus dicicil dan dirawat. Simpan kas minimal tiga kali biaya hidup untuk berjaga.', 'Harga di bawah pasar memberi dua untung: sewa terasa besar dibanding harga beli, dan bisa dijual lebih mahal nanti.',
   'Menaikkan sewa menambah pemasukan, tapi penyewa lebih mudah pindah. Iklan membuat unit kosong cepat terisi.', 'Suku bunga KPR bisa naik. Cicilan ikut naik untuk semua pinjaman, jadi jangan memakai seluruh batas pinjaman.',
-  'Kekayaan bersih = kas ditambah nilai properti dikurangi sisa utang. Bebas finansial diukur dari arus kas bulanan. Kekayaan besar yang tidak menghasilkan sewa belum membebaskanmu.', 'Melunasi KPR menghapus cicilan dan langsung menaikkan pemasukan pasif bersih.'];
+  'Bebas finansial diukur dari arus kas bulanan. Kekayaan besar yang tidak menghasilkan sewa belum membebaskanmu.', 'Melunasi KPR menghapus cicilan dan langsung menaikkan pemasukan pasif bersih.', 'Koin sewa yang tidak ditagih tetap masuk kas awal bulan berikutnya, tapi untuk membeli yang dipakai kas di tangan sekarang.'];
 const BATAS = { bank: .4, sewaBank: .6, tenor: 180, notaris: .025, jual: .03, darurat: .03 };
+const DUR_BULAN = 36;   // detik nyata per bulan pada kecepatan 1x
 
-/* ---------- keadaan ---------- */
+/* =============================== kota: kavling =============================== */
+// 6 kolom x 4 baris kavling (10,6 x 10,6 m). Jalan mendatar di z = -15 dan 15, jalan tegak di x = 0, taman di tengah.
+const KOL = [-37, -25, -13, 13, 25, 37], BARIS = [[-23, 1], [-7, -1], [7, 1], [23, -1]];
+const PLOT = []; BARIS.forEach(([z, hadap]) => KOL.forEach(x => PLOT.push({ x, z, hadap })));
+const NPC = { 0: 'masjid', 5: 'sekolah', 9: 'minimarket', 14: 'kafe', 19: 'taman', 23: 'menara' };   // bangunan tetangga, tidak dijual
+
+/* =============================== keadaan dan ekonomi =============================== */
 let S = null;
-function hunianEfektif(p) { return Math.max(.35, Math.min(.98, p.hunian)); }
-function sewaPenuh(p) { return p.sewa * (p.kamar || 1); }
-function sewaKini(p) { return p.kamar ? p.sewa * p.terisi : (p.terisi ? p.sewa : 0); }
-function bersihProp(p) { return sewaKini(p) - sewaPenuh(p) * p.rawat - p.cicilan; }
-function pasifBersih() { return S.properti.reduce((a, p) => a + bersihProp(p), 0); }
-function totalCicilan() { return S.properti.reduce((a, p) => a + p.cicilan, 0); }
-function nilaiProperti() { return S.properti.reduce((a, p) => a + p.nilai, 0); }
-function sisaUtang() { return S.properti.reduce((a, p) => a + p.pinjaman, 0); }
-function kekayaan() { return S.kas + nilaiProperti() - sisaUtang(); }
-function batasCicilan(tambahSewa = 0) { return S.gaji * BATAS.bank + (S.properti.reduce((a, p) => a + sewaPenuh(p), 0) + tambahSewa) * BATAS.sewaBank; }
+const hunianEfektif = p => Math.max(.35, Math.min(.98, p.hunian));
+const sewaPenuh = p => p.sewa * (p.kamar || 1);
+const sewaKini = p => p.kamar ? p.sewa * p.terisi : (p.terisi ? p.sewa : 0);
+const bersihProp = p => sewaKini(p) - sewaPenuh(p) * p.rawat - p.cicilan;
+const pasifBersih = () => S.properti.reduce((a, p) => a + bersihProp(p), 0);
+const totalCicilan = () => S.properti.reduce((a, p) => a + p.cicilan, 0);
+const nilaiProperti = () => S.properti.reduce((a, p) => a + p.nilai, 0);
+const sisaUtang = () => S.properti.reduce((a, p) => a + p.pinjaman, 0);
+const koinTotal = () => S.properti.reduce((a, p) => a + (p.koin || 0), 0);
+const kekayaan = () => S.kas + koinTotal() + nilaiProperti() - sisaUtang();
+const batasCicilan = (tambah = 0) => S.gaji * BATAS.bank + (S.properti.reduce((a, p) => a + sewaPenuh(p), 0) + tambah) * BATAS.sewaBank;
+const plotBebas = () => PLOT.map((_, i) => i).filter(i => !NPC[i] && !S.properti.some(p => p.plot === i));
 
-function buatTawaran() { const total = Object.values(BOBOT).reduce((a, b) => a + b, 0), hasil = [], kaya = kekayaan();
-  for (let i = 0; i < 3; i++) { let j; for (let coba = 0; coba < 6; coba++) { let r = acak() * total; for (const [k, b] of Object.entries(BOBOT)) { r -= b; if (r <= 0) { j = k; break; } }
-      // di awal permainan peluang mahal lebih jarang muncul
-      if (JENIS[j].harga[0] < Math.max(150e6, kaya * 4) || acak() < .25) break; }
-    const J = JENIS[j], [lok, bonus] = pilihAcak(LOKASI), pasar = bulat(antara(...J.harga), 1e6), faktor = acak() < .3 ? antara(.74, .88) : antara(.9, 1.08);
-    hasil.push({ id: Math.random().toString(36).slice(2, 8), jenis: j, lokasi: lok, nilai: pasar, harga: bulat(pasar * faktor, 5e5), sewa: bulat(pasar * antara(...J.hasil) / (J.kamar || 1), 25000), hunian: J.hunian + bonus, rawat: J.rawat, kamar: J.kamar || 0 }); }
+function buatTawaran() { const total = Object.values(BOBOT).reduce((a, b) => a + b, 0), hasil = [], kaya = kekayaan(), bebas = plotBebas().sort(() => Math.random() - .5);
+  for (let i = 0; i < Math.min(3, bebas.length); i++) { let j; for (let c = 0; c < 6; c++) { let r = Math.random() * total; for (const [k, b] of Object.entries(BOBOT)) { r -= b; if (r <= 0) { j = k; break; } } if (JENIS[j].harga[0] < Math.max(150e6, kaya * 4) || Math.random() < .25) break; }
+    const J = JENIS[j], [lok, bonus] = pilihAcak(LOKASI), pasar = bulat(antara(...J.harga), 1e6), f = Math.random() < .3 ? antara(.74, .88) : antara(.9, 1.08);
+    hasil.push({ id: Math.random().toString(36).slice(2, 8), plot: bebas[i], jenis: j, lokasi: lok, nilai: pasar, harga: bulat(pasar * f, 5e5), sewa: bulat(pasar * antara(...J.hasil) / (J.kamar || 1), 25000), hunian: J.hunian + bonus, rawat: J.rawat, kamar: J.kamar || 0 }); }
   return hasil; }
-
 function mulaiBaru(prof) { const P = PROFESI.find(x => x.id === prof);
-  S = { versi: 1, bulan: 1, profesi: P.id, namaProfesi: P.nama, gaji: P.gaji, gajiDasar: P.gaji, ombak: P.ombak || 0, biaya: P.biaya, kas: P.kas, bunga: .1, properti: [], tawaran: [], riwayat: [], lap: null, menang: 0, selesai: false, tip: 0 };
-  S.tawaran = buatTawaran(); catatRiwayat(); simpan(); tampilMain(); }
+  S = { versi: 2, bulan: 1, t: 0, profesi: P.id, namaProfesi: P.nama, gaji: P.gaji, gajiDasar: P.gaji, ombak: P.ombak || 0, biaya: P.biaya, kas: P.kas, bunga: .1, properti: [], tawaran: [], riwayat: [], lap: null, menang: 0, selesai: false, tip: 0 };
+  S.tawaran = buatTawaran(); catatRiwayat(); simpan(); masukPermainan(); kabar('Selamat datang, juragan. Ketuk bangunan bertanda DIJUAL untuk mulai membeli.', 'baik'); }
 function simpan() { tulis(SIMPAN, S); }
-function catatRiwayat() { S.riwayat.push({ b: S.bulan, kas: S.kas, pasif: pasifBersih(), biaya: S.biaya }); if (S.riwayat.length > 240) S.riwayat.shift(); }
+function catatRiwayat() { S.riwayat.push({ b: S.bulan, kas: S.kas + koinTotal(), pasif: pasifBersih(), biaya: S.biaya }); if (S.riwayat.length > 240) S.riwayat.shift(); }
 
-/* ---------- membeli dan mengelola ---------- */
 function hitungBeli(t, dp) { const uangMuka = dp >= 1 ? t.harga : t.harga * dp, pinjaman = t.harga - uangMuka, notaris = t.harga * BATAS.notaris, cicilan = cicilanDari(pinjaman, S.bunga, BATAS.tenor);
-  const sewaRata = t.sewa * (t.kamar || 1) * hunianEfektif(t), rawat = t.sewa * (t.kamar || 1) * t.rawat, bersih = sewaRata - rawat - cicilan;
-  const batas = batasCicilan(t.sewa * (t.kamar || 1)), tolak = cicilan > 0 && totalCicilan() + cicilan > batas, kurang = uangMuka + notaris > S.kas;
-  return { uangMuka, pinjaman, notaris, cicilan, sewaRata, rawat, bersih, batas, tolak, kurang, keluar: uangMuka + notaris }; }
+  const sewaRata = t.sewa * (t.kamar || 1) * hunianEfektif(t), rawat = t.sewa * (t.kamar || 1) * t.rawat, bersih = sewaRata - rawat - cicilan, batas = batasCicilan(t.sewa * (t.kamar || 1));
+  return { uangMuka, pinjaman, notaris, cicilan, sewaRata, rawat, bersih, batas, tolak: cicilan > 0 && totalCicilan() + cicilan > batas, kurang: uangMuka + notaris > S.kas, keluar: uangMuka + notaris }; }
 function dialogBeli(t) { let dp = .2; const J = JENIS[t.jenis];
   const gambar = () => { const H = hitungBeli(t, dp), roi = H.bersih * 12 / H.keluar;
     modal(`<div class="sub">${J.nama} · ${t.lokasi}</div><h3>Beli seharga ${rp(t.harga)}?</h3>
@@ -242,199 +225,371 @@ function dialogBeli(t) { let dp = .2; const J = JENIS[t.jenis];
         <dt>Pinjaman KPR (${persen(S.bunga, 1)} per tahun, 15 tahun)</dt><dd>${rp(H.pinjaman)}</dd><dt>Cicilan per bulan</dt><dd class="turun">${H.cicilan ? '-' + rp(H.cicilan) : '-'}</dd>
         <dt>Rata-rata sewa diterima</dt><dd class="naik">${rp(H.sewaRata)}</dd><dt>Perawatan dan pengelolaan</dt><dd class="turun">-${rp(H.rawat)}</dd><div class="garis"></div>
         <dt><b>Perkiraan arus kas bersih</b></dt><dd class="${H.bersih >= 0 ? 'naik' : 'turun'}"><b>${rp(H.bersih)} / bln</b></dd><dt>Imbal hasil kas per tahun</dt><dd>${H.keluar ? persen(roi, 1) : '-'}</dd></dl>
-      ${H.kurang ? `<div class="peringatan">Kas tidak cukup. Butuh ${rp(H.keluar)}, kas sekarang ${rp(S.kas)}.</div>` : ''}
+      ${H.kurang ? `<div class="peringatan">Kas tidak cukup. Butuh ${rp(H.keluar)}, kas di tangan ${rp(S.kas)}.${koinTotal() ? ' Tagih dulu koin sewa yang melayang di kota.' : ''}</div>` : ''}
       ${H.tolak ? `<div class="peringatan">Bank menolak: total cicilan akan jadi ${rp(totalCicilan() + H.cicilan)}, padahal batasnya ${rp(H.batas)} (40% gaji ditambah 60% sewa). Pilih DP lebih besar.</div>` : ''}
       ${!H.kurang && !H.tolak && H.bersih < 0 ? `<div class="peringatan">Arus kas bersih minus: properti ini akan mengurangi kasmu ${rp(-H.bersih)} tiap bulan.</div>` : ''}
-      <div class="tombol"><button class="pil" data-tutup>Batal</button><button class="pil utama" id="bBeli" ${H.kurang || H.tolak ? 'disabled' : ''}>Beli</button></div>`);
-    document.querySelectorAll('[data-dp]').forEach(b => b.onclick = () => { dp = +b.dataset.dp; gambar(); });
-    $('#bBeli').onclick = () => beli(t, dp); };
-  gambar(); }
-function beli(t, dp) { const H = hitungBeli(t, dp); if (H.kurang || H.tolak) return;
-  S.kas -= H.keluar; const J = JENIS[t.jenis];
-  const p = { id: t.id, jenis: t.jenis, nama: J.nama + ' ' + t.lokasi, lokasi: t.lokasi, harga: t.harga, nilai: t.nilai, sewa: t.sewa, hunian: t.hunian, rawat: t.rawat, kamar: t.kamar, pinjaman: H.pinjaman, cicilan: H.cicilan, tenor: H.pinjaman ? BATAS.tenor : 0, iklan: false, beli: S.bulan };
-  p.terisi = p.kamar ? Math.round(p.kamar * hunianEfektif(p) * antara(.5, 1)) : acak() < hunianEfektif(p);
-  S.properti.push(p); S.tawaran = S.tawaran.filter(x => x.id !== t.id); tutupModal(); simpan(); gambarSemua();
-  kabar(`${p.nama} jadi milikmu. ${p.kamar ? p.terisi + ' dari ' + p.kamar + ' kamar sudah berpenghuni.' : p.terisi ? 'Penyewanya sudah ada.' : 'Masih kosong, cari penyewa.'}`); }
-function jual(p, harga, alasan) { const bersih = harga * (1 - BATAS.jual) - p.pinjaman; S.kas += bersih; S.properti = S.properti.filter(x => x !== p); simpan(); gambarSemua();
+      <div class="tombol"><button class="pil" data-tutup>Batal</button><button class="pil utama" id="bBeli" ${H.kurang || H.tolak ? 'disabled' : ''}>Beli dan bangun</button></div>`, () => {
+      $$('[data-dp]').forEach(b => b.onclick = () => { dp = +b.dataset.dp; gambar(); }); $('#bBeli').onclick = () => beli(t, dp); }); };
+  gambar(); fokusKe(PLOT[t.plot]); }
+function beli(t, dp) { const H = hitungBeli(t, dp); if (H.kurang || H.tolak) return; S.kas -= H.keluar; const J = JENIS[t.jenis];
+  const p = { id: t.id, plot: t.plot, jenis: t.jenis, nama: J.nama + ' ' + t.lokasi, lokasi: t.lokasi, harga: t.harga, nilai: t.nilai, sewa: t.sewa, hunian: t.hunian, rawat: t.rawat, kamar: t.kamar, pinjaman: H.pinjaman, cicilan: H.cicilan, tenor: H.pinjaman ? BATAS.tenor : 0, iklan: false, beli: S.bulan, koin: 0 };
+  p.terisi = p.kamar ? Math.round(p.kamar * hunianEfektif(p) * antara(.5, 1)) : Math.random() < hunianEfektif(p);
+  S.properti.push(p); S.tawaran = S.tawaran.filter(x => x.id !== t.id); tutupModal(); simpan(); bunyi('bangun'); bangunDunia(p.plot, true); perbaruiHud();
+  kabar(`${p.nama} dibangun. ${p.kamar ? p.terisi + ' dari ' + p.kamar + ' kamar sudah berpenghuni.' : p.terisi ? 'Penyewanya sudah ada.' : 'Masih kosong, menunggu penyewa.'}`, 'baik'); }
+function jual(p, harga, alasan) { const bersih = harga * (1 - BATAS.jual) - p.pinjaman; S.kas += bersih + (p.koin || 0); S.properti = S.properti.filter(x => x !== p); simpan(); bangunDunia(p.plot); perbaruiHud();
   return `${p.nama} terjual ${rp(harga)}. Setelah biaya jual 3% dan pelunasan KPR ${rp(p.pinjaman)}, kas bertambah ${rp(bersih)}.${alasan || ''}`; }
-function dialogKelola(p) { const lunas = p.pinjaman > 0 && S.kas >= p.pinjaman, untung = p.nilai * (1 - BATAS.jual) - p.pinjaman;
-  modal(`<div class="sub">${p.lokasi} · dibeli bulan ${p.beli}</div><h3>${JENIS[p.jenis].nama}</h3>
-    <dl class="rinci"><dt>Status</dt><dd>${p.kamar ? p.terisi + ' / ' + p.kamar + ' kamar terisi' : p.terisi ? 'Ada penyewa' : 'Kosong'}</dd><dt>Sewa</dt><dd>${rp(p.sewa)}${p.kamar ? ' / kamar' : ''}</dd><dt>Peluang terisi</dt><dd>${persen(hunianEfektif(p))}</dd>
+const iklanBiaya = p => bulat(Math.max(300000, p.sewa * .5), 50000);
+function dialogKelola(p) { const lunas = p.pinjaman > 0 && S.kas >= p.pinjaman, untung = p.nilai * (1 - BATAS.jual) - p.pinjaman, penuh = p.kamar ? p.terisi >= p.kamar : p.terisi;
+  modal(`<div class="sub">${p.lokasi} · dibeli bulan ke-${p.beli}</div><h3>${JENIS[p.jenis].nama}</h3>
+    <dl class="rinci"><dt>Penghuni</dt><dd>${p.kamar ? p.terisi + ' / ' + p.kamar + ' kamar' : p.terisi ? 'Ada penyewa' : 'Kosong'}</dd><dt>Sewa</dt><dd>${rp(p.sewa)}${p.kamar ? ' / kamar' : ''}</dd><dt>Peluang terisi</dt><dd>${persen(hunianEfektif(p))}</dd>
       <dt>Cicilan</dt><dd>${p.cicilan ? rp(p.cicilan) : 'lunas'}</dd><dt>Sisa KPR</dt><dd>${rp(p.pinjaman)}</dd><dt>Nilai pasar</dt><dd>${rp(p.nilai)}</dd><dt>Harga beli</dt><dd>${rp(p.harga)}</dd><div class="garis"></div>
-      <dt><b>Arus kas bersih bulan ini</b></dt><dd class="${bersihProp(p) >= 0 ? 'naik' : 'turun'}"><b>${rp(bersihProp(p))}</b></dd></dl>
+      <dt><b>Arus kas bersih per bulan</b></dt><dd class="${bersihProp(p) >= 0 ? 'naik' : 'turun'}"><b>${rp(bersihProp(p))}</b></dd></dl>
     <div class="tombol" style="justify-content:flex-start">
+      ${p.koin ? `<button class="pil kecil utama" id="kTagih">Tagih sewa ${rp(p.koin)}</button>` : ''}
       <button class="pil kecil" id="kNaik">Naikkan sewa 10%</button>
-      <button class="pil kecil" id="kIklan" ${p.iklan || (p.kamar ? p.terisi >= p.kamar : p.terisi) ? 'disabled' : ''}>Pasang iklan (${rp(iklanBiaya(p))})</button>
+      <button class="pil kecil" id="kIklan" ${p.iklan || penuh || S.kas < iklanBiaya(p) ? 'disabled' : ''}>Pasang iklan (${rp(iklanBiaya(p))})</button>
       <button class="pil kecil" id="kLunas" ${lunas ? '' : 'disabled'}>Lunasi KPR (${rp(p.pinjaman)})</button>
       <button class="pil kecil bahaya" id="kJual">Jual (kas +${rp(untung)})</button></div>
-    <p class="redup" style="font-size:12.5px">Sewa naik membuat penyewa lebih mudah pindah. Iklan menjamin unit kosong terisi bulan depan.</p>
-    <div class="tombol"><button class="pil" data-tutup>Tutup</button></div>`);
-  $('#kNaik').onclick = () => { p.sewa = bulat(p.sewa * 1.1, 25000); p.hunian -= .07; simpan(); gambarSemua(); dialogKelola(p); };
-  $('#kIklan').onclick = () => { S.kas -= iklanBiaya(p); p.iklan = true; simpan(); gambarSemua(); dialogKelola(p); };
-  $('#kLunas').onclick = () => { S.kas -= p.pinjaman; p.pinjaman = 0; p.cicilan = 0; p.tenor = 0; simpan(); gambarSemua(); dialogKelola(p); };
-  $('#kJual').onclick = () => { if (!confirm(`Jual ${p.nama} seharga nilai pasar ${rp(p.nilai)}?`)) return; const t = jual(p, p.nilai); tutupModal(); kabar(t); }; }
-const iklanBiaya = p => bulat(Math.max(300000, p.sewa * .5), 50000);
+    <p class="redup" style="font-size:12.5px">Sewa naik membuat penyewa lebih mudah pindah. Iklan menjamin unit kosong terisi awal bulan depan.</p>
+    <div class="tombol"><button class="pil" data-tutup>Tutup</button></div>`, () => {
+    if ($('#kTagih')) $('#kTagih').onclick = () => { tagih(p); dialogKelola(p); };
+    $('#kNaik').onclick = () => { p.sewa = bulat(p.sewa * 1.1, 25000); p.hunian -= .07; simpan(); perbaruiHud(); dialogKelola(p); };
+    $('#kIklan').onclick = () => { S.kas -= iklanBiaya(p); p.iklan = true; simpan(); perbaruiHud(); dialogKelola(p); };
+    $('#kLunas').onclick = () => { S.kas -= p.pinjaman; p.pinjaman = 0; p.cicilan = 0; p.tenor = 0; simpan(); perbaruiHud(); bunyi('koin'); dialogKelola(p); };
+    $('#kJual').onclick = () => { if (!confirm(`Jual ${p.nama} seharga nilai pasar ${rp(p.nilai)}?`)) return; const t = jual(p, p.nilai); tutupModal(); kabar(t, 'baik'); }; });
+  fokusKe(PLOT[p.plot]); }
 
-/* ---------- kejadian acak ---------- */
+/* =============================== kejadian =============================== */
+function tandai(p, teks) { p.tanda = teks; p.tandaSampai = S.bulan + 1; }
 const KEJADIAN = [
-  { b: 9, syarat: () => S.properti.length, jalan() { const p = pilihAcak(S.properti), biaya = bulat(Math.max(1.5e6, p.nilai * antara(.006, .014))); S.kas -= biaya; return [`Atap bocor`, `Hujan deras membuat atap ${p.nama} bocor. Biaya perbaikan ${rp(biaya)}.`, -biaya]; } },
-  { b: 8, syarat: () => S.properti.some(p => !p.kamar && p.terisi), jalan() { const p = pilihAcak(S.properti.filter(p => !p.kamar && p.terisi)); p.telat = true; return ['Penyewa telat bayar', `Penyewa ${p.nama} belum membayar sewa bulan ini. Sewanya tidak masuk.`, -p.sewa]; } },
-  { b: 6, syarat: () => S.properti.some(p => p.kamar ? p.terisi : p.terisi), jalan() { const p = pilihAcak(S.properti.filter(p => p.terisi)); if (p.kamar) { const k = Math.min(p.terisi, 1 + (acak() * 3 | 0)); p.terisi -= k; return ['Penghuni kos pindah', `${k} penghuni ${p.nama} pindah sekaligus karena lulus kuliah.`, 0]; } p.terisi = false; p.telat = true; return ['Penyewa kabur', `Penyewa ${p.nama} pergi diam-diam tanpa membayar sewa bulan ini. Unitnya sekarang kosong.`, -p.sewa]; } },
+  { b: 9, syarat: () => S.properti.length, jalan() { const p = pilihAcak(S.properti), biaya = bulat(Math.max(1.5e6, p.nilai * antara(.006, .014))); S.kas -= biaya; tandai(p, 'Atap bocor'); return ['Atap bocor', `Hujan deras membuat atap ${p.nama} bocor. Biaya perbaikan ${rp(biaya)}.`, -biaya, p]; } },
+  { b: 8, syarat: () => S.properti.some(p => !p.kamar && p.terisi), jalan() { const p = pilihAcak(S.properti.filter(p => !p.kamar && p.terisi)); p.telat = true; tandai(p, 'Telat bayar'); return ['Penyewa telat bayar', `Penyewa ${p.nama} belum membayar sewa bulan ini.`, -p.sewa, p]; } },
+  { b: 6, syarat: () => S.properti.some(p => p.terisi), jalan() { const p = pilihAcak(S.properti.filter(p => p.terisi)); if (p.kamar) { const k = Math.min(p.terisi, 1 + (Math.random() * 3 | 0)); p.terisi -= k; tandai(p, k + ' penghuni pindah'); return ['Penghuni kos pindah', `${k} penghuni ${p.nama} pindah sekaligus karena lulus kuliah.`, 0, p]; } p.terisi = false; p.telat = true; tandai(p, 'Penyewa kabur'); return ['Penyewa kabur', `Penyewa ${p.nama} pergi diam-diam tanpa membayar sewa bulan ini. Unitnya sekarang kosong.`, -p.sewa, p]; } },
   { b: 5, syarat: () => S.profesi !== 'pedagang', jalan() { S.kas += S.gaji; return ['Bonus kinerja', `Atasan memberi bonus satu kali gaji: ${rp(S.gaji)}.`, S.gaji]; } },
-  { b: 4, syarat: () => true, jalan() { const n = bulat(S.gajiDasar * .06, 1e5); S.gajiDasar += n; S.gaji += n; return ['Penghasilan naik', `Penghasilan bulananmu naik ${rp(n)} menjadi ${rp(S.gaji)}.`, 0]; } },
+  { b: 4, syarat: () => true, jalan() { const n = bulat(S.gajiDasar * .06, 1e5); S.gajiDasar += n; S.gaji += n; return ['Penghasilan naik', `Penghasilan bulananmu naik ${rp(n)} menjadi ${rp(S.gaji)}.`, 1]; } },
   { b: 7, syarat: () => true, jalan() { const b = bulat(antara(1.5e6, 4e6)); S.kas -= b; return ['Kendaraan masuk bengkel', `Motor rusak dan harus diperbaiki: ${rp(b)}.`, -b]; } },
   { b: 6, syarat: () => true, jalan() { const b = bulat(antara(3e6, 9e6), 1e5); S.kas -= b; return ['Biaya tak terduga', pilihAcak([`Keluarga harus dirawat di rumah sakit. Biayanya ${rp(b)}.`, `Biaya masuk sekolah anak ${rp(b)}.`, `Atap rumah sendiri bocor dan dapur rusak. Perbaikannya ${rp(b)}.`]), -b]; } },
-  { b: 4, syarat: () => S.properti.some(p => p.pinjaman), jalan() { S.bunga = Math.min(.15, S.bunga + .01); hitungUlangCicilan(); return ['Suku bunga KPR naik', `Bank menaikkan bunga KPR menjadi ${persen(S.bunga, 1)} per tahun. Cicilan semua pinjamanmu ikut naik.`, 0]; } },
-  { b: 3, syarat: () => S.bunga > .065, jalan() { S.bunga = Math.max(.06, S.bunga - .01); hitungUlangCicilan(); return ['Suku bunga KPR turun', `Bunga KPR turun menjadi ${persen(S.bunga, 1)} per tahun. Cicilan semua pinjamanmu ikut turun.`, 0]; } },
-  { b: 4, syarat: () => true, jalan() { const f = antara(1.05, 1.1); S.properti.forEach(p => p.nilai = bulat(p.nilai * f, 5e5)); return ['Harga properti naik', `Ada jalan tol baru di dekat sini. Nilai pasar semua properti naik ${persen(f - 1)}. Peluang baru juga lebih mahal.`, 0]; } },
-  { b: 3, syarat: () => true, jalan() { const f = antara(.86, .93); S.properti.forEach(p => p.nilai = bulat(p.nilai * f, 5e5)); return ['Pasar properti lesu', `Banyak orang menjual rumah. Nilai pasar properti turun ${persen(1 - f)}. Ini saat yang baik untuk membeli, kurang baik untuk menjual.`, 0]; } },
-  { b: 5, syarat: () => S.properti.length, pilihan: true, jalan() { const p = pilihAcak(S.properti), harga = bulat(p.nilai * antara(1.18, 1.35), 5e5);
-      return ['Ada yang ingin membeli', `Seorang pembeli menawar ${p.nama} seharga ${rp(harga)}, di atas nilai pasarnya ${rp(p.nilai)}. Setelah biaya jual dan pelunasan KPR, kasmu akan bertambah ${rp(harga * .97 - p.pinjaman)}. Pemasukan pasif dari properti ini hilang.`, 0,
+  { b: 4, syarat: () => S.properti.some(p => p.pinjaman), jalan() { S.bunga = Math.min(.15, S.bunga + .01); hitungUlangCicilan(); return ['Suku bunga KPR naik', `Bank menaikkan bunga KPR menjadi ${persen(S.bunga, 1)} per tahun. Cicilan semua pinjamanmu ikut naik.`, -1]; } },
+  { b: 3, syarat: () => S.bunga > .065, jalan() { S.bunga = Math.max(.06, S.bunga - .01); hitungUlangCicilan(); return ['Suku bunga KPR turun', `Bunga KPR turun menjadi ${persen(S.bunga, 1)} per tahun. Cicilan semua pinjamanmu ikut turun.`, 1]; } },
+  { b: 4, syarat: () => true, jalan() { const f = antara(1.05, 1.1); S.properti.forEach(p => p.nilai = bulat(p.nilai * f, 5e5)); return ['Harga properti naik', `Ada jalan tol baru di dekat sini. Nilai pasar semua properti naik ${persen(f - 1)}.`, 1]; } },
+  { b: 3, syarat: () => true, jalan() { const f = antara(.86, .93); S.properti.forEach(p => p.nilai = bulat(p.nilai * f, 5e5)); return ['Pasar properti lesu', `Banyak orang menjual rumah. Nilai pasar properti turun ${persen(1 - f)}. Saat yang baik untuk membeli, kurang baik untuk menjual.`, -1]; } },
+  { b: 5, syarat: () => S.properti.length, jalan() { const p = pilihAcak(S.properti), harga = bulat(p.nilai * antara(1.18, 1.35), 5e5);
+      return ['Ada yang ingin membeli', `Seorang pembeli menawar ${p.nama} seharga ${rp(harga)}, di atas nilai pasarnya ${rp(p.nilai)}. Setelah biaya jual dan pelunasan KPR, kasmu bertambah ${rp(harga * .97 - p.pinjaman)}. Pemasukan pasif dari properti ini hilang.`, 0, p,
         [['Tolak', () => 'Tawaran ditolak. Propertinya tetap milikmu.'], ['Jual', () => jual(p, harga)]]]; } },
-  { b: 4, syarat: () => S.properti.length, pilihan: true, jalan() { const p = pilihAcak(S.properti), biaya = bulat(sewaPenuh(p) * 2.5, 1e5);
-      return ['Tawaran renovasi', `Tukang langganan menawarkan renovasi ${p.nama} seharga ${rp(biaya)}. Setelahnya sewa bisa naik 15% dan unit lebih diminati.`, 0,
-        [['Lewati', () => 'Renovasi tidak jadi.'], ['Renovasi', () => { if (S.kas < biaya) return 'Kas tidak cukup untuk renovasi.'; S.kas -= biaya; p.sewa = bulat(p.sewa * 1.15, 25000); p.hunian += .04; p.nilai = bulat(p.nilai * 1.05, 5e5); return `Renovasi selesai. Sewa ${p.nama} sekarang ${rp(p.sewa)}.`; }]]]; } },
-  { b: 3, syarat: () => S.properti.length >= 2 && !(S.resesi > 0), jalan() { S.resesi = 6; let pergi = 0; for (const p of S.properti) { if (p.kamar) { const k = Math.round(p.terisi * antara(.25, .45)); p.terisi -= k; pergi += k; } else if (p.terisi && acak() < .4) { p.terisi = false; pergi++; } }
-      return ['Resesi ekonomi', `Banyak kantor dan usaha tutup. ${pergi} penyewa pergi bulan ini, dan selama enam bulan ke depan unit kosong lebih sulit terisi. Cicilan tetap harus dibayar.`, 0]; } },
+  { b: 4, syarat: () => S.properti.length, jalan() { const p = pilihAcak(S.properti), biaya = bulat(sewaPenuh(p) * 2.5, 1e5);
+      return ['Tawaran renovasi', `Tukang langganan menawarkan renovasi ${p.nama} seharga ${rp(biaya)}. Setelahnya sewa bisa naik 15% dan unit lebih diminati.`, 0, p,
+        [['Lewati', () => 'Renovasi tidak jadi.'], ['Renovasi', () => { if (S.kas < biaya) return 'Kas di tangan tidak cukup untuk renovasi.'; S.kas -= biaya; p.sewa = bulat(p.sewa * 1.15, 25000); p.hunian += .04; p.nilai = bulat(p.nilai * 1.05, 5e5); bangunDunia(p.plot, true); return `Renovasi selesai. Sewa ${p.nama} sekarang ${rp(p.sewa)}.`; }]]]; } },
+  { b: 3, syarat: () => S.properti.length >= 2 && !(S.resesi > 0), jalan() { S.resesi = 6; let pergi = 0; for (const p of S.properti) { if (p.kamar) { const k = Math.round(p.terisi * antara(.25, .45)); p.terisi -= k; pergi += k; } else if (p.terisi && Math.random() < .4) { p.terisi = false; pergi++; } }
+      return ['Resesi ekonomi', `Banyak kantor dan usaha tutup. ${pergi} penyewa pergi bulan ini, dan selama enam bulan unit kosong lebih sulit terisi. Cicilan tetap harus dibayar.`, -1]; } },
   { b: 2, syarat: () => true, jalan() { const n = bulat(antara(5e6, 15e6), 1e6); S.kas += n; return ['Rezeki nomplok', `Kamu menang undian tabungan bank sebesar ${rp(n)}.`, n]; } } ];
 function hitungUlangCicilan() { S.properti.forEach(p => { if (p.pinjaman > 0) p.cicilan = cicilanDari(p.pinjaman, S.bunga, Math.max(12, p.tenor)); }); }
 
-/* ---------- satu bulan berlalu ---------- */
-function lanjutBulan() { if (S.selesai) return;
-  const L = { masuk: [], keluar: [], kabar: [] }, catat = (arr, nama, n) => { if (Math.round(n)) arr.push([nama, n]); };
-  // 1. penyewa datang dan pergi
+/* =============================== satu bulan berlalu =============================== */
+function gantiBulan() {
+  const L = { masuk: [], keluar: [], kabar: [] }, catat = (a, n, v) => { if (Math.round(v)) a.push([n, v]); };
+  for (const p of S.properti) if (p.koin) { S.kas += p.koin; p.koin = 0; }   // koin bulan lalu yang belum ditagih masuk otomatis
   const lesu = S.resesi > 0 ? .5 : 1, kabur = S.resesi > 0 ? 1.8 : 1; if (S.resesi > 0) S.resesi--;
-  for (const p of S.properti) { const h = hunianEfektif(p); p.telat = false;
-    if (p.kamar) { let k = p.terisi; for (let i = 0; i < p.terisi; i++) if (acak() < (1 - h) * .45 * kabur) k--; for (let i = p.terisi; i < p.kamar; i++) if (p.iklan || acak() < h * .55 * lesu) k++; if (k !== p.terisi) L.kabar.push(`${p.nama}: ${k > p.terisi ? '+' + (k - p.terisi) + ' penghuni baru' : (p.terisi - k) + ' penghuni pindah'}.`); p.terisi = k; }
-    else if (p.terisi) { if (acak() < (1 - h) * .55 * kabur) { p.terisi = false; L.kabar.push(`Penyewa ${p.nama} pindah. Unitnya kosong.`); } }
-    else if (p.iklan || acak() < h * .7 * lesu) { p.terisi = true; L.kabar.push(`${p.nama} dapat penyewa baru.`); }
+  for (const p of S.properti) { const h = hunianEfektif(p); p.telat = false; if (p.tandaSampai && p.tandaSampai <= S.bulan) p.tanda = null;
+    if (p.kamar) { let k = p.terisi; for (let i = 0; i < p.terisi; i++) if (Math.random() < (1 - h) * .45 * kabur) k--; for (let i = p.terisi; i < p.kamar; i++) if (p.iklan || Math.random() < h * .55 * lesu) k++; if (k > p.terisi) L.kabar.push([`${p.nama}: ${k - p.terisi} penghuni baru`, 'baik']); else if (k < p.terisi) L.kabar.push([`${p.nama}: ${p.terisi - k} penghuni pindah`, 'buruk']); p.terisi = k; }
+    else if (p.terisi) { if (Math.random() < (1 - h) * .55 * kabur) { p.terisi = false; L.kabar.push([`Penyewa ${p.nama} pindah. Unitnya kosong.`, 'buruk']); } }
+    else if (p.iklan || Math.random() < h * .7 * lesu) { p.terisi = true; L.kabar.push([`${p.nama} dapat penyewa baru.`, 'baik']); }
     p.iklan = false; }
-  // 2. kejadian acak (kira-kira 6 dari 10 bulan)
-  let kej = null; if (acak() < .6) { const ada = KEJADIAN.filter(k => k.syarat()), tot = ada.reduce((a, k) => a + k.b, 0); let r = acak() * tot; for (const k of ada) { r -= k.b; if (r <= 0) { kej = k.jalan(); break; } } if (kej && kej[2]) catat(kej[2] > 0 ? L.masuk : L.keluar, kej[0], Math.abs(kej[2])); }
-  // 3. arus kas bulan ini
+  let kej = null; if (Math.random() < .6) { const ada = KEJADIAN.filter(k => k.syarat()), tot = ada.reduce((a, k) => a + k.b, 0); let r = Math.random() * tot; for (const k of ada) { r -= k.b; if (r <= 0) { kej = k.jalan(); break; } } if (kej && Math.abs(kej[2]) > 1) catat(kej[2] > 0 ? L.masuk : L.keluar, kej[0], Math.abs(kej[2])); }
   const gaji = S.ombak ? bulat(S.gajiDasar * antara(1 - S.ombak, 1 + S.ombak), 1e5) : S.gaji; S.gaji = gaji; S.kas += gaji; catat(L.masuk, S.profesi === 'pedagang' ? 'Laba dagang' : 'Gaji', gaji);
   let sewa = 0, rawat = 0, cicil = 0, bungaTotal = 0;
-  for (const p of S.properti) { if (!p.telat) sewa += sewaKini(p); rawat += sewaPenuh(p) * p.rawat;
-    if (p.pinjaman > 0) { const bunga = p.pinjaman * S.bunga / 12, pokok = Math.min(p.pinjaman, p.cicilan - bunga); cicil += pokok + bunga; bungaTotal += bunga; p.pinjaman = Math.max(0, p.pinjaman - pokok); p.tenor--; if (p.pinjaman < 1 || p.tenor <= 0) { p.pinjaman = 0; p.cicilan = 0; L.kabar.push(`KPR ${p.nama} lunas.`); } } }
-  S.kas += sewa - rawat - cicil - S.biaya; catat(L.masuk, 'Sewa properti', sewa); catat(L.keluar, 'Biaya hidup', S.biaya); catat(L.keluar, 'Cicilan KPR', cicil); catat(L.keluar, 'Perawatan dan pengelolaan', rawat);
+  for (const p of S.properti) { const s = p.telat ? 0 : sewaKini(p); p.koin = s; sewa += s; rawat += sewaPenuh(p) * p.rawat;
+    if (p.pinjaman > 0) { const bunga = p.pinjaman * S.bunga / 12, pokok = Math.min(p.pinjaman, p.cicilan - bunga); cicil += pokok + bunga; bungaTotal += bunga; p.pinjaman = Math.max(0, p.pinjaman - pokok); p.tenor--; if (p.pinjaman < 1 || p.tenor <= 0) { p.pinjaman = 0; p.cicilan = 0; L.kabar.push([`KPR ${p.nama} lunas.`, 'baik']); } } }
+  S.kas -= rawat + cicil + S.biaya; catat(L.masuk, 'Sewa properti', sewa); catat(L.keluar, 'Biaya hidup', S.biaya); catat(L.keluar, 'Cicilan KPR', cicil); catat(L.keluar, 'Perawatan dan pengelolaan', rawat);
   if (S.bulan % 12 === 0 && S.properti.length) { const pbb = nilaiProperti() * .002; S.kas -= pbb; catat(L.keluar, 'Pajak bumi dan bangunan', pbb); }
-  if (S.kas < 0) { const b = -S.kas * BATAS.darurat; S.kas -= b; catat(L.keluar, 'Bunga pinjaman darurat', b); }
+  const kasNyata = S.kas + koinTotal(); if (kasNyata < 0) { const b = -kasNyata * BATAS.darurat; S.kas -= b; catat(L.keluar, 'Bunga pinjaman darurat', b); }
   L.bunga = bungaTotal; L.bersih = L.masuk.reduce((a, x) => a + x[1], 0) - L.keluar.reduce((a, x) => a + x[1], 0);
-  // 4. pasar dan tahun baru
   S.properti.forEach(p => { p.nilai = bulat(p.nilai * (1 + antara(-.002, .007)), 5e5); });
-  if (S.bulan % 12 === 0) { S.biaya = bulat(S.biaya * 1.04, 1e5); if (!S.ombak) S.gaji = S.gajiDasar = bulat(S.gajiDasar * 1.03, 1e5); else S.gajiDasar = bulat(S.gajiDasar * 1.03, 1e5); L.kabar.push(`Tahun baru: biaya hidup naik 4% menjadi ${rp(S.biaya)}.`); }
-  L.bulan = S.bulan; S.lap = L; S.bulan++; S.tawaran = buatTawaran(); S.tip = (S.tip + 1) % TIP.length; catatRiwayat();
-  // 5. menang atau kalah
-  const pasif = pasifBersih(); let akhir = '';
-  if (!S.menang && S.properti.length && pasif >= S.biaya) { S.menang = S.bulan - 1; const r = baca(REKOR, null); if (!r || S.menang < r.bulan) tulis(REKOR, { bulan: S.menang, profesi: S.namaProfesi, kekayaan: kekayaan() }); akhir = 'menang'; }
-  if (S.kas < -Math.max(S.gaji * 2.5, 15e6)) { S.selesai = true; akhir = 'bangkrut'; }
-  simpan(); gambarSemua(); laporBulan(L, kej, akhir); }
-function laporBulan(L, kej, akhir) {
-  const isi = `<div class="sub">${namaBulan(L.bulan)}</div><h3>${kej ? kej[0] : 'Bulan berjalan tenang'}</h3>${kej ? `<p>${kej[1]}</p>` : '<p>Tidak ada kejadian istimewa bulan ini.</p>'}
-    ${L.kabar.length ? `<p class="redup" style="font-size:13px">${L.kabar.join('<br>')}</p>` : ''}
-    <dl class="rinci"><dt>Uang masuk</dt><dd class="naik">${rp(L.masuk.reduce((a, x) => a + x[1], 0))}</dd><dt>Uang keluar</dt><dd class="turun">-${rp(L.keluar.reduce((a, x) => a + x[1], 0))}</dd><div class="garis"></div>
-      <dt><b>Arus kas bersih</b></dt><dd class="${L.bersih >= 0 ? 'naik' : 'turun'}"><b>${rp(L.bersih)}</b></dd><dt>Kas sekarang</dt><dd class="${S.kas >= 0 ? '' : 'turun'}">${rp(S.kas)}</dd></dl>
-    ${S.kas < 0 && akhir !== 'bangkrut' ? '<div class="peringatan">Kas minus. Kekurangannya jadi pinjaman darurat berbunga 3% per bulan. Jual properti atau tekan pengeluaran sebelum minusnya terlalu dalam.</div>' : ''}`;
-  const lanjut = () => { if (akhir === 'menang') layarMenang(); else if (akhir === 'bangkrut') layarBangkrut(); else tutupModal(); };
-  if (kej && kej[3]) modal(isi + `<div class="tombol">${kej[3].map(([n], i) => `<button class="pil ${i ? 'utama' : ''}" data-pilih="${i}">${n}</button>`).join('')}</div>`, () => {
-    document.querySelectorAll('[data-pilih]').forEach(b => b.onclick = () => { const t = kej[3][+b.dataset.pilih][1](); simpan(); gambarSemua(); modal(`<div class="sub">${namaBulan(L.bulan)}</div><h3>${kej[0]}</h3><p>${t}</p><div class="tombol"><button class="pil utama" id="bOke">Lanjut</button></div>`, () => { $('#bOke').onclick = lanjut; }); }); }, true);
-  else modal(isi + `<div class="tombol"><button class="pil utama" id="bOke">Lanjut</button></div>`, () => { $('#bOke').onclick = lanjut; }); }
+  if (S.bulan % 12 === 0) { S.biaya = bulat(S.biaya * 1.04, 1e5); S.gajiDasar = bulat(S.gajiDasar * 1.03, 1e5); if (!S.ombak) S.gaji = S.gajiDasar; L.kabar.push([`Tahun baru: biaya hidup naik 4% menjadi ${rp(S.biaya)}.`, 'buruk']); }
+  L.bulan = S.bulan; S.lap = L; S.bulan++; S.t = 0; S.tawaran = buatTawaran(); S.tip = (S.tip + 1) % TIP.length; catatRiwayat();
+  let akhir = ''; if (!S.menang && S.properti.length && pasifBersih() >= S.biaya) { S.menang = S.bulan - 1; const r = baca(REKOR, null); if (!r || S.menang < r.bulan) tulis(REKOR, { bulan: S.menang, profesi: S.namaProfesi, kekayaan: kekayaan() }); akhir = 'menang'; }
+  if (S.kas + koinTotal() < -Math.max(S.gaji * 2.5, 15e6)) { S.selesai = true; akhir = 'bangkrut'; }
+  simpan(); syncDunia(); perbaruiHud(); if (tab) isiPanel();
+  kabar(`${namaBulan(L.bulan)} selesai. Arus kas bersih <b>${rp(L.bersih)}</b>.${sewa ? ' Ketuk koin sewa yang melayang.' : ''}`, L.bersih >= 0 ? 'baik' : 'buruk'); bunyi(sewa ? 'gajian' : 'klik');
+  [...new Map(L.kabar.map(k => [k[0], k])).values()].slice(0, 2).forEach(([t, j], i) => setTimeout(() => kabar(t, j), 700 + i * 900));
+  const sesudah = () => { if (akhir === 'menang') layarMenang(); else if (akhir === 'bangkrut') layarBangkrut(); };
+  if (kej) { if (kej[3]) fokusKe(PLOT[kej[3].plot]);
+    if (kej[4]) modal(`<div class="sub">${namaBulan(S.bulan)}</div><h3>${kej[0]}</h3><p>${kej[1]}</p><div class="tombol">${kej[4].map(([n], i) => `<button class="pil ${i ? 'utama' : ''}" data-pilih="${i}">${n}</button>`).join('')}</div>`, () => {
+      $$('[data-pilih]').forEach(b => b.onclick = () => { const t = kej[4][+b.dataset.pilih][1](); simpan(); tutupModal(); kabar(t); sesudah(); }); }, true);
+    else { setTimeout(() => kabar(`<b>${kej[0]}.</b> ${kej[1]}`, kej[2] > 0 ? 'baik' : kej[2] < 0 ? 'buruk' : ''), 250); sesudah(); } }
+  else sesudah(); }
 function layarMenang() { const r = baca(REKOR, null);
-  modal(`<div class="sub">Bebas finansial</div><h3>Sewa sudah menutup biaya hidupmu</h3><p>Dalam ${S.menang} bulan (${(S.menang / 12).toLocaleString('id-ID', { maximumFractionDigits: 1 })} tahun) sebagai ${S.namaProfesi.toLowerCase()}, pemasukan pasif bersihmu ${rp(pasifBersih())} per bulan, lebih besar dari biaya hidup ${rp(S.biaya)}. Mulai sekarang, bekerja atau tidak, kebutuhan bulananmu sudah tertutup sewa.</p>
+  modal(`<div class="sub">Bebas finansial</div><h3>Sewa sudah menutup biaya hidupmu</h3><p>Dalam ${S.menang} bulan (${(S.menang / 12).toLocaleString('id-ID', { maximumFractionDigits: 1 })} tahun) sebagai ${S.namaProfesi.toLowerCase()}, sewa bersihmu ${rp(pasifBersih())} per bulan, lebih besar dari biaya hidup ${rp(S.biaya)}. Mulai sekarang, bekerja atau tidak, kebutuhan bulananmu sudah tertutup sewa.</p>
     <dl class="rinci"><dt>Properti</dt><dd>${S.properti.length}</dd><dt>Nilai properti</dt><dd>${rp(nilaiProperti())}</dd><dt>Sisa utang</dt><dd>${rp(sisaUtang())}</dd><dt><b>Kekayaan bersih</b></dt><dd><b>${rp(kekayaan())}</b></dd><dt>Rekor tercepat di perangkat ini</dt><dd>${r ? r.bulan + ' bulan' : '-'}</dd></dl>
-    <div class="tombol"><a class="pil" href="arkade.html" style="text-decoration:none">Ke Arkade</a><button class="pil" id="bLagi">Main lagi</button><button class="pil utama" data-tutup>Terus bermain</button></div>`, () => { $('#bLagi').onclick = () => { localStorage.removeItem(SIMPAN); location.reload(); }; }); }
-function layarBangkrut() { modal(`<div class="sub">Permainan selesai</div><h3>Kas terlalu dalam minusnya</h3><p>Pinjaman darurat ${rp(-S.kas)} tidak sanggup lagi dibayar dari penghasilan dan sewa. Bank menyita properti. Pelajarannya: sisakan dana darurat, dan hindari properti yang arus kasnya minus.</p>
+    <div class="tombol"><a class="pil" href="arkade.html">Ke Arkade</a><button class="pil" id="bLagi">Main lagi</button><button class="pil utama" data-tutup>Terus bermain</button></div>`, () => { $('#bLagi').onclick = mulaiUlang; }); bunyi('menang'); }
+function layarBangkrut() { modal(`<div class="sub">Permainan selesai</div><h3>Kas terlalu dalam minusnya</h3><p>Pinjaman darurat ${rp(-(S.kas + koinTotal()))} tidak sanggup lagi dibayar dari penghasilan dan sewa. Bank menyita properti. Pelajarannya: sisakan dana darurat, dan hindari properti yang arus kasnya minus.</p>
     <dl class="rinci"><dt>Bertahan</dt><dd>${S.bulan - 1} bulan</dd><dt>Properti terakhir</dt><dd>${S.properti.length}</dd></dl>
-    <div class="tombol"><a class="pil" href="arkade.html" style="text-decoration:none">Ke Arkade</a><button class="pil utama" id="bLagi">Main lagi</button></div>`, () => { $('#bLagi').onclick = () => { localStorage.removeItem(SIMPAN); location.reload(); }; }, true); }
+    <div class="tombol"><a class="pil" href="arkade.html">Ke Arkade</a><button class="pil utama" id="bLagi">Main lagi</button></div>`, () => { $('#bLagi').onclick = mulaiUlang; }, true); }
+function mulaiUlang() { localStorage.removeItem(SIMPAN); location.reload(); }
 
-/* ---------- gambar bangunan (kanvas) ---------- */
-function bangunan(x, jenis, cx, alas, s, st) { const J = JENIS[jenis], w = J.w * s, nyala = '#ffd27a', gelap = '#1a2232';
-  const jendela = (px, py, jw, jh, on) => { x.fillStyle = on ? nyala : gelap; x.fillRect(px, py, jw, jh); if (on) { x.fillStyle = 'rgba(255,210,122,.18)'; x.fillRect(px - 2 * s, py - 2 * s, jw + 4 * s, jh + 4 * s); } };
-  const kiri = cx - w / 2; x.save();
-  if (jenis === 'kos' || jenis === 'kontrakan') { const h = (jenis === 'kos' ? 40 : 46) * s; x.fillStyle = jenis === 'kos' ? '#d9c6a3' : '#c7d2c4'; x.fillRect(kiri, alas - h, w, h);
-    x.fillStyle = jenis === 'kos' ? '#a8452f' : '#5b6f8a'; x.beginPath(); x.moveTo(kiri - 6 * s, alas - h); x.lineTo(cx, alas - h - 26 * s); x.lineTo(kiri + w + 6 * s, alas - h); x.fill();
-    x.fillStyle = '#5b3a24'; x.fillRect(cx - 7 * s, alas - 24 * s, 14 * s, 24 * s); const n = jenis === 'kos' ? 1 : 2; for (let i = 0; i < n; i++) jendela(kiri + (n === 1 ? 8 * s : 10 * s + i * (w - 34 * s)), alas - h + 10 * s, 14 * s, 12 * s, st.on); }
-  else if (jenis === 'kios') { const h = 42 * s; x.fillStyle = '#8fa3b5'; x.fillRect(kiri, alas - h, w, h); for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? '#f4f1ea' : '#d0392b'; x.fillRect(kiri + i * w / 6, alas - h - 4 * s, w / 6, 12 * s); }
-    if (st.on) { x.fillStyle = nyala; x.fillRect(kiri + 6 * s, alas - h + 14 * s, w - 12 * s, h - 14 * s); x.fillStyle = 'rgba(120,70,30,.6)'; for (let i = 0; i < 3; i++) x.fillRect(kiri + 10 * s, alas - h + 20 * s + i * 8 * s, w - 20 * s, 2 * s); }
-    else { x.fillStyle = '#5a5e66'; x.fillRect(kiri + 6 * s, alas - h + 14 * s, w - 12 * s, h - 14 * s); x.fillStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < 6; i++) x.fillRect(kiri + 6 * s, alas - h + 16 * s + i * 4.5 * s, w - 12 * s, 1.5 * s); } }
-  else if (jenis === 'apartemen') { const h = 140 * s; x.fillStyle = '#4a5568'; x.fillRect(kiri, alas - h, w, h); x.fillStyle = '#5f6b80'; x.fillRect(kiri, alas - h, 6 * s, h);
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 3; c++) { const milik = r === 4 && c === 1; jendela(kiri + 8 * s + c * 15 * s, alas - h + 8 * s + r * 14.5 * s, 9 * s, 8 * s, milik ? st.on : ((r * 3 + c * 7) % 5 < 2)); if (milik) { x.strokeStyle = '#f3c550'; x.lineWidth = 1.5 * s; x.strokeRect(kiri + 6.5 * s + c * 15 * s, alas - h + 6.5 * s + r * 14.5 * s, 12 * s, 11 * s); } } }
-  else if (jenis === 'ruko') { const h = 92 * s; x.fillStyle = '#d8cfc0'; x.fillRect(kiri, alas - h, w, h); x.fillStyle = '#b9ad98'; x.fillRect(kiri, alas - h, w, 8 * s);
-    for (let i = 0; i < 3; i++) jendela(kiri + 8 * s + i * 22 * s, alas - h + 16 * s, 14 * s, 18 * s, st.on && i !== 1); jendela(kiri + 8 * s, alas - h + 44 * s, w - 16 * s, 8 * s, false);
-    x.fillStyle = '#1f6fd0'; x.fillRect(kiri + 4 * s, alas - 40 * s, w - 8 * s, 9 * s); if (st.on) { x.fillStyle = nyala; x.fillRect(kiri + 8 * s, alas - 29 * s, w - 16 * s, 29 * s); } else { x.fillStyle = '#5a5e66'; x.fillRect(kiri + 8 * s, alas - 29 * s, w - 16 * s, 29 * s); } }
-  else if (jenis === 'kos10') { const h = 70 * s; x.fillStyle = '#e8e1d2'; x.fillRect(kiri, alas - h, w, h); x.fillStyle = '#7a4a32'; x.fillRect(kiri - 4 * s, alas - h - 6 * s, w + 8 * s, 8 * s); x.fillStyle = '#9a8f7c'; x.fillRect(kiri, alas - h / 2 - 2 * s, w, 4 * s);
-    for (let i = 0; i < 10; i++) { const r = i < 5 ? 0 : 1, c = i % 5; jendela(kiri + 8 * s + c * 21.5 * s, alas - h + 10 * s + r * 34 * s, 12 * s, 14 * s, i < st.n); } }
-  else if (jenis === 'gudang') { const h = 54 * s; x.fillStyle = '#7f8c98'; x.fillRect(kiri, alas - h, w, h); x.fillStyle = '#5d6975'; x.beginPath(); x.moveTo(kiri - 4 * s, alas - h); x.quadraticCurveTo(cx, alas - h - 30 * s, kiri + w + 4 * s, alas - h); x.fill();
-    x.fillStyle = st.on ? '#c9a24a' : '#3d4650'; x.fillRect(cx - 22 * s, alas - 36 * s, 44 * s, 36 * s); x.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 7; i++) x.fillRect(cx - 22 * s, alas - 34 * s + i * 5 * s, 44 * s, 1.5 * s); if (st.on) { x.fillStyle = '#2f5a3a'; x.fillRect(kiri + 8 * s, alas - 12 * s, 16 * s, 12 * s); } }
-  if (st.kosong) { x.fillStyle = '#d0392b'; x.fillRect(cx - 24 * s, alas - 14 * s, 48 * s, 12 * s); x.fillStyle = '#fff'; x.font = `800 ${8 * s}px sans-serif`; x.textAlign = 'center'; x.fillText('DISEWAKAN', cx, alas - 5 * s); }
-  x.restore(); }
-function siapKanvas(c) { const r = c.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); c.width = Math.max(1, r.width * d); c.height = Math.max(1, r.height * d); const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0); return [x, r.width, r.height]; }
-function gambarKota() { const [x, w, h] = siapKanvas($('#kanvasKota')), g = x.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#08101f'); g.addColorStop(.55, '#1c2a4a'); g.addColorStop(.78, '#5a3f5a'); g.addColorStop(1, '#2a2030'); x.fillStyle = g; x.fillRect(0, 0, w, h);
-  let b = 11; const r = () => (b = (b * 16807) % 2147483647) / 2147483647; x.fillStyle = 'rgba(220,230,255,.7)'; for (let i = 0; i < 70; i++) x.fillRect(r() * w, r() * h * .45, 1.2, 1.2);
-  x.fillStyle = '#f4ecd2'; x.beginPath(); x.arc(w * .86, h * .16, 13, 0, 7); x.fill();
-  x.fillStyle = '#131b2c'; for (let i = 0; i < 26; i++) { const bw = 20 + r() * 34, bh = 40 + r() * 90, bx = i * (w / 24) - 10; x.fillRect(bx, h * .72 - bh, bw, bh); x.fillStyle = 'rgba(255,214,140,.25)'; for (let k = 0; k < bh / 9; k++) if (r() < .3) x.fillRect(bx + 4 + (r() * (bw - 10) | 0), h * .72 - bh + 4 + k * 9, 3, 3); x.fillStyle = '#131b2c'; }
-  const alas = h * .72; x.fillStyle = '#20262f'; x.fillRect(0, alas, w, h - alas); x.fillStyle = '#3a4250'; x.fillRect(0, alas, w, 5); x.fillStyle = 'rgba(230,220,190,.5)'; for (let i = 0; i < w; i += 38) x.fillRect(i, alas + (h - alas) * .55, 18, 2);
-  const P = S.properti, lebar = P.reduce((a, p) => a + JENIS[p.jenis].w + 22, 0), s = Math.min(1.25, Math.max(.45, (w - 40) / Math.max(lebar, 1)));
-  if (!P.length) { x.strokeStyle = 'rgba(243,197,80,.6)'; x.setLineDash([6, 5]); x.strokeRect(w / 2 - 70, alas - 46, 140, 44); x.setLineDash([]); x.fillStyle = '#f3c550'; x.font = '700 12px "Plus Jakarta Sans",sans-serif'; x.textAlign = 'center'; x.fillText('Kavling pertamamu', w / 2, alas - 20); return; }
-  let cx = (w - lebar * s) / 2 + 11 * s; for (const p of P) { const pw = JENIS[p.jenis].w * s; cx += pw / 2; bangunan(x, p.jenis, cx, alas, s, { on: p.kamar ? p.terisi > 0 : p.terisi, n: p.terisi, kosong: p.kamar ? p.terisi === 0 : !p.terisi }); cx += pw / 2 + 22 * s; } }
-function ikonBangunan(c, jenis, st) { const [x, w, h] = siapKanvas(c); const s = Math.min(w / (JENIS[jenis].w + 20), h / ((jenis === 'apartemen' ? 150 : jenis === 'ruko' ? 100 : 80))) ; x.fillStyle = '#26324a'; x.fillRect(0, h - 10, w, 10); bangunan(x, jenis, w / 2, h - 10, s, st); }
+/* =============================== suara kecil =============================== */
+let AC = null; function bunyi(j) { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); const t = AC.currentTime;
+  const nada = (f, mulai, lama, tipe = 'sine', v = .08) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = tipe; o.frequency.setValueAtTime(f, t + mulai); g.gain.setValueAtTime(v, t + mulai); g.gain.exponentialRampToValueAtTime(.0005, t + mulai + lama); o.connect(g); g.connect(AC.destination); o.start(t + mulai); o.stop(t + mulai + lama + .02); };
+  if (j === 'koin') { nada(1320, 0, .12, 'triangle'); nada(1760, .07, .18, 'triangle'); } else if (j === 'gajian') { [660, 880, 1100].forEach((f, i) => nada(f, i * .08, .2, 'triangle', .06)); }
+  else if (j === 'bangun') { nada(220, 0, .15, 'square', .04); nada(330, .12, .2, 'square', .04); } else if (j === 'menang') { [523, 659, 784, 1046].forEach((f, i) => nada(f, i * .12, .4, 'triangle', .08)); } else nada(880, 0, .05, 'sine', .04); } catch {} }
 
-/* ---------- tampilan ---------- */
-function modal(html, pasang, kunci) { $('#modal').innerHTML = html; $('#layar').classList.add('buka'); $('#layar').dataset.kunci = kunci ? '1' : ''; document.querySelectorAll('#modal [data-tutup]').forEach(b => b.onclick = tutupModal); if (pasang) pasang(); }
-function tutupModal() { $('#layar').classList.remove('buka'); }
-$('#layar').onclick = e => { if (e.target.id === 'layar' && !$('#layar').dataset.kunci) tutupModal(); };
-addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layar').dataset.kunci) tutupModal(); });
-let tKabar; function kabar(t) { modal(`<p style="margin:0">${t}</p><div class="tombol"><button class="pil utama" data-tutup>Oke</button></div>`); }
-function gambarSemua() { if (!S) return; const pasif = pasifBersih(), sisa = S.biaya - pasif;
-  $('#ringkas').innerHTML = `<div><small>Bulan</small><b>${S.bulan}</b></div><div><small>Kas</small><b class="${S.kas < 0 ? 'turun' : ''}">${rp(S.kas)}</b></div><div class="hp-sembunyi"><small>Pasif bersih</small><b class="${pasif >= 0 ? 'naik' : 'turun'}">${rp(pasif)}</b></div><div class="hp-sembunyi"><small>Kekayaan bersih</small><b>${rp(kekayaan())}</b></div>`;
-  $('#tPasif').textContent = rp(pasif) + ' / bln'; $('#tTarget').textContent = rp(S.biaya) + ' / bln'; $('#tBatang').style.width = Math.max(0, Math.min(100, pasif / S.biaya * 100)) + '%';
-  gambarKota();
-  $('#bulanPeluang').textContent = namaBulan(S.bulan);
-  $('#peluang').innerHTML = S.tawaran.map(t => { const J = JENIS[t.jenis], beda = t.harga / t.nilai - 1, pen = t.sewa * (t.kamar || 1);
-    return `<article class="tawar"><canvas data-ikon="${t.jenis}"></canvas><div class="teks"><b>${J.nama}</b><span class="lok">${t.lokasi}</span>
-      ${beda < -.05 ? `<span class="lencana">${persen(-beda)} di bawah pasar</span>` : beda > .04 ? `<span class="lencana mahal">${persen(beda)} di atas pasar</span>` : '<span class="lencana" style="background:rgba(255,255,255,.06);color:var(--redup)">harga wajar</span>'}
+/* =============================== 3D: dasar =============================== */
+const kanvas = $('#dunia'), renderer = new THREE.WebGLRenderer({ canvas: kanvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, HP ? 1.5 : 2)); renderer.setSize(innerWidth, innerHeight); renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.fog = new THREE.Fog('#a9d4f0', 120, 280);
+const kamera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .5, 600);
+const hemi = new THREE.HemisphereLight('#dff0ff', '#6a7a4a', .75); scene.add(hemi);
+const matahari = new THREE.DirectionalLight('#fff1d6', 2); matahari.castShadow = true; matahari.shadow.mapSize.set(HP ? 1024 : 2048, HP ? 1024 : 2048);
+Object.assign(matahari.shadow.camera, { left: -62, right: 62, top: 62, bottom: -62, near: 1, far: 280 }); matahari.shadow.bias = -.0005; scene.add(matahari); scene.add(matahari.target);
+const dunia = new THREE.Group(); scene.add(dunia);
+const GEO = new Map(); const geoKotak = (w, h, d) => { const k = w + ',' + h + ',' + d; if (!GEO.has(k)) GEO.set(k, new THREE.BoxGeometry(w, h, d)); return GEO.get(k); };
+const MAT = new Map(); const mat = (warna, o = {}) => { const k = warna + JSON.stringify(o); if (!MAT.has(k)) MAT.set(k, new THREE.MeshStandardMaterial({ color: warna, roughness: .75, ...o })); return MAT.get(k); };
+function kotak(g, w, h, d, x, y, z, m, bayang = true) { const b = new THREE.Mesh(geoKotak(w, h, d), m); b.position.set(x, y, z); b.castShadow = bayang; b.receiveShadow = true; g.add(b); return b; }
+function geoAtap(w, d, h) { const s = new THREE.Shape(); s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(0, h); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: false }); g.translate(0, 0, -d / 2); return g; }
+function atap(g, w, d, h, y, m) { const a = new THREE.Mesh(geoAtap(w, d, h), m); a.position.y = y; a.castShadow = true; a.receiveShadow = true; g.add(a); return a; }
+function tekKanvas(w, h, f) { const c = document.createElement('canvas'); c.width = w; c.height = h; f(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; }
+const JENDELA = { siang: new THREE.MeshStandardMaterial({ color: '#7fb4d8', roughness: .15, metalness: .4 }), nyala: new THREE.MeshStandardMaterial({ color: '#ffe0a0', emissive: '#ffc061', emissiveIntensity: 1.6 }), mati: new THREE.MeshStandardMaterial({ color: '#1c2534', roughness: .3 }) };
+
+/* ---------- tanah, jalan, taman ---------- */
+{ const rumput = tekKanvas(256, 256, (x, w, h) => { x.fillStyle = '#6fae55'; x.fillRect(0, 0, w, h); for (let i = 0; i < 4000; i++) { x.fillStyle = Math.random() < .5 ? 'rgba(60,110,40,.35)' : 'rgba(150,200,100,.3)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); } }); rumput.wrapS = rumput.wrapT = THREE.RepeatWrapping; rumput.repeat.set(40, 40);
+  const tanah = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ map: rumput, roughness: 1 })); tanah.rotation.x = -Math.PI / 2; tanah.receiveShadow = true; scene.add(tanah);
+  const aspal = mat('#3a3d44', { roughness: .9 }), trotoar = mat('#c9c4b8'), garis = new THREE.MeshBasicMaterial({ color: '#f0ead6' }), kuning = new THREE.MeshBasicMaterial({ color: '#f3c550' });
+  const datar = (w, d, x, z, m, y = .02) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, y, z); p.receiveShadow = true; scene.add(p); return p; };
+  datar(118, 3.6, 0, 0, mat('#5f9e4a', { roughness: 1 }), .012);   // taman tengah
+  [-15, 15].forEach(z => { datar(124, 6, 0, z, aspal); kotak(scene, 124, .18, 1.6, 0, .09, z - 3.8, trotoar, false); kotak(scene, 124, .18, 1.6, 0, .09, z + 3.8, trotoar, false); for (let x = -60; x < 60; x += 5) if (Math.abs(x) > 11) datar(2.4, .18, x, z, garis, .03);
+    [-1, 1].forEach(s => { for (let k = 0; k < 5; k++) datar(.55, 5, s * (6 + k * 1.05), z, garis, .028); }); });
+  datar(8, 124, 0, 0, aspal, .021); kotak(scene, 1.6, .18, 124, -4.8, .09, 0, trotoar, false); kotak(scene, 1.6, .18, 124, 4.8, .09, 0, trotoar, false); for (let z = -60; z < 60; z += 5) if (Math.abs(Math.abs(z) - 15) > 5) datar(.18, 2.4, 0, z, kuning, .03); }
+
+/* ---------- pohon (instanced) dan lampu jalan ---------- */
+const TITIK_POHON = []; for (let x = -58; x <= 58; x += 6) { if (Math.abs(x) < 7) continue; TITIK_POHON.push([x, 0], [x + 3, -30.5], [x, 30.5]); } for (let z = -58; z <= 58; z += 7) { if (Math.abs(Math.abs(z) - 15) < 6) continue; TITIK_POHON.push([-61, z], [61, z]); }
+for (let i = 0; i < 80; i++) { const a = Math.random() * Math.PI * 2, r = 75 + Math.random() * 60; TITIK_POHON.push([Math.cos(a) * r, Math.sin(a) * r]); }
+{ const daun = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.6, 1), new THREE.MeshStandardMaterial({ roughness: .95 }), TITIK_POHON.length), batang = new THREE.InstancedMesh(new THREE.CylinderGeometry(.18, .26, 2.2, 6), mat('#7a5534'), TITIK_POHON.length), o = new THREE.Object3D(), c = new THREE.Color();
+  TITIK_POHON.forEach(([x, z], i) => { const s = .8 + Math.random() * .6; o.position.set(x, 1.1 * s, z); o.scale.setScalar(s); o.rotation.y = Math.random() * 6; o.updateMatrix(); batang.setMatrixAt(i, o.matrix); o.position.y = 2.9 * s; o.scale.set(s, s * 1.15, s); o.updateMatrix(); daun.setMatrixAt(i, o.matrix); daun.setColorAt(i, c.set(['#3f8a3a', '#4f9a3c', '#2f7a36', '#5aa242'][i % 4]).convertSRGBToLinear()); });
+  [daun, batang].forEach(m => { m.castShadow = true; m.receiveShadow = true; scene.add(m); }); }
+const matLampu = new THREE.MeshStandardMaterial({ color: '#fff3d6', emissive: '#ffcf7a', emissiveIntensity: 0 });
+const matGenang = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, map: tekKanvas(128, 128, (c, W) => { const r = c.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,200,120,.75)'); r.addColorStop(.5, 'rgba(255,170,90,.22)'); r.addColorStop(1, 'rgba(255,150,70,0)'); c.fillStyle = r; c.fillRect(0, 0, W, W); }) });
+{ const titik = []; for (let x = -56; x <= 56; x += 14) [-15, 15].forEach(z => [-1, 1].forEach(s => { if (Math.abs(x) >= 8) titik.push([x, z + s * 4.2, s]); }));
+  const tiang = new THREE.InstancedMesh(geoKotak(.14, 5, .14), mat('#3a3f48', { metalness: .5 }), titik.length), lengan = new THREE.InstancedMesh(geoKotak(.14, .14, 1.2), mat('#3a3f48', { metalness: .5 }), titik.length), kepala = new THREE.InstancedMesh(geoKotak(.5, .16, .5), matLampu, titik.length), genang = new THREE.InstancedMesh(new THREE.PlaneGeometry(7, 7).rotateX(-Math.PI / 2), matGenang, titik.length), o = new THREE.Object3D();
+  titik.forEach(([x, z, s], i) => { o.position.set(x, 2.5, z); o.updateMatrix(); tiang.setMatrixAt(i, o.matrix); o.position.set(x, 5, z - s * .55); o.updateMatrix(); lengan.setMatrixAt(i, o.matrix); o.position.set(x, 4.9, z - s * 1.1); o.updateMatrix(); kepala.setMatrixAt(i, o.matrix); o.position.set(x, .06, z - s * 1.6); o.updateMatrix(); genang.setMatrixAt(i, o.matrix); });
+  [tiang, lengan, kepala, genang].forEach(m => scene.add(m)); }
+{ const bukit = mat('#5e9a5a', { roughness: 1 }); for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, r = 170 + (i * 37 % 40), m = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), bukit); m.scale.set(30 + i * 7 % 30, 14 + i * 5 % 18, 26); m.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); scene.add(m); }
+  const gedung = mat('#8a96a8'); for (let i = 0; i < 30; i++) { const a = -2.2 + i * .05, r = 140 + (i % 4) * 8, h = 18 + (i * 13 % 34); kotak(scene, 9, h, 9, Math.cos(a) * r, h / 2, Math.sin(a) * r, gedung, false); } }
+
+/* =============================== 3D: model bangunan =============================== */
+// tiap model menghadap +z; jendela didaftarkan supaya bisa menyala malam hari kalau berpenghuni
+function papanNama(g, teks, warna, w, x, y, z) { const t = tekKanvas(256, 64, (c, W, H) => { c.fillStyle = warna; c.fillRect(0, 0, W, H); c.fillStyle = '#fff'; c.font = 'bold 34px "Plus Jakarta Sans",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(teks, W / 2, H / 2 + 2); });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshStandardMaterial({ map: t, emissive: '#ffffff', emissiveMap: t, emissiveIntensity: .35 })); m.position.set(x, y, z); g.add(m); return m; }
+function modelBangunan(jenis) { const g = new THREE.Group(), J = []; const jendela = (w, h, x, y, z) => { const m = kotak(g, w, h, .08, x, y, z, JENDELA.siang, false); J.push(m); return m; };
+  const pintu = mat('#6b4426'), putih = mat('#f4f1ea');
+  if (jenis === 'kos') { kotak(g, 5.4, 3, 4.6, 0, 1.5, 0, mat('#ecd9b4')); atap(g, 6.3, 5.4, 1.9, 3, mat('#b5523b')); kotak(g, 1, 2, .1, 1.3, 1, 2.31, pintu); jendela(1.3, 1, -1.1, 1.7, 2.32); kotak(g, 2, .2, 1.2, 1.3, .1, 2.9, mat('#a9a39a'));
+    kotak(g, .6, .6, .6, -2.2, .3, 3, mat('#9a5a3a')); kotak(g, .7, .7, .7, -2.2, .9, 3, mat('#4f9a3c')); }
+  else if (jenis === 'kontrakan') { kotak(g, 7.6, 3.4, 5.6, 0, 1.7, -.4, mat('#d3dccf')); atap(g, 8.6, 6.6, 2.3, 3.4, mat('#566a86')); kotak(g, 7.6, .2, 2, 0, .1, 3.3, mat('#b9b2a4')); [-3.4, 3.4].forEach(x => kotak(g, .25, 3, .25, x, 1.5, 4.1, putih)); kotak(g, 7.9, .25, 2.4, 0, 3.1, 3.2, mat('#566a86'));
+    kotak(g, 1.1, 2.2, .1, 0, 1.1, 2.42, pintu); jendela(1.5, 1.1, -2.3, 1.8, 2.43); jendela(1.5, 1.1, 2.3, 1.8, 2.43); for (let x = -3.6; x <= 3.6; x += .6) kotak(g, .08, .8, .08, x, .4, 4.9, putih, false); }
+  else if (jenis === 'kios') { kotak(g, 5.6, 3.4, 5, 0, 1.7, 0, mat('#9fb2c4')); for (let i = 0; i < 7; i++) { const b = kotak(g, .8, .12, 1.8, -2.4 + i * .8, 3, 3.1, mat(i % 2 ? '#f4f1ea' : '#d0392b')); b.rotation.x = -.35; }
+    const buka = kotak(g, 4.6, 2.4, .1, 0, 1.3, 2.52, JENDELA.siang); J.push(buka); buka.userData.toko = true; papanNama(g, 'KIOS', '#d0392b', 3, 0, 3.6, 2.52); kotak(g, 3, .8, .8, 0, .4, 3.2, mat('#8a6a3a')); }
+  else if (jenis === 'apartemen') { const tek = tekKanvas(128, 512, (c, W, H) => { c.fillStyle = '#c9ced6'; c.fillRect(0, 0, W, H); for (let r = 0; r < 12; r++) for (let k = 0; k < 4; k++) { c.fillStyle = '#5f8fb0'; c.fillRect(8 + k * 30, 10 + r * 42, 20, 28); } c.fillStyle = 'rgba(0,0,0,.08)'; for (let r = 0; r < 12; r++) c.fillRect(0, r * 42 + 40, W, 3); });
+    const em = tekKanvas(128, 512, (c, W, H) => { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); for (let r = 0; r < 12; r++) for (let k = 0; k < 4; k++) if ((r * 7 + k * 3) % 5 < 2) { c.fillStyle = '#ffd890'; c.fillRect(8 + k * 30, 10 + r * 42, 20, 28); } });
+    const m = new THREE.MeshStandardMaterial({ map: tek, emissiveMap: em, emissive: '#ffffff', emissiveIntensity: 0, roughness: .6 }); const b = new THREE.Mesh(geoKotak(6.6, 24, 6.6), m); b.position.y = 12; b.castShadow = b.receiveShadow = true; g.add(b); g.userData.fasad = m;
+    kotak(g, 7.2, .5, 7.2, 0, 24.2, 0, mat('#8a929e')); kotak(g, 2, 1.4, 2, 1.5, 25.1, -1, mat('#6a7280')); kotak(g, 1.9, 1.9, .05, 0, 13.6, 3.33, mat('#f3c550', { emissive: '#f3c550', emissiveIntensity: .5 }), false); jendela(1.4, 1.4, 0, 13.6, 3.37);
+    kotak(g, 3, 2.6, .2, 0, 1.3, 3.35, mat('#2a3340')); }
+  else if (jenis === 'ruko') { kotak(g, 8.6, 9, 7, 0, 4.5, -.5, mat('#e3d6c0')); kotak(g, 8.8, .5, 7.2, 0, 9.2, -.5, mat('#b9a98c')); const toko = kotak(g, 7, 2.6, .1, 0, 1.4, 3.02, JENDELA.siang); toko.userData.toko = true; J.push(toko);
+    papanNama(g, 'RUKO', '#1f6fd0', 6, 0, 3.4, 3.03); for (let f = 0; f < 2; f++) { for (let k = 0; k < 3; k++) jendela(1.6, 1.6, -2.6 + k * 2.6, 5.2 + f * 2.7, 3.02); kotak(g, 8, .12, .8, 0, 4.2 + f * 2.7, 3.4, mat('#9a8f7c')); for (let x = -3.8; x <= 3.8; x += .5) kotak(g, .06, .7, .06, x, 4.6 + f * 2.7, 3.75, mat('#4a4f56'), false); } }
+  else if (jenis === 'kos10') { kotak(g, 9.6, 6.2, 6, 0, 3.1, -.6, mat('#efe6d3')); kotak(g, 10, .4, 6.6, 0, 6.4, -.6, mat('#7a4a32')); kotak(g, 9.6, .25, 1.6, 0, 3.1, 3.1, mat('#bdb3a0')); for (let x = -4.7; x <= 4.7; x += .45) kotak(g, .06, .9, .06, x, 3.7, 3.85, mat('#4a4f56'), false);
+    for (let f = 0; f < 2; f++) for (let k = 0; k < 5; k++) { kotak(g, .7, 1.9, .08, -3.8 + k * 1.9, .95 + f * 3.1, 2.42, pintu, false); jendela(.8, .8, -3.15 + k * 1.9, 1.6 + f * 3.1, 2.43); }
+    papanNama(g, 'KOS', '#7a4a32', 2.4, 0, 5.6, 2.42); }
+  else if (jenis === 'gudang') { kotak(g, 10, 4.6, 8.4, 0, 2.3, -.5, mat('#9aa6b2')); const a = new THREE.Mesh(new THREE.CylinderGeometry(5.1, 5.1, 8.6, 24, 1, false, 0, Math.PI), mat('#6c7884', { metalness: .4 })); a.rotation.set(Math.PI / 2, 0, Math.PI / 2); a.scale.set(1, 1, .45); a.position.set(0, 4.6, -.5); a.castShadow = true; g.add(a);
+    const pintuG = kotak(g, 4.6, 3.6, .1, 0, 1.8, 3.72, JENDELA.siang); pintuG.userData.toko = true; J.push(pintuG); kotak(g, 6, .9, 1.6, 0, .45, 4.5, mat('#8a8f96')); papanNama(g, 'GUDANG', '#2f5a3a', 4, 0, 4.1, 3.76);
+    const truk = new THREE.Group(); kotak(truk, 2, 2, 4.5, 0, 1.4, 0, mat('#e8e4da')); kotak(truk, 2, 1.6, 1.6, 0, 1.2, 2.9, mat('#d0392b')); [[-1, -1.5], [1, -1.5], [-1, 2.6], [1, 2.6]].forEach(([x, z]) => { const r = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .3, 12), mat('#1d1f22')); r.rotation.z = Math.PI / 2; r.position.set(x, .42, z); truk.add(r); });
+    truk.position.set(3.4, 0, 5.3); g.add(truk); g.userData.truk = truk; }
+  return { g, J }; }
+function modelNpc(jenis) { const g = new THREE.Group(), putih = mat('#f4f1ea');
+  if (jenis === 'masjid') { kotak(g, 8, 4, 8, 0, 2, 0, putih); const kubah = new THREE.Mesh(new THREE.SphereGeometry(3, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat('#2f8a6a', { metalness: .3, roughness: .4 })); kubah.position.y = 4; g.add(kubah); kotak(g, 1, 9, 1, 3.6, 4.5, 3.6, putih); const p = new THREE.Mesh(new THREE.ConeGeometry(.8, 1.6, 8), mat('#2f8a6a')); p.position.set(3.6, 9.8, 3.6); g.add(p); }
+  else if (jenis === 'sekolah') { kotak(g, 10, 5.4, 6, 0, 2.7, -.5, mat('#e8c27a')); kotak(g, 10.4, .4, 6.4, 0, 5.6, -.5, mat('#b5523b')); for (let f = 0; f < 2; f++) for (let k = 0; k < 4; k++) kotak(g, 1.4, 1.2, .08, -3.6 + k * 2.4, 1.6 + f * 2.5, 2.52, JENDELA.siang, false); papanNama(g, 'SD NEGERI 07', '#2f5a8a', 5, 0, 6.3, 2.5); kotak(g, .12, 6, .12, 4, 3, 4.4, mat('#cfd3d8')); kotak(g, 1.4, .9, .04, 4.72, 5.4, 4.4, mat('#d0392b')); }
+  else if (jenis === 'minimarket') { kotak(g, 8, 3.8, 6, 0, 1.9, -.5, putih); kotak(g, 8.2, .8, 6.2, 0, 4.1, -.5, mat('#1f6fd0')); kotak(g, 6.4, 2.4, .08, 0, 1.4, 2.52, JENDELA.nyala, false); papanNama(g, 'MART 24 JAM', '#d0392b', 5, 0, 4.1, 2.62); }
+  else if (jenis === 'kafe') { kotak(g, 6.6, 3.4, 5.6, 0, 1.7, -.6, mat('#3a3f48')); kotak(g, 7, .3, 6, 0, 3.5, -.6, mat('#2a2e34')); kotak(g, 5, 2.2, .08, 0, 1.3, 2.22, JENDELA.nyala, false); papanNama(g, 'KOPI', '#8a5a2a', 2.6, 0, 3, 2.25);
+    [[-2.5, 3.6], [0, 3.8], [2.5, 3.6]].forEach(([x, z]) => { kotak(g, .9, .08, .9, x, .8, z, mat('#c9a24a')); const pa = new THREE.Mesh(new THREE.ConeGeometry(1.3, .6, 8), mat('#e8e1d2')); pa.position.set(x, 2.4, z); g.add(pa); kotak(g, .06, 2, .06, x, 1.2, z, mat('#4a4f56'), false); }); }
+  else if (jenis === 'taman') { const air = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, .3, 24), mat('#4fb6d8', { roughness: .1, metalness: .3 })); air.position.y = .3; g.add(air); kotak(g, 1.2, .8, 1.2, 0, .4, 0, putih);
+    [[-3.5, -3], [3.5, -3], [-3.5, 3], [3.5, 3]].forEach(([x, z]) => { kotak(g, 1.6, .45, .5, x, .45, z, mat('#8a5a2a')); }); const ay = new THREE.Group(); kotak(ay, .12, 3, .12, -1, 1.5, 0, mat('#d0392b')); kotak(ay, .12, 3, .12, 1, 1.5, 0, mat('#d0392b')); kotak(ay, 2.2, .12, .12, 0, 3, 0, mat('#d0392b')); ay.position.set(-3, 0, 0); g.add(ay); }
+  else if (jenis === 'menara') { [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach(([x, z]) => kotak(g, .25, 10, .25, x, 5, z, mat('#6a7280'))); const t = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 3.2, 20), mat('#d8dde4')); t.position.y = 11.6; g.add(t); const k = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1.4, 20), mat('#2f5a8a')); k.position.y = 13.9; g.add(k); }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; }
+const matHantu = new THREE.MeshStandardMaterial({ color: '#bfe3ff', transparent: true, opacity: .32, emissive: '#5fa8ff', emissiveIntensity: .25, depthWrite: false });
+let TEK_DIJUAL = null;
+function papanDijual() { const g = new THREE.Group(); kotak(g, .14, 2.2, .14, -1, 1.1, 0, mat('#6b4426')); kotak(g, .14, 2.2, .14, 1, 1.1, 0, mat('#6b4426'));
+  TEK_DIJUAL = TEK_DIJUAL || tekKanvas(256, 128, (c, W, H) => { c.fillStyle = '#f3c550'; c.fillRect(0, 0, W, H); c.strokeStyle = '#1c1405'; c.lineWidth = 8; c.strokeRect(6, 6, W - 12, H - 12); c.fillStyle = '#1c1405'; c.font = 'bold 54px "Plus Jakarta Sans",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('DIJUAL', W / 2, H / 2 + 3); });
+  const p = new THREE.Mesh(geoKotak(2.6, 1.3, .1), new THREE.MeshStandardMaterial({ map: TEK_DIJUAL })); p.position.y = 2.4; p.castShadow = true; g.add(p); return g; }
+
+/* =============================== 3D: isi kavling =============================== */
+const VIS = new Map();   // indeks kavling -> { kunci, g, J, model, lbl, pilih, tumbuh, tinggi }
+const pilihan = [];      // kotak tak terlihat penangkap ketukan
+const lapisLabel = $('#label');
+function kunciPlot(i) { const p = S && S.properti.find(x => x.plot === i); if (p) return 'milik:' + p.id + ':' + p.jenis; const t = S && S.tawaran.find(x => x.plot === i); if (t) return 'tawar:' + t.id; if (NPC[i]) return 'npc'; return 'kosong'; }
+function bangunDunia(i, tumbuh) { const P = PLOT[i], lama = VIS.get(i), kunci = kunciPlot(i); if (lama && lama.kunci === kunci && !tumbuh) return;
+  if (lama) { dunia.remove(lama.g); lama.lbl.remove(); const k = pilihan.indexOf(lama.pilih); if (k >= 0) pilihan.splice(k, 1); }
+  const g = new THREE.Group(); g.position.set(P.x, 0, P.z); g.rotation.y = P.hadap > 0 ? 0 : Math.PI;
+  const alas = new THREE.Mesh(geoKotak(10.6, .12, 10.6), mat(kunci === 'kosong' || kunci.startsWith('tawar') ? '#8bbf68' : '#b9b4a8', { roughness: 1 })); alas.position.y = .06; alas.receiveShadow = true; g.add(alas);
+  let J = [], model = null, tinggi = 3;
+  if (kunci.startsWith('milik')) { const p = S.properti.find(x => x.plot === i), m = modelBangunan(p.jenis); model = m.g; J = m.J; g.add(model); }
+  else if (kunci.startsWith('tawar')) { const t = S.tawaran.find(x => x.plot === i), m = modelBangunan(t.jenis); m.g.traverse(o => { if (o.isMesh) { o.material = matHantu; o.castShadow = false; } }); g.add(m.g); const pp = papanDijual(); pp.position.set(3.4, 0, 4.2); g.add(pp); g.userData.hantu = m.g; }
+  else if (kunci === 'npc') g.add(modelNpc(NPC[i]));
+  else { const tepi = mat('#c9a876'); [[0, -5, 10.2, .18], [0, 5, 10.2, .18], [-5, 0, .18, 10.2], [5, 0, .18, 10.2]].forEach(([x, z, w, d]) => kotak(g, w, .35, d, x, .18, z, tepi, false)); kotak(g, .1, 1.2, .1, 4.2, .6, 4.2, mat('#6b4426'), false); kotak(g, .9, .5, .06, 4.2, 1.2, 4.24, mat('#f4f1ea'), false); }
+  const pilih = new THREE.Mesh(geoKotak(10.6, 10, 10.6), new THREE.MeshBasicMaterial({ visible: false })); pilih.position.y = 5; pilih.userData.plot = i; g.add(pilih); pilihan.push(pilih);
+  dunia.add(g); g.updateMatrixWorld(true);
+  const isi = model || g.userData.hantu; if (isi) tinggi = new THREE.Box3().setFromObject(isi).max.y;
+  const lbl = document.createElement('div'); lbl.className = 'lbl sembunyi'; lapisLabel.appendChild(lbl);
+  const v = { kunci, g, J, model, lbl, pilih, tumbuh: tumbuh && model ? 0 : 1, tinggi }; VIS.set(i, v);
+  if (tumbuh && model) { model.scale.y = .02; debu(P.x, P.z); }
+  perbaruiJendela(i); isiLabel(i); }
+function syncDunia() { if (!S) return; PLOT.forEach((_, i) => bangunDunia(i)); PLOT.forEach((_, i) => { perbaruiJendela(i); isiLabel(i); }); }
+let malam = false;
+const matToko = { nyala: () => mat('#e8d6a8', { emissive: '#ffcf7a', emissiveIntensity: .25 }), tutup: () => mat('#6a6f78', { metalness: .3 }) };
+function perbaruiJendela(i) { const v = VIS.get(i); if (!v) return; const p = S && S.properti.find(x => x.plot === i);
+  if (v.model && v.model.userData.fasad) v.model.userData.fasad.emissiveIntensity = malam ? 1.1 : 0;
+  if (v.model && v.model.userData.truk) v.model.userData.truk.visible = !!(p && p.terisi);
+  v.J.forEach((m, k) => { const isi = p ? (p.kamar ? k < p.terisi : !!p.terisi) : false;
+    m.material = m.userData.toko ? (isi ? (malam ? JENDELA.nyala : matToko.nyala()) : matToko.tutup()) : (malam ? (isi ? JENDELA.nyala : JENDELA.mati) : JENDELA.siang); }); }
+function isiLabel(i) { const v = VIS.get(i); if (!v || !S) return; const p = S.properti.find(x => x.plot === i), t = S.tawaran.find(x => x.plot === i); let h = '';
+  if (p) { if (p.tanda) h += `<div class="tanda">${p.tanda}</div>`; if (p.koin > 0) h += `<button class="koin" data-tagih="${p.id}"><i>Rp</i>+${rp(p.koin)}</button>`; else if (p.kamar ? p.terisi === 0 : !p.terisi) h += '<div class="disewakan">DISEWAKAN</div>'; }
+  else if (t) h = `<button class="dijual" data-tawar="${t.id}"><b>DIJUAL</b>${JENIS[t.jenis].nama}<br><span style="font-family:var(--mono);font-weight:700">${rp(t.harga)}</span></button>`;
+  v.lbl.innerHTML = h; v.lbl.classList.toggle('sembunyi', !h);
+  const b = v.lbl.querySelector('[data-tagih]'); if (b) b.onclick = e => { e.stopPropagation(); tagih(p, b); };
+  const d = v.lbl.querySelector('[data-tawar]'); if (d) d.onclick = e => { e.stopPropagation(); dialogBeli(t); }; }
+function tagih(p, el) { if (!p || !p.koin) return; const n = p.koin; S.kas += n; p.koin = 0; simpan(); bunyi('koin');
+  const sumber = (el || VIS.get(p.plot).lbl).getBoundingClientRect(), tujuan = $('.koinIkon').getBoundingClientRect();
+  for (let k = 0; k < Math.min(6, 2 + n / 1e6 | 0); k++) { const c = document.createElement('div'); c.className = 'terbang'; c.style.left = sumber.left + sumber.width / 2 - 13 + 'px'; c.style.top = sumber.top + 'px'; document.body.appendChild(c);
+    setTimeout(() => { c.style.transform = `translate(${tujuan.left - sumber.left - sumber.width / 2 + 13}px,${tujuan.top - sumber.top}px) scale(.6)`; c.style.opacity = .3; }, 30 + k * 60); setTimeout(() => c.remove(), 900 + k * 60); }
+  isiLabel(p.plot); setTimeout(perbaruiHud, 600); }
+const DEBU = []; const matDebu = new THREE.MeshBasicMaterial({ color: '#d8cfbf', transparent: true, opacity: .6, depthWrite: false }), geoDebu = new THREE.SphereGeometry(.6, 8, 6);
+function debu(x, z) { for (let k = 0; k < 14; k++) { const m = new THREE.Mesh(geoDebu, matDebu.clone()); const a = k / 14 * Math.PI * 2; m.position.set(x + Math.cos(a) * 4, .5, z + Math.sin(a) * 4); m.userData.v = new THREE.Vector3(Math.cos(a) * 2, 1.5 + Math.random(), Math.sin(a) * 2); m.userData.umur = 0; scene.add(m); DEBU.push(m); } }
+
+/* =============================== 3D: kehidupan kota =============================== */
+const MOBIL = []; { const warna = ['#d0392b', '#1f6fd0', '#f4f1ea', '#2f3640', '#e9a91f', '#2f8a6a', '#8a3ad0'];
+  for (let k = 0; k < 12; k++) { const g = new THREE.Group(), w = mat(warna[k % warna.length], { metalness: .4, roughness: .35 }); kotak(g, 1.9, .8, 4, 0, .7, 0, w); kotak(g, 1.7, .7, 2.2, 0, 1.4, -.2, mat('#25303c', { metalness: .6, roughness: .2 }));
+    kotak(g, 1.6, .2, .05, 0, .8, 2.02, matLampu, false); [[-.9, 1.3], [.9, 1.3], [-.9, -1.3], [.9, -1.3]].forEach(([x, z]) => { const r = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, .25, 10), mat('#1d1f22')); r.rotation.z = Math.PI / 2; r.position.set(x, .35, z); g.add(r); });
+    g.userData = { jalur: k % 3, arah: k % 2 ? 1 : -1, pos: -60 + Math.random() * 120, laju: 7 + Math.random() * 4 }; scene.add(g); MOBIL.push(g); } }
+function geserMobil(dt) { for (const g of MOBIL) { const u = g.userData; u.pos += u.arah * u.laju * dt; if (u.pos > 62) u.pos = -62; if (u.pos < -62) u.pos = 62;
+    if (u.jalur < 2) { g.position.set(u.pos, 0, (u.jalur ? 15 : -15) + (u.arah > 0 ? 1.5 : -1.5)); g.rotation.y = u.arah > 0 ? Math.PI / 2 : -Math.PI / 2; }
+    else { g.position.set(u.arah > 0 ? -2 : 2, 0, u.pos); g.rotation.y = u.arah > 0 ? 0 : Math.PI; } } }
+const ORANG = 46, tubuh = new THREE.InstancedMesh(geoKotak(.5, .9, .32), new THREE.MeshStandardMaterial({ roughness: .8 }), ORANG), kepala = new THREE.InstancedMesh(new THREE.SphereGeometry(.22, 10, 8), mat('#c99a74'), ORANG), kaki = new THREE.InstancedMesh(geoKotak(.42, .6, .26), mat('#2f3640'), ORANG);
+[tubuh, kepala, kaki].forEach(m => { m.castShadow = true; scene.add(m); });
+const PEJALAN = []; { const c = new THREE.Color(); for (let k = 0; k < ORANG; k++) { PEJALAN.push({ garis: k % 4, pos: -58 + Math.random() * 116, arah: Math.random() < .5 ? 1 : -1, laju: .9 + Math.random() * .7, fase: Math.random() * 6 }); tubuh.setColorAt(k, c.set(['#d0392b', '#1f6fd0', '#e9a91f', '#2f8a6a', '#8a3ad0', '#f4f1ea', '#e57aa0'][k % 7]).convertSRGBToLinear()); } }
+const _o = new THREE.Object3D();
+function geserOrang(dt) { const tampil = S ? Math.min(ORANG, 10 + S.properti.reduce((a, p) => a + (p.kamar ? p.terisi : p.terisi ? 2 : 0), 0) * 2) : 16;
+  PEJALAN.forEach((o, k) => { const ada = k < tampil; o.pos += o.arah * o.laju * dt; if (o.pos > 58 || o.pos < -58) o.arah *= -1;
+    const z = [-19, -11, 11, 19][o.garis], x = o.pos, lang = Math.sin(performance.now() / 180 * o.laju + o.fase);
+    _o.rotation.set(0, o.arah > 0 ? Math.PI / 2 : -Math.PI / 2, 0); _o.scale.setScalar(ada ? 1 : 0);
+    _o.position.set(x, .3, z); _o.updateMatrix(); kaki.setMatrixAt(k, _o.matrix); _o.position.set(x, 1.05 + Math.abs(lang) * .05, z); _o.updateMatrix(); tubuh.setMatrixAt(k, _o.matrix); _o.position.set(x, 1.75 + Math.abs(lang) * .05, z); _o.updateMatrix(); kepala.setMatrixAt(k, _o.matrix); });
+  [tubuh, kepala, kaki].forEach(m => m.instanceMatrix.needsUpdate = true); }
+
+/* =============================== kamera =============================== */
+const KAM = { target: new THREE.Vector3(0, 0, 2), tuju: null, jarak: 92, jaraktuju: null, yaw: .62, pitch: .78 };
+function pasangKamera() { const { target: t, jarak: d, yaw: y, pitch: p } = KAM; kamera.position.set(t.x + Math.sin(y) * Math.cos(p) * d, t.y + Math.sin(p) * d, t.z + Math.cos(y) * Math.cos(p) * d); kamera.lookAt(t); }
+function fokusKe(P) { if (!P) return; KAM.tuju = new THREE.Vector3(P.x, 0, P.z); if (KAM.jarak > 70) KAM.jaraktuju = 62; }
+const jari = new Map(); let seret = null, pinch = null;
+kanvas.addEventListener('pointerdown', e => { kanvas.setPointerCapture(e.pointerId); jari.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (jari.size === 1) seret = { x: e.clientX, y: e.clientY, t: performance.now(), gerak: 0, kanan: e.button === 2 || e.shiftKey }; else { seret = null; const [a, b] = [...jari.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), j: KAM.jarak, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; } });
+kanvas.addEventListener('pointermove', e => { if (!jari.has(e.pointerId)) return; const lama = jari.get(e.pointerId); jari.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && jari.size === 2) { const [a, b] = [...jari.values()], d = Math.hypot(a.x - b.x, a.y - b.y); KAM.jarak = THREE.MathUtils.clamp(pinch.j * pinch.d / Math.max(d, 1), 28, 140); KAM.jaraktuju = null; const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2; geser(cx - pinch.cx, cy - pinch.cy); pinch.cx = cx; pinch.cy = cy; return; }
+  if (!seret) return; const dx = e.clientX - lama.x, dy = e.clientY - lama.y; seret.gerak += Math.abs(dx) + Math.abs(dy); if (seret.gerak < 6) return; KAM.tuju = null;
+  if (seret.kanan) geser(dx, dy); else { KAM.yaw -= dx * .006; KAM.pitch = THREE.MathUtils.clamp(KAM.pitch + dy * .004, .35, 1.4); } });
+function geser(dx, dy) { const s = KAM.jarak / 600, c = Math.cos(KAM.yaw), n = Math.sin(KAM.yaw); KAM.target.x -= (dx * c + dy * n) * s; KAM.target.z -= (-dx * n + dy * c) * s; KAM.target.x = THREE.MathUtils.clamp(KAM.target.x, -55, 55); KAM.target.z = THREE.MathUtils.clamp(KAM.target.z, -45, 45); }
+kanvas.addEventListener('pointerup', e => { jari.delete(e.pointerId); if (jari.size < 2) pinch = null; if (seret && seret.gerak < 8 && performance.now() - seret.t < 500) ketuk(e.clientX, e.clientY); seret = null; });
+kanvas.addEventListener('pointercancel', e => { jari.delete(e.pointerId); pinch = null; seret = null; });
+kanvas.addEventListener('wheel', e => { e.preventDefault(); KAM.jaraktuju = null; KAM.jarak = THREE.MathUtils.clamp(KAM.jarak * (1 + Math.sign(e.deltaY) * .1), 28, 140); }, { passive: false });
+kanvas.addEventListener('contextmenu', e => e.preventDefault());
+const ray = new THREE.Raycaster(), _m = new THREE.Vector2();
+const KET_NPC = { masjid: 'Masjid kampung, ramai saat subuh dan magrib.', sekolah: 'Sekolah dasar. Keluarga muda suka mengontrak di dekat sini.', minimarket: 'Minimarket 24 jam milik tetangga.', kafe: 'Kedai kopi tempat mahasiswa nongkrong.', taman: 'Taman bermain kota.', menara: 'Menara air PDAM.' };
+function ketuk(x, y) { if (!S || diAwal()) return; _m.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(_m, kamera); const h = ray.intersectObjects(pilihan, false)[0]; if (!h) return; const i = h.object.userData.plot;
+  const p = S.properti.find(q => q.plot === i), t = S.tawaran.find(q => q.plot === i); bunyi('klik');
+  if (p) { if (p.koin) tagih(p); else dialogKelola(p); } else if (t) dialogBeli(t); else if (NPC[i]) kabar(KET_NPC[NPC[i]]); else kabar('Kavling kosong. Peluang baru bisa muncul di sini awal bulan depan.'); }
+
+/* =============================== siang dan malam =============================== */
+const LANGIT = { siang: new THREE.Color('#9fd3ff'), senja: new THREE.Color('#f2a46b'), malam: new THREE.Color('#070d1c') }, _c = new THREE.Color();
+function cahaya(t) { // t = kemajuan bulan 0..1: pagi di awal bulan, senja lalu malam menjelang akhir bulan
+  const sudut = Math.PI * Math.min(1, t / .78), tinggi = Math.sin(sudut);
+  matahari.position.set(Math.cos(sudut) * 90, 20 + tinggi * 90, 40); matahari.target.position.set(0, 0, 0);
+  const s = t < .7 ? 0 : t < .82 ? (t - .7) / .12 : t < .95 ? 1 : 1 - (t - .95) / .05;
+  if (s < .5) _c.copy(LANGIT.siang).lerp(LANGIT.senja, s * 2); else _c.copy(LANGIT.senja).lerp(LANGIT.malam, (s - .5) * 2);
+  scene.background = _c; scene.fog.color.copy(_c); matahari.intensity = 2.2 * (1 - s) + .1; hemi.intensity = .8 - s * .62; hemi.color.setHSL(.6, .5 - s * .2, .9 - s * .35); matahari.color.setHSL(s > .6 ? .62 : .09, .6, .8 - s * .2);
+  matLampu.emissiveIntensity = s > .55 ? 2.4 : 0; matGenang.opacity = Math.max(0, (s - .5) * 2); const baru = s > .55; if (baru !== malam) { malam = baru; PLOT.forEach((_, i) => perbaruiJendela(i)); } }
+
+/* =============================== putaran utama =============================== */
+let laju = 1, jeda = false, terakhir = performance.now();
+const _v = new THREE.Vector3();
+function putaran(now) { requestAnimationFrame(putaran); const dt = Math.min(.05, (now - terakhir) / 1000); terakhir = now;
+  const main = S && !S.selesai && !diAwal();
+  if (main && !jeda && laju > 0 && !$('#layar').classList.contains('buka')) { S.t += dt * laju / DUR_BULAN; if (S.t >= 1) gantiBulan(); perbaruiWaktu(); }
+  if (!main && diAwal()) KAM.yaw += dt * .05;
+  if (KAM.tuju) { KAM.target.lerp(KAM.tuju, Math.min(1, dt * 3)); if (KAM.target.distanceTo(KAM.tuju) < .2) KAM.tuju = null; }
+  if (KAM.jaraktuju) { KAM.jarak += (KAM.jaraktuju - KAM.jarak) * Math.min(1, dt * 3); if (Math.abs(KAM.jarak - KAM.jaraktuju) < .5) KAM.jaraktuju = null; }
+  pasangKamera(); cahaya(S ? S.t : .3); geserMobil(dt); geserOrang(dt);
+  for (const v of VIS.values()) { if (v.tumbuh < 1 && v.model) { v.tumbuh = Math.min(1, v.tumbuh + dt * .8); const e = 1 - Math.pow(1 - v.tumbuh, 3); v.model.scale.y = Math.max(.02, e * (1 + Math.sin(v.tumbuh * Math.PI) * .08)); }
+    if (v.g.userData.hantu) v.g.userData.hantu.position.y = .2 + Math.sin(now / 500) * .15; }
+  for (let k = DEBU.length - 1; k >= 0; k--) { const d = DEBU[k], u = d.userData; u.umur += dt; d.position.addScaledVector(u.v, dt); d.scale.setScalar(1 + u.umur * 2); d.material.opacity = .6 * (1 - u.umur / 1.4); if (u.umur > 1.4) { scene.remove(d); DEBU.splice(k, 1); } }
+  for (const [i, v] of VIS) { if (v.lbl.classList.contains('sembunyi')) continue; const P = PLOT[i]; _v.set(P.x, v.tinggi + 1.4, P.z).project(kamera);
+    if (_v.z > 1 || Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2) { v.lbl.style.transform = 'translate(-9999px,0)'; continue; } const x = (_v.x + 1) / 2 * innerWidth, y = (1 - _v.y) / 2 * innerHeight, sk = THREE.MathUtils.clamp(70 / KAM.jarak, .7, 1.15);
+    v.lbl.style.transform = `translate(${x}px,${y}px) translate(-50%,-100%) scale(${sk})`; }
+  renderer.render(scene, kamera); }
+
+/* =============================== HUD dan panel =============================== */
+function perbaruiWaktu() { const hari = Math.min(30, Math.floor(S.t * 30) + 1); $('#tglBulan').textContent = namaBulan(S.bulan); $('#tglHari').textContent = `hari ke-${hari} · bulan ke-${S.bulan}`; $('#jam').style.setProperty('--p', (S.t * 100) + '%'); $('#jamTeks').textContent = hari; }
+function perbaruiHud() { if (!S) return; const pasif = pasifBersih(); $('#hKas').textContent = rp(S.kas); $('#hKas').className = S.kas < 0 ? 'turun' : ''; $('#hPasif').textContent = rp(pasif); $('#hPasif').className = pasif >= 0 ? 'naik' : 'turun'; $('#hBiaya').textContent = rp(S.biaya);
+  $('#hBatang').style.width = Math.max(0, Math.min(100, pasif / S.biaya * 100)) + '%'; $('#nPeluang').textContent = S.tawaran.length || ''; $('#nPeluang').style.display = S.tawaran.length ? '' : 'none'; perbaruiWaktu(); }
+let tab = null;
+$$('[data-tab]').forEach(b => b.onclick = () => { tab = tab === b.dataset.tab ? null : b.dataset.tab; $$('[data-tab]').forEach(x => x.classList.toggle('aktif', x.dataset.tab === tab)); $('#panel').classList.toggle('buka', !!tab); if (tab) isiPanel(); bunyi('klik'); });
+function tutupPanel() { tab = null; $$('[data-tab]').forEach(x => x.classList.remove('aktif')); $('#panel').classList.remove('buka'); }
+function isiPanel() { if (!S || !tab) return; const el = $('#panel'), judul = n => `<h2>${n}<button aria-label="Tutup" id="tutupPanel">×</button></h2>`;
+  if (tab === 'peluang') el.innerHTML = judul('Peluang bulan ini') + (S.tawaran.map(t => { const J = JENIS[t.jenis], beda = t.harga / t.nilai - 1, pen = t.sewa * (t.kamar || 1);
+    return `<div class="tawar"><b>${J.nama}</b>${beda < -.05 ? `<span class="lencana">${persen(-beda)} di bawah pasar</span>` : beda > .04 ? `<span class="lencana mahal">${persen(beda)} di atas pasar</span>` : '<span class="lencana biasa">harga wajar</span>'}<div class="lok">${t.lokasi}</div>
       <dl><dt>Harga</dt><dd>${rp(t.harga)}</dd><dt>Sewa${t.kamar ? ' (' + t.kamar + ' kamar)' : ''}</dt><dd>${rp(pen)} / bln</dd><dt>Peluang terisi</dt><dd>${persen(hunianEfektif(t))}</dd><dt>Sewa setahun / harga</dt><dd>${persen(pen * 12 / t.harga, 1)}</dd></dl>
-      <button class="pil kecil utama" data-beli="${t.id}">Hitung dan beli</button></div></article>`; }).join('') || '<p class="kosongan">Semua peluang bulan ini sudah dibeli. Lanjut ke bulan berikutnya untuk peluang baru.</p>';
-  document.querySelectorAll('[data-ikon]').forEach(c => ikonBangunan(c, c.dataset.ikon, { on: true, n: 7 }));
-  document.querySelectorAll('[data-beli]').forEach(b => b.onclick = () => dialogBeli(S.tawaran.find(t => t.id === b.dataset.beli)));
-  $('#jumlahProp').textContent = S.properti.length ? `${S.properti.length} properti · nilai ${rp(nilaiProperti())}` : '';
-  $('#properti').innerHTML = S.properti.map((p, i) => { const n = bersihProp(p), kosong = p.kamar ? p.terisi === 0 : !p.terisi;
-    return `<div class="prop"><canvas data-prop="${i}"></canvas><div><div class="nama">${JENIS[p.jenis].nama}<span class="status ${kosong ? 'kosong' : 'isi'}">${p.kamar ? p.terisi + '/' + p.kamar + ' kamar' : kosong ? 'kosong' : 'disewa'}</span>${p.iklan ? '<span class="status isi">iklan</span>' : ''}</div>
-      <div class="ket">${p.lokasi} · sewa ${rp(sewaPenuh(p))}${p.cicilan ? ' · cicilan ' + rp(p.cicilan) : ' · lunas'}</div><div class="aksi"><button class="pil kecil" data-kelola="${i}">Kelola</button></div></div>
-      <div class="arus ${n >= 0 ? 'naik' : 'turun'}">${rp(n)}<small>per bulan</small></div></div>`; }).join('') || '<p class="kosongan">Belum punya properti. Pilih salah satu peluang di atas.</p>';
-  document.querySelectorAll('[data-prop]').forEach(c => { const p = S.properti[+c.dataset.prop]; ikonBangunan(c, p.jenis, { on: p.kamar ? p.terisi > 0 : p.terisi, n: p.terisi, kosong: false }); });
-  document.querySelectorAll('[data-kelola]').forEach(b => b.onclick = () => dialogKelola(S.properti[+b.dataset.kelola]));
-  // laporan arus kas bulan lalu
-  const L = S.lap; $('#lapBulan').textContent = L ? namaBulan(L.bulan) : 'belum ada';
-  $('#laporan').innerHTML = L ? `<tr class="judul"><td colspan="2">Uang masuk</td></tr>${L.masuk.map(([n, v]) => `<tr class="pos"><td>${n}</td><td class="naik">${rp(v)}</td></tr>`).join('')}
-    <tr class="judul"><td colspan="2">Uang keluar</td></tr>${L.keluar.map(([n, v]) => `<tr class="pos"><td>${n}</td><td class="turun">-${rp(v)}</td></tr>`).join('')}
-    <tr class="total"><td>Arus kas bersih</td><td class="${L.bersih >= 0 ? 'naik' : 'turun'}">${rp(L.bersih)}</td></tr>
-    <tr class="pos"><td class="redup" style="font-size:12px">Dari cicilan, bunga yang dibayar</td><td class="redup" style="font-size:12px">${rp(L.bunga || 0)}</td></tr>`
-    : `<tr><td class="redup" style="font-size:13px">Laporan muncul setelah bulan pertama selesai. Perkiraan bulan ini: gaji ${rp(S.gaji)}, biaya hidup ${rp(S.biaya)}, sisa ${rp(S.gaji - S.biaya)}.</td></tr>`;
-  $('#neraca').innerHTML = `<tr class="judul"><td colspan="2">Aset</td></tr><tr class="pos"><td>Kas</td><td class="${S.kas < 0 ? 'turun' : ''}">${rp(S.kas)}</td></tr><tr class="pos"><td>Nilai properti</td><td>${rp(nilaiProperti())}</td></tr>
-    <tr class="judul"><td colspan="2">Liabilitas</td></tr><tr class="pos"><td>Sisa KPR</td><td>${rp(sisaUtang())}</td></tr>${S.kas < 0 ? `<tr class="pos"><td>Pinjaman darurat</td><td class="turun">${rp(-S.kas)}</td></tr>` : ''}
-    <tr class="total"><td>Kekayaan bersih</td><td>${rp(kekayaan())}</td></tr><tr class="pos"><td class="redup" style="font-size:12px">Bunga KPR berlaku</td><td class="redup" style="font-size:12px">${persen(S.bunga, 1)} / thn</td></tr>`;
-  gambarGrafik(); $('#tip').textContent = TIP[S.tip];
-  $('#bLanjut').textContent = S.menang ? 'Lanjut (sudah bebas finansial)' : 'Lanjut ke bulan berikutnya'; $('#bLanjut').disabled = !!S.selesai; }
-function gambarGrafik() { const [x, w, h] = siapKanvas($('#grafik')), R = S.riwayat; x.clearRect(0, 0, w, h); if (R.length < 2) { x.fillStyle = '#64768a'; x.font = '12px "Plus Jakarta Sans",sans-serif'; x.fillText('Grafik muncul setelah beberapa bulan.', 4, h / 2); return; }
-  const maks = Math.max(1, ...R.map(r => Math.max(r.pasif, r.biaya))), min = Math.min(0, ...R.map(r => r.pasif)), kasM = Math.max(1, ...R.map(r => Math.abs(r.kas))), X = i => 4 + i / (R.length - 1) * (w - 8), Y = v => h - 6 - (v - min) / (maks - min) * (h - 14);
-  R.forEach((r, i) => { const bh = Math.abs(r.kas) / kasM * (h - 14) * .5; x.fillStyle = r.kas >= 0 ? 'rgba(243,197,80,.18)' : 'rgba(240,113,95,.25)'; x.fillRect(X(i) - 1.5, h - 6 - bh, 3, bh); });
-  x.strokeStyle = 'rgba(255,255,255,.08)'; x.beginPath(); x.moveTo(0, Y(0)); x.lineTo(w, Y(0)); x.stroke();
-  [['biaya', '#f0715f'], ['pasif', '#5fd08f']].forEach(([k, c]) => { x.strokeStyle = c; x.lineWidth = 2; x.beginPath(); R.forEach((r, i) => i ? x.lineTo(X(i), Y(r[k])) : x.moveTo(X(i), Y(r[k]))); x.stroke(); });
-  const a = R[R.length - 1]; x.fillStyle = '#5fd08f'; x.beginPath(); x.arc(X(R.length - 1), Y(a.pasif), 3.5, 0, 7); x.fill(); }
+      <div class="baris2"><button class="pil kecil" data-lihat="${t.plot}">Lihat di kota</button><button class="pil kecil utama" data-beli="${t.id}">Hitung dan beli</button></div></div>`; }).join('') || '<p class="kosongan">Semua peluang bulan ini sudah dibeli. Peluang baru muncul awal bulan depan.</p>') + `<p class="tip">${TIP[S.tip]}</p>`;
+  else if (tab === 'properti') el.innerHTML = judul(`Properti saya (${S.properti.length})`) + (S.properti.some(p => p.koin) ? '<button class="pil utama" id="tagihSemua" style="width:100%;margin-bottom:10px">Tagih semua koin sewa</button>' : '') + (S.properti.map(p => { const n = bersihProp(p), kosong = p.kamar ? p.terisi === 0 : !p.terisi;
+    return `<div class="prop"><div><b>${JENIS[p.jenis].nama}</b><span class="status ${kosong ? 'kosong' : 'isi'}">${p.kamar ? p.terisi + '/' + p.kamar : kosong ? 'kosong' : 'disewa'}</span><div class="ket">${p.lokasi} · ${p.cicilan ? 'cicilan ' + rp(p.cicilan) : 'lunas'}</div>
+      <div class="baris2" style="margin-top:6px"><button class="pil kecil" data-kelola="${p.id}">Kelola</button>${p.koin ? `<button class="pil kecil utama" data-tagihp="${p.id}">Tagih ${rp(p.koin)}</button>` : ''}</div></div><div class="arus ${n >= 0 ? 'naik' : 'turun'}">${rp(n)}<small>per bulan</small></div></div>`; }).join('') || '<p class="kosongan">Belum punya properti. Buka Peluang atau ketuk bangunan bertanda DIJUAL di kota.</p>');
+  else if (tab === 'laporan') { const L = S.lap; el.innerHTML = judul('Laporan keuangan') + `<div class="redup" style="font-size:12px">Arus kas ${L ? namaBulan(L.bulan) : 'belum ada'}</div><table class="lap">${L ? `<tr class="judul"><td colspan="2">Uang masuk</td></tr>${L.masuk.map(([n, v]) => `<tr class="pos"><td>${n}</td><td class="naik">${rp(v)}</td></tr>`).join('')}
+      <tr class="judul"><td colspan="2">Uang keluar</td></tr>${L.keluar.map(([n, v]) => `<tr class="pos"><td>${n}</td><td class="turun">-${rp(v)}</td></tr>`).join('')}<tr class="total"><td>Arus kas bersih</td><td class="${L.bersih >= 0 ? 'naik' : 'turun'}">${rp(L.bersih)}</td></tr><tr class="pos"><td class="redup" style="font-size:12px">Bunga yang terbayar lewat cicilan</td><td class="redup" style="font-size:12px">${rp(L.bunga || 0)}</td></tr>`
+      : `<tr><td class="redup" style="font-size:13px">Laporan muncul setelah bulan pertama selesai. Perkiraan: gaji ${rp(S.gaji)}, biaya hidup ${rp(S.biaya)}, sisa ${rp(S.gaji - S.biaya)}.</td></tr>`}</table>
+      <div class="redup" style="font-size:12px;margin-top:14px">Neraca hari ini</div><table class="lap"><tr class="judul"><td colspan="2">Aset</td></tr><tr class="pos"><td>Kas di tangan</td><td>${rp(S.kas)}</td></tr><tr class="pos"><td>Koin sewa belum ditagih</td><td>${rp(koinTotal())}</td></tr><tr class="pos"><td>Nilai properti</td><td>${rp(nilaiProperti())}</td></tr>
+      <tr class="judul"><td colspan="2">Liabilitas</td></tr><tr class="pos"><td>Sisa KPR (bunga ${persen(S.bunga, 1)})</td><td>${rp(sisaUtang())}</td></tr>${S.kas + koinTotal() < 0 ? `<tr class="pos"><td>Pinjaman darurat</td><td class="turun">${rp(-(S.kas + koinTotal()))}</td></tr>` : ''}<tr class="total"><td>Kekayaan bersih</td><td>${rp(kekayaan())}</td></tr></table>
+      <canvas class="grafik" id="grafik"></canvas><div class="legenda"><span><i style="background:var(--hijau)"></i>Sewa bersih</span><span><i style="background:var(--merah)"></i>Biaya hidup</span><span><i style="background:var(--emas)"></i>Kas</span></div>`; gambarGrafik(); }
+  else if (tab === 'menu') { el.innerHTML = judul('Menu') + `<div style="display:flex;flex-direction:column;gap:8px"><button class="pil" id="mJeda">${jeda ? 'Lanjutkan waktu' : 'Jeda waktu'}</button><a class="pil" href="arkade.html">Kembali ke Arkade</a><button class="pil bahaya" id="mUlang">Mulai ulang dari awal</button></div>
+      <p class="tip">Cara main: waktu berjalan sendiri, satu bulan sekitar ${DUR_BULAN} detik pada kecepatan 1x. Tiap awal bulan gaji masuk, biaya hidup dan cicilan dibayar, dan koin sewa muncul di atas properti yang berpenghuni. Ketuk koin untuk menagih. Ketuk bangunan bertanda DIJUAL untuk membeli. Kamu menang saat sewa bersih per bulan menutup biaya hidup.</p>`;
+    $('#mJeda').onclick = () => { aturLaju(jeda ? 1 : 0); isiPanel(); }; $('#mUlang').onclick = () => { if (confirm('Mulai ulang dari awal? Permainan sekarang akan dihapus.')) mulaiUlang(); }; }
+  $('#tutupPanel').onclick = tutupPanel;
+  $$('#panel [data-beli]').forEach(b => b.onclick = () => dialogBeli(S.tawaran.find(t => t.id === b.dataset.beli)));
+  $$('#panel [data-lihat]').forEach(b => b.onclick = () => { fokusKe(PLOT[+b.dataset.lihat]); if (innerWidth < 640) tutupPanel(); });
+  $$('#panel [data-kelola]').forEach(b => b.onclick = () => dialogKelola(S.properti.find(p => p.id === b.dataset.kelola)));
+  $$('#panel [data-tagihp]').forEach(b => b.onclick = () => { tagih(S.properti.find(p => p.id === b.dataset.tagihp), b); setTimeout(isiPanel, 650); });
+  if ($('#tagihSemua')) $('#tagihSemua').onclick = () => { S.properti.filter(p => p.koin).forEach((p, k) => setTimeout(() => tagih(p), k * 120)); setTimeout(isiPanel, 900); }; }
+function gambarGrafik() { const c = $('#grafik'); if (!c) return; const r = c.getBoundingClientRect(), d = Math.min(devicePixelRatio, 2); c.width = Math.max(1, r.width * d); c.height = Math.max(1, r.height * d); const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0); const w = r.width, h = r.height, R = S.riwayat;
+  if (R.length < 2) { x.fillStyle = '#6f8194'; x.font = '12px "Plus Jakarta Sans",sans-serif'; x.fillText('Grafik muncul setelah beberapa bulan.', 4, h / 2); return; }
+  const maks = Math.max(1, ...R.map(q => Math.max(q.pasif, q.biaya))), min = Math.min(0, ...R.map(q => q.pasif)), kasM = Math.max(1, ...R.map(q => Math.abs(q.kas))), X = i => 4 + i / (R.length - 1) * (w - 8), Y = v => h - 6 - (v - min) / (maks - min) * (h - 14);
+  R.forEach((q, i) => { const bh = Math.abs(q.kas) / kasM * (h - 14) * .5; x.fillStyle = q.kas >= 0 ? 'rgba(243,197,80,.2)' : 'rgba(240,113,95,.3)'; x.fillRect(X(i) - 1.5, h - 6 - bh, 3, bh); });
+  [['biaya', '#f0715f'], ['pasif', '#5fd08f']].forEach(([k, col]) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); R.forEach((q, i) => i ? x.lineTo(X(i), Y(q[k])) : x.moveTo(X(i), Y(q[k]))); x.stroke(); }); }
+function aturLaju(v) { laju = v; jeda = v === 0; $$('#laju button').forEach(b => b.classList.toggle('aktif', +b.dataset.v === v)); }
+$$('#laju button').forEach(b => b.onclick = () => { aturLaju(+b.dataset.v); bunyi('klik'); });
+addEventListener('keydown', e => { if (e.code === 'Space' && S && !diAwal() && !$('#layar').classList.contains('buka')) { e.preventDefault(); aturLaju(jeda ? 1 : 0); } if (e.key === 'Escape') { if ($('#layar').classList.contains('buka') && !$('#layar').dataset.kunci) tutupModal(); else tutupPanel(); } });
 
-function tampilMain() { $('#layarAwal').classList.add('sembunyi'); $('#layarMain').classList.remove('sembunyi'); $('#barBawah').classList.remove('sembunyi'); gambarSemua(); }
+/* modal dan kabar */
+function modal(html, pasang, kunci) { $('#modal').innerHTML = html; $('#layar').classList.add('buka'); $('#layar').dataset.kunci = kunci ? '1' : ''; $$('#modal [data-tutup]').forEach(b => b.onclick = tutupModal); if (pasang) pasang(); }
+function tutupModal() { $('#layar').classList.remove('buka'); perbaruiHud(); if (tab) isiPanel(); }
+$('#layar').onclick = e => { if (e.target.id === 'layar' && !$('#layar').dataset.kunci) tutupModal(); };
+function kabar(t, jenis = '') { const d = document.createElement('div'); d.className = 'toast ' + jenis; d.innerHTML = t; const w = $('#kabar'); w.appendChild(d); while (w.children.length > (innerWidth < 640 ? 2 : 3)) w.firstChild.remove(); setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 4200); }
+
+/* layar awal */
+function masukPermainan() { $('#layarAwal').classList.add('sembunyi'); ['#hudKiri', '#hudKanan', '#hudBawah'].forEach(s => $(s).classList.remove('sembunyi'));
+  S.properti.forEach(p => { if (p.plot == null) p.plot = plotBebas().find(i => !S.properti.some(q => q.plot === i)); p.koin = p.koin || 0; }); S.tawaran = (S.tawaran || []).filter(t => t.plot != null && !S.properti.some(p => p.plot === t.plot)); if (!S.tawaran.length) S.tawaran = buatTawaran(); S.t = S.t || 0;
+  syncDunia(); perbaruiHud(); KAM.yaw = .62; KAM.pitch = .78; KAM.jaraktuju = HP ? 100 : 84; KAM.tuju = new THREE.Vector3(0, 0, 2); }
 function tampilAwal() { const ada = baca(SIMPAN, null), r = baca(REKOR, null);
-  $('#lanjutSimpan').innerHTML = (ada && !ada.selesai ? `<button class="pil utama" id="bLanjutSimpan" style="margin-top:14px">Lanjutkan permainan: bulan ${ada.bulan}, ${ada.namaProfesi.toLowerCase()}, kas ${rp(ada.kas)}</button>` : '') + (r ? `<p class="redup" style="font-size:13px;margin-top:10px">Rekor tercepat di perangkat ini: bebas finansial dalam ${r.bulan} bulan sebagai ${r.profesi.toLowerCase()}.</p>` : '');
-  if ($('#bLanjutSimpan')) $('#bLanjutSimpan').onclick = () => { S = ada; tampilMain(); };
+  $('#lanjutSimpan').innerHTML = (ada && !ada.selesai ? `<button class="pil utama" id="bLanjutSimpan" style="margin-top:14px">Lanjutkan: bulan ${ada.bulan}, ${String(ada.namaProfesi).toLowerCase()}, kas ${rp(ada.kas)}</button>` : '') + (r ? `<p class="redup" style="font-size:13px;margin-top:10px">Rekor tercepat di perangkat ini: bebas finansial dalam ${r.bulan} bulan sebagai ${String(r.profesi).toLowerCase()}.</p>` : '');
+  if ($('#bLanjutSimpan')) $('#bLanjutSimpan').onclick = () => { S = ada; masukPermainan(); };
   $('#pilihProfesi').innerHTML = PROFESI.map(p => `<button data-prof="${p.id}"><small style="color:var(--emas);font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px">Mulai sebagai</small><b>${p.nama}</b><small>${p.ket}</small>
-    <dl><dt>${p.ombak ? 'Laba dagang rata-rata' : 'Gaji'}</dt><dd>${rp(p.gaji)}</dd><dt>Biaya hidup</dt><dd>${rp(p.biaya)}</dd><dt>Tabungan awal</dt><dd>${rp(p.kas)}</dd><dt>Target sewa bersih</dt><dd>${rp(p.biaya)}</dd></dl></button>`).join('');
-  document.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => { if (ada && !ada.selesai && !confirm('Permainan yang tersimpan akan diganti. Lanjut?')) return; mulaiBaru(b.dataset.prof); }); }
-$('#bLanjut').onclick = lanjutBulan;
-$('#bMulaiUlang').onclick = () => { if (!confirm('Mulai ulang dari awal? Permainan sekarang akan dihapus.')) return; localStorage.removeItem(SIMPAN); S = null; $('#layarMain').classList.add('sembunyi'); $('#barBawah').classList.add('sembunyi'); $('#layarAwal').classList.remove('sembunyi'); tampilAwal(); };
-addEventListener('resize', () => { if (S && !$('#layarMain').classList.contains('sembunyi')) { gambarKota(); gambarGrafik(); document.querySelectorAll('[data-ikon]').forEach(c => ikonBangunan(c, c.dataset.ikon, { on: true, n: 7 })); } });
-tampilAwal();
+    <dl><dt>${p.ombak ? 'Laba dagang rata-rata' : 'Gaji'}</dt><dd>${rp(p.gaji)}</dd><dt>Biaya hidup</dt><dd>${rp(p.biaya)}</dd><dt>Tabungan awal</dt><dd>${rp(p.kas)}</dd></dl></button>`).join('');
+  $$('[data-prof]').forEach(b => b.onclick = () => { if (ada && !ada.selesai && !confirm('Permainan yang tersimpan akan diganti. Lanjut?')) return; mulaiBaru(b.dataset.prof); }); }
+// kota contoh di belakang layar awal
+function kotaPajangan() { S = { bulan: 1, t: .35, properti: [['kos10', 1], ['ruko', 3], ['apartemen', 8], ['kontrakan', 13], ['gudang', 16], ['kios', 20], ['kos', 22]].map(([j, plot], k) => ({ id: 'c' + k, plot, jenis: j, kamar: JENIS[j].kamar || 0, terisi: JENIS[j].kamar ? 8 : true, koin: 0, sewa: 1, rawat: 0, cicilan: 0, pinjaman: 0, nilai: 0 })), tawaran: [{ id: 'cx', plot: 10, jenis: 'kontrakan', harga: 2e8, nilai: 2e8 }] };
+  syncDunia(); VIS.forEach(v => v.lbl.classList.add('sembunyi')); S = null; }
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); kamera.aspect = innerWidth / innerHeight; kamera.updateProjectionMatrix(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && !diAwal()) simpan(); });
+kotaPajangan(); tampilAwal(); requestAnimationFrame(putaran);
 </script>
 </body>
 </html>
