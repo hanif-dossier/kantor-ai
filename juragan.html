@@ -39,7 +39,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .bawah button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:74px;padding:7px 10px;border-radius:14px;font-size:11.5px;font-weight:800;color:var(--redup)}
 .bawah button svg{width:22px;height:22px}.bawah button.aktif,.bawah button:hover{background:rgba(255,255,255,.07);color:var(--tinta)}
 .lencanaN{position:absolute;top:2px;right:10px;min-width:18px;height:18px;border-radius:9px;background:var(--merah);color:#fff;font:800 10.5px/18px var(--sans);text-align:center;padding:0 4px}
-@media (max-width:640px){.atasKanan{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;padding:7px 11px}.atasKiri{top:calc(max(10px,env(safe-area-inset-top)) + 92px);left:max(10px,env(safe-area-inset-left));flex-direction:row}.kas b{font-size:16px}.bawah button{min-width:62px;padding:6px 6px}.tanggal b{font-size:13px}.tanggal small{font-size:10px}.kartuHud{padding:6px 9px}.laju button{min-width:34px}.panel{height:56vh}}
+@media (max-width:640px){.atasKanan{left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:auto;padding:7px 11px}.atasKiri{top:calc(max(10px,env(safe-area-inset-top)) + 102px);left:max(10px,env(safe-area-inset-left));flex-direction:row}.kas b{font-size:16px}.bawah button{min-width:62px;padding:6px 6px}.tanggal b{font-size:13px}.tanggal small{font-size:10px}.kartuHud{padding:6px 9px}.laju button{min-width:34px}.panel{height:56vh}}
 
 /* label di atas bangunan */
 #label{position:fixed;inset:0;pointer-events:none;z-index:5;overflow:hidden}
@@ -101,6 +101,14 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .profesi button{text-align:left;background:rgba(12,18,28,.9);border:1px solid var(--garis);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s,transform .15s}
 .profesi button:hover{border-color:var(--emas);transform:translateY(-2px)}.profesi b{font:800 19px var(--serif)}.profesi small{color:var(--redup);font-size:12.5px}
 .profesi dl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:6px 0 0;font-size:13px}.profesi dd{margin:0;text-align:right;font-family:var(--mono)}.profesi dt{color:var(--redup)}
+.modeBtn{display:flex;align-items:center;gap:8px;font:800 12.5px var(--sans)}.modeBtn svg{width:18px;height:18px}
+#stik{position:fixed;z-index:11;left:max(18px,env(safe-area-inset-left));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 84px);width:124px;height:124px;border-radius:50%;background:rgba(12,18,28,.45);border:2px solid rgba(255,255,255,.18);touch-action:none;backdrop-filter:blur(4px)}
+#stik i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,#f3c550 60%,#c99a2e);box-shadow:0 4px 12px rgba(0,0,0,.35)}
+#aksi{position:fixed;z-index:11;right:max(16px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 92px);max-width:min(330px,60vw);white-space:normal;text-align:left;line-height:1.25;box-shadow:0 10px 30px rgba(233,169,31,.3);animation:masuk .25s ease both}
+@media (min-width:641px){#aksi{right:auto;left:50%;transform:translateX(-50%)}}
+.petunjuk{font-size:11.5px;color:var(--redup)}
+@media (max-width:640px){.tanggal small{display:none}.tanggal b{white-space:nowrap;font-size:12px}.jam{width:28px;height:28px}.jam i{width:21px;height:21px;font-size:9px}.modeBtn .teks{display:none}.modeBtn{padding:6px 9px}
+  #kabar{bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 150px)}}
 .sembunyi{display:none!important}
 @media (prefers-reduced-motion:reduce){.koin{animation:none}}
 </style>
@@ -112,7 +120,10 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 <div class="hud atasKiri sembunyi" id="hudKiri">
   <div class="kartuHud tanggal"><div class="jam" id="jam"><i id="jamTeks"></i></div><div><b id="tglBulan"></b><small id="tglHari"></small></div></div>
   <div class="kartuHud laju" id="laju"><button data-v="0">Jeda</button><button data-v="1" class="aktif">1x</button><button data-v="2">2x</button><button data-v="4">4x</button></div>
+  <button class="kartuHud modeBtn" id="bMode"></button>
 </div>
+<div id="stik" class="sembunyi" aria-label="Joystick untuk berjalan"><i></i></div>
+<button class="pil utama sembunyi" id="aksi"></button>
 <div class="hud atasKanan kartuHud sembunyi" id="hudKanan">
   <div class="kas"><span class="koinIkon">Rp</span><div><small>Kas</small><b id="hKas"></b></div></div>
   <div class="tujuan"><div class="baris"><span class="redup">Sewa bersih / biaya hidup</span></div><div class="baris"><b id="hPasif"></b><b class="redup" id="hBiaya"></b></div><div class="batang"><i id="hBatang"></i></div></div>
@@ -132,7 +143,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
   <p>Bangun kerajaan properti sewaan di kota yang hidup. Beli kavling yang dijual, tunggu penyewa datang, tagih koin sewa tiap awal bulan, dan hadapi atap bocor, resesi, serta bunga KPR yang naik. Kamu menang saat sewa bersih per bulan sudah menutup seluruh biaya hidup.</p>
   <div id="lanjutSimpan"></div>
   <div class="profesi" id="pilihProfesi"></div>
-  <p class="redup" style="font-size:12.5px;margin-top:12px">Geser layar untuk memutar kota, cubit atau gulir untuk mendekat, klik kanan atau dua jari untuk menggeser. Ketuk bangunan untuk membeli atau mengelola. <a href="arkade.html" style="color:var(--emas)">Kembali ke Arkade</a></p>
+  <p class="redup" style="font-size:12.5px;margin-top:12px">Jalan dengan W A S D atau panah (Shift lari), di HP pakai joystick. Geser layar untuk memutar kamera, cubit atau gulir untuk mendekat. Dekati koin sewa untuk menagih, dekati bangunan DIJUAL untuk membeli. Tombol Lihat kota menampilkan seluruh kota. <a href="arkade.html" style="color:var(--emas)">Kembali ke Arkade</a></p>
 </div></section>
 
 <div class="layar" id="layar"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
@@ -157,6 +168,7 @@ const antara = (a, b) => a + Math.random() * (b - a), pilihAcak = a => a[Math.ra
 const cicilanDari = (pokok, bunga, bulan) => { const r = bunga / 12; return pokok <= 0 ? 0 : pokok * r / (1 - Math.pow(1 + r, -bulan)); };
 const BLN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const namaBulan = n => BLN[(n - 1) % 12] + ' tahun ' + (Math.floor((n - 1) / 12) + 1);
+const namaBulanPendek = n => BLN[(n - 1) % 12].slice(0, 3) + ' th ' + (Math.floor((n - 1) / 12) + 1);
 
 /* =============================== data ekonomi =============================== */
 // hasil = sewa per bulan / nilai pasar; rawat = perawatan dan pengelolaan sebagai bagian sewa penuh
@@ -210,7 +222,7 @@ function buatTawaran() { const total = Object.values(BOBOT).reduce((a, b) => a +
 function mulaiBaru(prof) { const P = PROFESI.find(x => x.id === prof);
   S = { versi: 2, bulan: 1, t: 0, profesi: P.id, namaProfesi: P.nama, gaji: P.gaji, gajiDasar: P.gaji, ombak: P.ombak || 0, biaya: P.biaya, kas: P.kas, bunga: .1, properti: [], tawaran: [], riwayat: [], lap: null, menang: 0, selesai: false, tip: 0 };
   S.tawaran = buatTawaran(); catatRiwayat(); simpan(); masukPermainan(); kabar('Selamat datang, juragan. Ketuk bangunan bertanda DIJUAL untuk mulai membeli.', 'baik'); }
-function simpan() { tulis(SIMPAN, S); }
+function simpan() { if (S && typeof PM !== 'undefined') S.pemain = { x: Math.round(PM.x * 10) / 10, z: Math.round(PM.z * 10) / 10 }; tulis(SIMPAN, S); }
 function catatRiwayat() { S.riwayat.push({ b: S.bulan, kas: S.kas + koinTotal(), pasif: pasifBersih(), biaya: S.biaya }); if (S.riwayat.length > 240) S.riwayat.shift(); }
 
 function hitungBeli(t, dp) { const uangMuka = dp >= 1 ? t.harga : t.harga * dp, pinjaman = t.harga - uangMuka, notaris = t.harga * BATAS.notaris, cicilan = cicilanDari(pinjaman, S.bunga, BATAS.tenor);
@@ -480,20 +492,75 @@ function geserOrang(dt) { const tampil = S ? Math.min(ORANG, 10 + S.properti.red
     _o.position.set(x, .3, z); _o.updateMatrix(); kaki.setMatrixAt(k, _o.matrix); _o.position.set(x, 1.05 + Math.abs(lang) * .05, z); _o.updateMatrix(); tubuh.setMatrixAt(k, _o.matrix); _o.position.set(x, 1.75 + Math.abs(lang) * .05, z); _o.updateMatrix(); kepala.setMatrixAt(k, _o.matrix); });
   [tubuh, kepala, kaki].forEach(m => m.instanceMatrix.needsUpdate = true); }
 
+/* =============================== pemain =============================== */
+// 8 Okt 2026, pemilik: "tambahkan karakter pemain yang bisa jalan di kota". Juragan berjalan dengan WASD/panah (Shift lari)
+// atau joystick di HP. Kamera mengikuti dari belakang. Mendekati properti yang punya koin sewa langsung menagihnya;
+// di dekat bangunan DIJUAL atau properti sendiri muncul tombol aksi. Bangunan tidak bisa ditembus.
+function buatPemain() { const g = new THREE.Group(), kulit = mat('#c99a74'), baju = mat('#d99a12', { roughness: .55 }), celana = mat('#1f2a44'), sepatu = mat('#1d1f22'), rambut = mat('#2a1d14');
+  const pinggul = new THREE.Group(); pinggul.position.y = .95; g.add(pinggul);
+  kotak(pinggul, .62, .72, .36, 0, .42, 0, baju); kotak(pinggul, .64, .14, .38, 0, .06, 0, mat('#3a2a1a')); kotak(pinggul, .2, .2, .05, 0, .5, .19, mat('#c99a2e'));
+  const kpl = new THREE.Mesh(new THREE.SphereGeometry(.26, 16, 12), kulit); kpl.position.y = 1.08; kpl.castShadow = true; pinggul.add(kpl);
+  const rbt = new THREE.Mesh(new THREE.SphereGeometry(.275, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.1), rambut); rbt.position.y = 1.1; rbt.rotation.x = -.15; pinggul.add(rbt);
+  [-.09, .09].forEach(x => kotak(pinggul, .05, .06, .02, x, 1.1, .25, mat('#1d1f22'), false));
+  const lengan = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .4, .74, 0); pinggul.add(p); kotak(p, .16, .6, .18, 0, -.3, 0, baju); const t = new THREE.Mesh(new THREE.SphereGeometry(.09, 10, 8), kulit); t.position.y = -.64; p.add(t); return p; });
+  const tungkai = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .16, 0, 0); pinggul.add(p); kotak(p, .22, .74, .24, 0, -.38, 0, celana); kotak(p, .24, .14, .36, 0, -.8, .06, sepatu); return p; });
+  const cincin = new THREE.Mesh(new THREE.RingGeometry(.55, .78, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f3c550', transparent: true, opacity: .75, depthWrite: false })); cincin.position.y = .05; g.add(cincin);
+  g.traverse(o => { if (o.isMesh && o !== cincin) o.castShadow = true; }); scene.add(g);
+  return { g, pinggul, lengan, tungkai, cincin, x: 6, z: -11, arah: 0, fase: 0, gerak: 0 }; }
+const PM = buatPemain(); let modeJalan = true;
+const tombolJalan = {}; const stik = { aktif: false, x: 0, y: 0 };
+addEventListener('keydown', e => { tombolJalan[e.code] = true; if (e.code === 'KeyM' && S && !diAwal() && !$('#layar').classList.contains('buka')) aturMode(!modeJalan); });
+addEventListener('keyup', e => { tombolJalan[e.code] = false; });
+addEventListener('blur', () => { for (const k in tombolJalan) tombolJalan[k] = false; });
+{ const el = $('#stik'), knob = el.firstElementChild; let id = null;
+  const set = e => { const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, maks = r.width / 2 - 12; let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy); if (d > maks) { dx *= maks / d; dy *= maks / d; } stik.x = dx / maks; stik.y = dy / maks; knob.style.transform = `translate(${dx}px,${dy}px)`; };
+  el.addEventListener('pointerdown', e => { id = e.pointerId; el.setPointerCapture(id); stik.aktif = true; set(e); });
+  el.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
+  const lepas = e => { if (e.pointerId !== id) return; id = null; stik.aktif = false; stik.x = stik.y = 0; knob.style.transform = ''; }; el.addEventListener('pointerup', lepas); el.addEventListener('pointercancel', lepas); }
+const PADAT_KOTA = r => { const out = []; for (const [i, v] of VIS) if (v.kunci.startsWith('milik') || (v.kunci === 'npc' && NPC[i] !== 'taman')) out.push(PLOT[i]); return out; };
+let dekatPlot = -1, tagihDekat = new Set();
+function geserPemain(dt) { const bisa = modeJalan && S && !diAwal() && !$('#layar').classList.contains('buka');
+  let ix = 0, iz = 0; if (bisa) { if (tombolJalan.KeyW || tombolJalan.ArrowUp) iz += 1; if (tombolJalan.KeyS || tombolJalan.ArrowDown) iz -= 1; if (tombolJalan.KeyD || tombolJalan.ArrowRight) ix += 1; if (tombolJalan.KeyA || tombolJalan.ArrowLeft) ix -= 1; if (stik.aktif) { ix += stik.x; iz -= stik.y; } }
+  const kuat = Math.min(1, Math.hypot(ix, iz)), lari = tombolJalan.ShiftLeft || tombolJalan.ShiftRight || (stik.aktif && kuat > .95);
+  if (kuat > .08) { const fx = -Math.sin(KAM.yaw), fz = -Math.cos(KAM.yaw), rx = Math.cos(KAM.yaw), rz = -Math.sin(KAM.yaw), l = Math.hypot(ix, iz);
+    const mx = (rx * ix + fx * iz) / l, mz = (rz * ix + fz * iz) / l, laju = (lari ? 9 : 5.2) * kuat; let nx = PM.x + mx * laju * dt, nz = PM.z + mz * laju * dt;
+    for (const P of PADAT_KOTA()) { const h = 4.95, cx = THREE.MathUtils.clamp(nx, P.x - h, P.x + h), cz = THREE.MathUtils.clamp(nz, P.z - h, P.z + h), dx = nx - cx, dz = nz - cz, d = Math.hypot(dx, dz);
+      if (d < .42) { if (d > 1e-4) { nx = cx + dx / d * .42; nz = cz + dz / d * .42; } else { const kiri = nx - (P.x - h), kanan = P.x + h - nx, atas = nz - (P.z - h), bawah = P.z + h - nz, m = Math.min(kiri, kanan, atas, bawah); if (m === kiri) nx = P.x - h - .42; else if (m === kanan) nx = P.x + h + .42; else if (m === atas) nz = P.z - h - .42; else nz = P.z + h + .42; } } }
+    PM.x = THREE.MathUtils.clamp(nx, -58, 58); PM.z = THREE.MathUtils.clamp(nz, -40, 40);
+    const tuju = Math.atan2(mx, mz); let beda = tuju - PM.arah; beda = Math.atan2(Math.sin(beda), Math.cos(beda)); PM.arah += beda * Math.min(1, dt * 12); PM.gerak = Math.min(1, PM.gerak + dt * 6) * (lari ? 1.4 : 1); }
+  else PM.gerak = Math.max(0, PM.gerak - dt * 6);
+  PM.fase += dt * (lari ? 13 : 9) * Math.min(1, PM.gerak); const ayun = Math.sin(PM.fase) * .75 * Math.min(1, PM.gerak);
+  PM.lengan[0].rotation.x = ayun; PM.lengan[1].rotation.x = -ayun; PM.tungkai[0].rotation.x = -ayun; PM.tungkai[1].rotation.x = ayun; PM.pinggul.position.y = .95 + Math.abs(Math.sin(PM.fase)) * .06 * Math.min(1, PM.gerak);
+  PM.g.position.set(PM.x, 0, PM.z); PM.g.rotation.y = PM.arah; PM.cincin.material.opacity = .45 + Math.sin(performance.now() / 300) * .25;
+  // kedekatan: tagih koin otomatis, tombol aksi
+  let terdekat = -1, jd = 1e9; if (bisa) PLOT.forEach((P, i) => { const d = Math.hypot(P.x - PM.x, P.z - PM.z); if (d < 8.2 && d < jd) { jd = d; terdekat = i; } });
+  if (bisa) for (const p of S.properti) { if (!(p.koin > 0) || tagihDekat.has(p.id)) continue; const P = PLOT[p.plot]; if (Math.hypot(P.x - PM.x, P.z - PM.z) < 9) { tagihDekat.add(p.id); tagih(p); setTimeout(() => tagihDekat.delete(p.id), 1500); } }
+  if (terdekat !== dekatPlot) { dekatPlot = terdekat; isiAksi(); } }
+function isiAksi() { const b = $('#aksi'); if (dekatPlot < 0 || !S) { b.classList.add('sembunyi'); return; } const p = S.properti.find(q => q.plot === dekatPlot), t = S.tawaran.find(q => q.plot === dekatPlot);
+  if (t) { b.innerHTML = `Lihat penawaran: ${JENIS[t.jenis].nama} ${rp(t.harga)}`; b.onclick = () => dialogBeli(t); }
+  else if (p) { b.innerHTML = `Kelola ${JENIS[p.jenis].nama}`; b.onclick = () => dialogKelola(p); }
+  else if (NPC[dekatPlot]) { b.innerHTML = KET_NPC[NPC[dekatPlot]]; b.onclick = () => {}; }
+  else { b.classList.add('sembunyi'); return; }
+  b.classList.remove('sembunyi'); }
+function aturMode(jalan) { modeJalan = jalan; $('#bMode').innerHTML = jalan ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12"/></svg><span class="teks">Lihat kota</span>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M9 21l2-6 3 3v5M7 12l3-4 4 1 2 4M11 15l-1-4"/></svg><span class="teks">Jalan kaki</span>';
+  $('#stik').classList.toggle('sembunyi', !(jalan && HP && S && !diAwal())); if (!jalan) { $('#aksi').classList.add('sembunyi'); dekatPlot = -1; }
+  if (jalan) { KAM.jaraktuju = 20; KAM.pitch = .55; } else { KAM.jaraktuju = HP ? 100 : 84; KAM.pitch = .78; } }
+$('#bMode').onclick = () => { aturMode(!modeJalan); bunyi('klik'); };
+
 /* =============================== kamera =============================== */
 const KAM = { target: new THREE.Vector3(0, 0, 2), tuju: null, jarak: 92, jaraktuju: null, yaw: .62, pitch: .78 };
 function pasangKamera() { const { target: t, jarak: d, yaw: y, pitch: p } = KAM; kamera.position.set(t.x + Math.sin(y) * Math.cos(p) * d, t.y + Math.sin(p) * d, t.z + Math.cos(y) * Math.cos(p) * d); kamera.lookAt(t); }
-function fokusKe(P) { if (!P) return; KAM.tuju = new THREE.Vector3(P.x, 0, P.z); if (KAM.jarak > 70) KAM.jaraktuju = 62; }
+function fokusKe(P) { if (!P || modeJalan) return; KAM.tuju = new THREE.Vector3(P.x, 0, P.z); if (KAM.jarak > 70) KAM.jaraktuju = 62; }
 const jari = new Map(); let seret = null, pinch = null;
 kanvas.addEventListener('pointerdown', e => { kanvas.setPointerCapture(e.pointerId); jari.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (jari.size === 1) seret = { x: e.clientX, y: e.clientY, t: performance.now(), gerak: 0, kanan: e.button === 2 || e.shiftKey }; else { seret = null; const [a, b] = [...jari.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), j: KAM.jarak, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; } });
 kanvas.addEventListener('pointermove', e => { if (!jari.has(e.pointerId)) return; const lama = jari.get(e.pointerId); jari.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pinch && jari.size === 2) { const [a, b] = [...jari.values()], d = Math.hypot(a.x - b.x, a.y - b.y); KAM.jarak = THREE.MathUtils.clamp(pinch.j * pinch.d / Math.max(d, 1), 28, 140); KAM.jaraktuju = null; const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2; geser(cx - pinch.cx, cy - pinch.cy); pinch.cx = cx; pinch.cy = cy; return; }
+  if (pinch && jari.size === 2) { const [a, b] = [...jari.values()], d = Math.hypot(a.x - b.x, a.y - b.y); KAM.jarak = THREE.MathUtils.clamp(pinch.j * pinch.d / Math.max(d, 1), modeJalan ? 10 : 28, modeJalan ? 50 : 140); KAM.jaraktuju = null; const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2; geser(cx - pinch.cx, cy - pinch.cy); pinch.cx = cx; pinch.cy = cy; return; }
   if (!seret) return; const dx = e.clientX - lama.x, dy = e.clientY - lama.y; seret.gerak += Math.abs(dx) + Math.abs(dy); if (seret.gerak < 6) return; KAM.tuju = null;
-  if (seret.kanan) geser(dx, dy); else { KAM.yaw -= dx * .006; KAM.pitch = THREE.MathUtils.clamp(KAM.pitch + dy * .004, .35, 1.4); } });
-function geser(dx, dy) { const s = KAM.jarak / 600, c = Math.cos(KAM.yaw), n = Math.sin(KAM.yaw); KAM.target.x -= (dx * c + dy * n) * s; KAM.target.z -= (-dx * n + dy * c) * s; KAM.target.x = THREE.MathUtils.clamp(KAM.target.x, -55, 55); KAM.target.z = THREE.MathUtils.clamp(KAM.target.z, -45, 45); }
+  if (seret.kanan && !modeJalan) geser(dx, dy); else { KAM.yaw -= dx * .006; KAM.pitch = THREE.MathUtils.clamp(KAM.pitch + dy * .004, .35, 1.4); } });
+function geser(dx, dy) { if (modeJalan) return; const s = KAM.jarak / 600, c = Math.cos(KAM.yaw), n = Math.sin(KAM.yaw); KAM.target.x -= (dx * c + dy * n) * s; KAM.target.z -= (-dx * n + dy * c) * s; KAM.target.x = THREE.MathUtils.clamp(KAM.target.x, -55, 55); KAM.target.z = THREE.MathUtils.clamp(KAM.target.z, -45, 45); }
 kanvas.addEventListener('pointerup', e => { jari.delete(e.pointerId); if (jari.size < 2) pinch = null; if (seret && seret.gerak < 8 && performance.now() - seret.t < 500) ketuk(e.clientX, e.clientY); seret = null; });
 kanvas.addEventListener('pointercancel', e => { jari.delete(e.pointerId); pinch = null; seret = null; });
-kanvas.addEventListener('wheel', e => { e.preventDefault(); KAM.jaraktuju = null; KAM.jarak = THREE.MathUtils.clamp(KAM.jarak * (1 + Math.sign(e.deltaY) * .1), 28, 140); }, { passive: false });
+kanvas.addEventListener('wheel', e => { e.preventDefault(); KAM.jaraktuju = null; KAM.jarak = THREE.MathUtils.clamp(KAM.jarak * (1 + Math.sign(e.deltaY) * .1), modeJalan ? 10 : 28, modeJalan ? 50 : 140); }, { passive: false });
 kanvas.addEventListener('contextmenu', e => e.preventDefault());
 const ray = new THREE.Raycaster(), _m = new THREE.Vector2();
 const KET_NPC = { masjid: 'Masjid kampung, ramai saat subuh dan magrib.', sekolah: 'Sekolah dasar. Keluarga muda suka mengontrak di dekat sini.', minimarket: 'Minimarket 24 jam milik tetangga.', kafe: 'Kedai kopi tempat mahasiswa nongkrong.', taman: 'Taman bermain kota.', menara: 'Menara air PDAM.' };
@@ -520,6 +587,7 @@ function putaran(now) { requestAnimationFrame(putaran); const dt = Math.min(.05,
   if (!main && diAwal()) KAM.yaw += dt * .05;
   if (KAM.tuju) { KAM.target.lerp(KAM.tuju, Math.min(1, dt * 3)); if (KAM.target.distanceTo(KAM.tuju) < .2) KAM.tuju = null; }
   if (KAM.jaraktuju) { KAM.jarak += (KAM.jaraktuju - KAM.jarak) * Math.min(1, dt * 3); if (Math.abs(KAM.jarak - KAM.jaraktuju) < .5) KAM.jaraktuju = null; }
+  geserPemain(dt); if (modeJalan && S && !diAwal()) { KAM.tuju = null; KAM.target.lerp(_v.set(PM.x, 1.2, PM.z), Math.min(1, dt * 8)); }
   pasangKamera(); cahaya(S ? S.t : .3); geserMobil(dt); geserOrang(dt);
   for (const v of VIS.values()) { if (v.tumbuh < 1 && v.model) { v.tumbuh = Math.min(1, v.tumbuh + dt * .8); const e = 1 - Math.pow(1 - v.tumbuh, 3); v.model.scale.y = Math.max(.02, e * (1 + Math.sin(v.tumbuh * Math.PI) * .08)); }
     if (v.g.userData.hantu) v.g.userData.hantu.position.y = .2 + Math.sin(now / 500) * .15; }
@@ -530,7 +598,7 @@ function putaran(now) { requestAnimationFrame(putaran); const dt = Math.min(.05,
   renderer.render(scene, kamera); }
 
 /* =============================== HUD dan panel =============================== */
-function perbaruiWaktu() { const hari = Math.min(30, Math.floor(S.t * 30) + 1); $('#tglBulan').textContent = namaBulan(S.bulan); $('#tglHari').textContent = `hari ke-${hari} · bulan ke-${S.bulan}`; $('#jam').style.setProperty('--p', (S.t * 100) + '%'); $('#jamTeks').textContent = hari; }
+function perbaruiWaktu() { const hari = Math.min(30, Math.floor(S.t * 30) + 1); $('#tglBulan').textContent = innerWidth < 640 ? namaBulanPendek(S.bulan) : namaBulan(S.bulan); $('#tglHari').textContent = `hari ke-${hari} · bulan ke-${S.bulan}`; $('#jam').style.setProperty('--p', (S.t * 100) + '%'); $('#jamTeks').textContent = hari; }
 function perbaruiHud() { if (!S) return; const pasif = pasifBersih(); $('#hKas').textContent = rp(S.kas); $('#hKas').className = S.kas < 0 ? 'turun' : ''; $('#hPasif').textContent = rp(pasif); $('#hPasif').className = pasif >= 0 ? 'naik' : 'turun'; $('#hBiaya').textContent = rp(S.biaya);
   $('#hBatang').style.width = Math.max(0, Math.min(100, pasif / S.biaya * 100)) + '%'; $('#nPeluang').textContent = S.tawaran.length || ''; $('#nPeluang').style.display = S.tawaran.length ? '' : 'none'; perbaruiWaktu(); }
 let tab = null;
@@ -551,7 +619,7 @@ function isiPanel() { if (!S || !tab) return; const el = $('#panel'), judul = n 
       <tr class="judul"><td colspan="2">Liabilitas</td></tr><tr class="pos"><td>Sisa KPR (bunga ${persen(S.bunga, 1)})</td><td>${rp(sisaUtang())}</td></tr>${S.kas + koinTotal() < 0 ? `<tr class="pos"><td>Pinjaman darurat</td><td class="turun">${rp(-(S.kas + koinTotal()))}</td></tr>` : ''}<tr class="total"><td>Kekayaan bersih</td><td>${rp(kekayaan())}</td></tr></table>
       <canvas class="grafik" id="grafik"></canvas><div class="legenda"><span><i style="background:var(--hijau)"></i>Sewa bersih</span><span><i style="background:var(--merah)"></i>Biaya hidup</span><span><i style="background:var(--emas)"></i>Kas</span></div>`; gambarGrafik(); }
   else if (tab === 'menu') { el.innerHTML = judul('Menu') + `<div style="display:flex;flex-direction:column;gap:8px"><button class="pil" id="mJeda">${jeda ? 'Lanjutkan waktu' : 'Jeda waktu'}</button><a class="pil" href="arkade.html">Kembali ke Arkade</a><button class="pil bahaya" id="mUlang">Mulai ulang dari awal</button></div>
-      <p class="tip">Cara main: waktu berjalan sendiri, satu bulan sekitar ${DUR_BULAN} detik pada kecepatan 1x. Tiap awal bulan gaji masuk, biaya hidup dan cicilan dibayar, dan koin sewa muncul di atas properti yang berpenghuni. Ketuk koin untuk menagih. Ketuk bangunan bertanda DIJUAL untuk membeli. Kamu menang saat sewa bersih per bulan menutup biaya hidup.</p>`;
+      <p class="tip">Kontrol: ${HP ? 'joystick kiri bawah untuk berjalan, dorong penuh untuk lari' : 'W A S D atau panah untuk berjalan, Shift untuk lari, M untuk beralih Jalan kaki atau Lihat kota'}. Geser layar memutar kamera.</p><p class="tip">Cara main: waktu berjalan sendiri, satu bulan sekitar ${DUR_BULAN} detik pada kecepatan 1x. Tiap awal bulan gaji masuk, biaya hidup dan cicilan dibayar, dan koin sewa muncul di atas properti yang berpenghuni. Ketuk koin untuk menagih. Ketuk bangunan bertanda DIJUAL untuk membeli. Kamu menang saat sewa bersih per bulan menutup biaya hidup.</p>`;
     $('#mJeda').onclick = () => { aturLaju(jeda ? 1 : 0); isiPanel(); }; $('#mUlang').onclick = () => { if (confirm('Mulai ulang dari awal? Permainan sekarang akan dihapus.')) mulaiUlang(); }; }
   $('#tutupPanel').onclick = tutupPanel;
   $$('#panel [data-beli]').forEach(b => b.onclick = () => dialogBeli(S.tawaran.find(t => t.id === b.dataset.beli)));
@@ -566,7 +634,7 @@ function gambarGrafik() { const c = $('#grafik'); if (!c) return; const r = c.ge
   [['biaya', '#f0715f'], ['pasif', '#5fd08f']].forEach(([k, col]) => { x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); R.forEach((q, i) => i ? x.lineTo(X(i), Y(q[k])) : x.moveTo(X(i), Y(q[k]))); x.stroke(); }); }
 function aturLaju(v) { laju = v; jeda = v === 0; $$('#laju button').forEach(b => b.classList.toggle('aktif', +b.dataset.v === v)); }
 $$('#laju button').forEach(b => b.onclick = () => { aturLaju(+b.dataset.v); bunyi('klik'); });
-addEventListener('keydown', e => { if (e.code === 'Space' && S && !diAwal() && !$('#layar').classList.contains('buka')) { e.preventDefault(); aturLaju(jeda ? 1 : 0); } if (e.key === 'Escape') { if ($('#layar').classList.contains('buka') && !$('#layar').dataset.kunci) tutupModal(); else tutupPanel(); } });
+addEventListener('keydown', e => { if (e.code.startsWith('Arrow') && S && !diAwal()) e.preventDefault(); if (e.code === 'Space' && S && !diAwal() && !$('#layar').classList.contains('buka')) { e.preventDefault(); aturLaju(jeda ? 1 : 0); } if (e.key === 'Escape') { if ($('#layar').classList.contains('buka') && !$('#layar').dataset.kunci) tutupModal(); else tutupPanel(); } });
 
 /* modal dan kabar */
 function modal(html, pasang, kunci) { $('#modal').innerHTML = html; $('#layar').classList.add('buka'); $('#layar').dataset.kunci = kunci ? '1' : ''; $$('#modal [data-tutup]').forEach(b => b.onclick = tutupModal); if (pasang) pasang(); }
@@ -577,7 +645,8 @@ function kabar(t, jenis = '') { const d = document.createElement('div'); d.class
 /* layar awal */
 function masukPermainan() { $('#layarAwal').classList.add('sembunyi'); ['#hudKiri', '#hudKanan', '#hudBawah'].forEach(s => $(s).classList.remove('sembunyi'));
   S.properti.forEach(p => { if (p.plot == null) p.plot = plotBebas().find(i => !S.properti.some(q => q.plot === i)); p.koin = p.koin || 0; }); S.tawaran = (S.tawaran || []).filter(t => t.plot != null && !S.properti.some(p => p.plot === t.plot)); if (!S.tawaran.length) S.tawaran = buatTawaran(); S.t = S.t || 0;
-  syncDunia(); perbaruiHud(); KAM.yaw = .62; KAM.pitch = .78; KAM.jaraktuju = HP ? 100 : 84; KAM.tuju = new THREE.Vector3(0, 0, 2); }
+  syncDunia(); perbaruiHud(); KAM.yaw = .62; if (S.pemain) { PM.x = S.pemain.x; PM.z = S.pemain.z; } aturMode(true); KAM.target.set(PM.x, 1.2, PM.z);
+  if (!baca('juragan-petunjuk', 0)) { tulis('juragan-petunjuk', 1); setTimeout(() => kabar(HP ? 'Geser joystick di kiri bawah untuk berjalan. Dekati koin sewa untuk menagihnya.' : 'Jalan dengan W A S D atau panah, Shift untuk lari. Tombol M beralih ke Lihat kota.', 'baik'), 1500); } }
 function tampilAwal() { const ada = baca(SIMPAN, null), r = baca(REKOR, null);
   $('#lanjutSimpan').innerHTML = (ada && !ada.selesai ? `<button class="pil utama" id="bLanjutSimpan" style="margin-top:14px">Lanjutkan: bulan ${ada.bulan}, ${String(ada.namaProfesi).toLowerCase()}, kas ${rp(ada.kas)}</button>` : '') + (r ? `<p class="redup" style="font-size:13px;margin-top:10px">Rekor tercepat di perangkat ini: bebas finansial dalam ${r.bulan} bulan sebagai ${String(r.profesi).toLowerCase()}.</p>` : '');
   if ($('#bLanjutSimpan')) $('#bLanjutSimpan').onclick = () => { S = ada; masukPermainan(); };
