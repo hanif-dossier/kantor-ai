@@ -33,6 +33,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .tanggal{display:flex;align-items:center;gap:10px}.tanggal b{font:800 15px var(--serif)}.tanggal small{display:block;font-size:11px;color:var(--redup)}
 .jam{width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--emas) var(--p,0%),rgba(255,255,255,.12) 0);display:grid;place-items:center;flex:none}.jam i{width:26px;height:26px;border-radius:50%;background:#101826;display:grid;place-items:center;font:700 10px var(--mono);font-style:normal}
 .laju{display:flex;gap:4px}.laju button{min-width:40px;padding:5px 8px;border-radius:10px;font:800 12px var(--sans);background:rgba(255,255,255,.06);border:1px solid var(--garis)}.laju button.aktif{background:var(--emas);color:#1c1405;border-color:var(--emas)}
+.modeBtn.mati{color:var(--redup)}
 .modeBtn{display:flex;align-items:center;gap:8px;font:800 12.5px var(--sans)}.modeBtn svg{width:18px;height:18px}
 .atasKanan{top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));width:min(310px,52vw)}
 .kas{display:flex;align-items:center;gap:10px}.koinIkon{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a0,#e9a91f 60%,#9a6b1c);display:grid;place-items:center;font:800 11px var(--sans);color:#5a3a08;flex:none;box-shadow:0 2px 6px rgba(0,0,0,.3)}
@@ -183,6 +184,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
   <div class="kartuHud tanggal"><div class="jam" id="jam"><i id="jamTeks"></i></div><div><b id="tglBulan"></b><small id="tglHari"></small></div></div>
   <div class="kartuHud laju" id="laju"><button data-v="0">Jeda</button><button data-v="1" class="aktif">1x</button><button data-v="2">2x</button><button data-v="4">4x</button></div>
   <button class="kartuHud modeBtn" id="bMode"></button>
+  <button class="kartuHud modeBtn" id="bMusik" aria-label="Musik"></button>
 </div>
 <div class="hud atasKanan kartuHud sembunyi" id="hudKanan">
   <div class="kas"><span class="koinIkon">Rp</span><div class="kasKlik" id="bBank" role="button" tabindex="0" title="Bank: tabungan, investasi, asuransi"><small>Kas · Bank</small><b id="hKas"></b></div><button class="lv" id="bLevel" title="Lihat level dan yang terbuka"><small>Level</small><b id="hLevel">1</b></button></div>
@@ -951,10 +953,94 @@ function dialogPesanan() { const P = S.kebun.pesanan;
     <div class="tombol"><button class="pil" data-tutup>Tutup</button></div>`, () => { $$('[data-kirim]').forEach(b => b.onclick = () => { kirimPesanan(b.dataset.kirim); dialogPesanan(); }); $$('[data-buang]').forEach(b => b.onclick = () => { S.kebun.pesanan = S.kebun.pesanan.filter(x => x.id !== b.dataset.buang); S.kebun.tPesanan = S.jam + 6; simpan(); dialogPesanan(); }); }); }
 
 /* =============================== suara kecil =============================== */
-let AC = null; function bunyi(j) { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); const t = AC.currentTime;
+let AC = null; function bunyi(j) { if (MUSIK.efek === false) return; try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); const t = AC.currentTime;
   const nada = (f, mulai, lama, tipe = 'sine', v = .08) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = tipe; o.frequency.setValueAtTime(f, t + mulai); g.gain.setValueAtTime(v, t + mulai); g.gain.exponentialRampToValueAtTime(.0005, t + mulai + lama); o.connect(g); g.connect(AC.destination); o.start(t + mulai); o.stop(t + mulai + lama + .02); };
   if (j === 'koin') { nada(1320, 0, .12, 'triangle'); nada(1760, .07, .18, 'triangle'); } else if (j === 'gajian') { [660, 880, 1100].forEach((f, i) => nada(f, i * .08, .2, 'triangle', .06)); }
   else if (j === 'bangun') { nada(220, 0, .15, 'square', .04); nada(330, .12, .2, 'square', .04); } else if (j === 'menang') { [523, 659, 784, 1046].forEach((f, i) => nada(f, i * .12, .4, 'triangle', .08)); } else if (j === 'lompat') { nada(420, 0, .12, 'sine', .06); nada(640, .06, .12, 'sine', .05); } else if (j === 'tabrak') { nada(90, 0, .25, 'square', .07); nada(60, .05, .3, 'sawtooth', .05); } else if (j === 'pintu') { nada(260, 0, .08, 'triangle', .06); nada(180, .1, .1, 'triangle', .05); } else nada(880, 0, .05, 'sine', .04); } catch {} }
+
+/* =============================== musik latar (8 Okt 2026) =============================== */
+// Pemilik: "tambahkan musiknya". Tanpa berkas lagu: semua nada disusun dan dimainkan Web Audio di perangkat, jadi gratis,
+// ringan, dan bebas hak cipta. Tiga lagu bergantian sendiri: Pagi di Kota (siang), Senja di Pesisir (malam atau di dalam
+// gedung), Rintik Hujan (saat hujan). Melodinya dibuat ulang tiap frasa 8 birama dari tangga nada pentatonik,
+// jadi lagunya tidak pernah persis sama tetapi tetap enak didengar.
+const MUSIK = Object.assign({ nyala: true, efek: true, vol: .55, lagu: 'otomatis' }, baca('juragan-musik', {}));
+const simpanMusik = () => tulis('juragan-musik', MUSIK);
+const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+let mGain = null, mGema = null, mDerau = null, musikJalan = false, mGanti = false, mLangkah = 0, mWaktu = 0, mFrasa = null, laguKini = null, mKe = 0;
+function siapkanAudio() { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (mGain) return;
+  mGain = AC.createGain(); mGain.gain.value = 0; const komp = AC.createDynamicsCompressor(); komp.threshold.value = -20; mGain.connect(komp); komp.connect(AC.destination);
+  // gema ruangan: derau yang meluruh 2,4 detik dipakai sebagai impuls konvolusi
+  const pj = AC.sampleRate * 2.4 | 0, imp = AC.createBuffer(2, pj, AC.sampleRate); for (let c = 0; c < 2; c++) { const d = imp.getChannelData(c); for (let i = 0; i < pj; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / pj, 3.2); }
+  const kv = AC.createConvolver(); kv.buffer = imp; mGema = AC.createGain(); mGema.gain.value = .3; mGema.connect(kv); kv.connect(mGain);
+  mDerau = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const dd = mDerau.getChannelData(0); for (let i = 0; i < dd.length; i++) dd[i] = Math.random() * 2 - 1; }
+const keMusik = (n, basah) => { n.connect(mGain); if (basah) n.connect(mGema); };
+// ---- alat musik ----
+function petik(t, m, dur, v) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), g2 = AC.createGain(), f = AC.createBiquadFilter(); o.type = 'triangle'; o2.type = 'sine'; o.frequency.value = hz(m); o2.frequency.value = hz(m) * 2; g2.gain.value = .3; f.type = 'lowpass'; f.frequency.value = 2400;
+  o.connect(g); o2.connect(g2); g2.connect(g); g.connect(f); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(.0006, t + Math.max(.3, dur)); keMusik(f, true); o.start(t); o2.start(t); o.stop(t + dur + .35); o2.stop(t + dur + .35); }
+function piano(t, m, dur, v) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), g2 = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = hz(m); o2.frequency.value = hz(m) * 2.002; g2.gain.value = .22;
+  o.connect(g); o2.connect(g2); g2.connect(g); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .012); g.gain.exponentialRampToValueAtTime(v * .35, t + .35); g.gain.exponentialRampToValueAtTime(.0006, t + dur + .9); keMusik(g, true); o.start(t); o2.start(t); o.stop(t + dur + 1); o2.stop(t + dur + 1); }
+function alas(t, nada, dur, v) { const f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = 900; g.connect(f); keMusik(f, true);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .7); g.gain.setValueAtTime(v, t + Math.max(.8, dur - .4)); g.gain.linearRampToValueAtTime(0, t + dur + .8);
+  nada.forEach(m => [-7, 7].forEach(dt => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(m); o.detune.value = dt; o.connect(g); o.start(t); o.stop(t + dur + .9); })); }
+function bas(t, m, dur, v) { const o = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(); o.type = 'triangle'; o.frequency.value = hz(m); f.type = 'lowpass'; f.frequency.value = 520; o.connect(f); f.connect(g);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(.0008, t + dur + .15); keMusik(g, false); o.start(t); o.stop(t + dur + .2); }
+function tendang(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(45, t + .12); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .28); o.connect(g); keMusik(g, false); o.start(t); o.stop(t + .3); }
+function derau(t, v, frek, tipe, lama) { const b = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); b.buffer = mDerau; f.type = tipe; f.frequency.value = frek; b.connect(f); f.connect(g);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0006, t + lama); keMusik(g, tipe === 'bandpass'); b.start(t, Math.random() * .5); b.stop(t + lama + .02); }
+// ---- akor (jarak setengah nada dari kunci) ----
+const AK = { I: [0, 4, 7], ii: [2, 5, 9], iii: [4, 7, 11], IV: [5, 9, 12], V: [7, 11, 14], vi: [9, 12, 16],
+  I7: [0, 4, 7, 11], iii7: [4, 7, 11, 14], vi7: [9, 12, 16, 19], IV7: [5, 9, 12, 16], ii7: [2, 5, 9, 12], V9: [7, 11, 14, 21],
+  mi: [0, 3, 7], mVI: [8, 12, 15], mIII: [3, 7, 10], mVII: [10, 14, 17], miv: [5, 8, 12], mv: [7, 10, 14] };
+const LAGU = {
+  pagi: { id: 'pagi', nama: 'Pagi di Kota', tempo: 96, kunci: 60, skala: [0, 2, 4, 7, 9], jarang: 0, alatMel: petik, volMel: .085,
+    frasa: [['I', 'vi', 'IV', 'V', 'I', 'vi', 'IV', 'V'], ['IV', 'V', 'iii', 'vi', 'ii', 'V', 'I', 'I']],
+    iring(s, t, ch, bar, d) { const k = this.kunci;
+      if (s === 0 || s === 8) { bas(t, k - 24 + ch[0], d * 6, .16); tendang(t, .2); } if (s === 14 && bar % 2) bas(t, k - 24 + ch[0] + 7, d * 2, .12);
+      if (s === 4 || s === 12) derau(t, .05, 1900, 'bandpass', .11); if (s % 2) derau(t, s % 4 === 3 ? .028 : .014, 7000, 'highpass', .05);
+      if (s === 2 || s === 6 || s === 10 || s === 14) ch.forEach((x, i) => petik(t + i * .009, k - 12 + x, d * 1.5, .032)); } },
+  senja: { id: 'senja', nama: 'Senja di Pesisir', tempo: 74, kunci: 65, skala: [0, 2, 4, 7, 9], jarang: .3, alatMel: piano, volMel: .075,
+    frasa: [['I7', 'iii7', 'vi7', 'IV7', 'I7', 'iii7', 'ii7', 'V9'], ['IV7', 'iii7', 'ii7', 'I7', 'IV7', 'V9', 'I7', 'I7']],
+    iring(s, t, ch, bar, d) { const k = this.kunci - 12;
+      if (s === 0) { bas(t, k - 12 + ch[0], d * 9, .14); alas(t, ch.slice(0, 3).map(x => k + x), d * 16, .012); ch.forEach((x, i) => piano(t + i * .03, k + x, d * 6, .04)); }
+      if (s === 10) { bas(t, k - 12 + ch[0] + 7, d * 5, .1); ch.slice(1).forEach((x, i) => piano(t + i * .025, k + x, d * 4, .026)); }
+      if (s === 6 || s === 14) derau(t, .012, 6500, 'highpass', .08); } },
+  hujan: { id: 'hujan', nama: 'Rintik Hujan', tempo: 68, kunci: 57, skala: [0, 3, 5, 7, 10], jarang: .4, alatMel: piano, volMel: .07,
+    frasa: [['mi', 'mVI', 'mIII', 'mVII', 'mi', 'mVI', 'miv', 'mv'], ['mVI', 'mVII', 'mi', 'mi', 'miv', 'mVI', 'mVII', 'mi']],
+    iring(s, t, ch, bar, d) { const k = this.kunci - 12, pola = [0, 1, 2, 3, 4, 3, 2, 1], nada = [ch[0], ch[1], ch[2], ch[0] + 12, ch[1] + 12];
+      if (s === 0) { bas(t, k - 12 + ch[0], d * 14, .13); alas(t, ch.map(x => k + 12 + x), d * 16, .009); }
+      if (s % 2 === 0) piano(t, k + nada[pola[s / 2]], d * 3, s === 0 ? .045 : .03); } } };
+// ---- melodi: jalan acak di tangga nada pentatonik, nada di ketukan kuat ditarik ke nada akor ----
+const RITME = [[0, 4, 6, 10], [0, 2, 4, 8], [2, 4, 8, 10, 12], [0, 8], [0, 3, 6, 10], [0, 4, 8, 12], [0, 6, 8, 14], [0, 4, 6, 8, 12]];
+function keAkor(m, ch, kunci) { const pc = ch.map(x => (kunci + x) % 12); for (const g of [0, -1, 1, -2, 2, -3, 3]) if (pc.includes(((m + g) % 12 + 12) % 12)) return m + g; return m; }
+function buatFrasa(L, ke) { const prog = L.frasa[ke % L.frasa.length].map(n => AK[n]), mel = new Array(128).fill(null), deret = [];
+  for (let o = 1; o <= 2; o++) L.skala.forEach(x => deret.push(L.kunci + 12 * o + x)); deret.push(L.kunci + 36);
+  let i = 3 + (Math.random() * 3 | 0);
+  const bar = (b, rit) => rit.map((st, j) => { i = Math.max(0, Math.min(deret.length - 1, i + pilihAcak([-2, -1, -1, 0, 1, 1, 2]))); let m = deret[i]; if (st === 0 || st === 8) m = keAkor(m, prog[b], L.kunci); return [st, m, (rit[j + 1] ?? 16) - st]; });
+  const pasang = (b, notes) => notes.forEach(([st, m, n]) => { if (st && Math.random() < L.jarang) return; mel[b * 16 + st] = [m, n]; });
+  if (ke % 3 !== 2) { const r = () => pilihAcak(RITME), m0 = bar(0, r()), m1 = bar(1, r());
+    pasang(0, m0); pasang(1, m1); pasang(2, m0.map(([st, m, n]) => [st, st === 0 || st === 8 ? keAkor(m, prog[2], L.kunci) : m, n])); pasang(3, bar(3, r()));
+    pasang(4, bar(4, r())); pasang(5, bar(5, r())); pasang(6, m0.map(([st, m, n]) => [st, keAkor(m, prog[6], L.kunci), n]));
+    mel[7 * 16] = [L.kunci + 12 + prog[7][0], 12]; }
+  return { prog, mel, lagu: L }; }
+function pilihLagu() { if (MUSIK.lagu !== 'otomatis') return LAGU[MUSIK.lagu]; if (!S || diAwal()) return LAGU.pagi; if (hujanF > .35) return LAGU.hujan; return malam || DALAM ? LAGU.senja : LAGU.pagi; }
+function jadwalLangkah(n, t) { const k = n % 128; if (k === 0) { const L = pilihLagu(); if (L !== laguKini) { laguKini = L; perbaruiTombolMusik(); } mFrasa = buatFrasa(laguKini, mKe++); }
+  const L = mFrasa.lagu, b = k >> 4, s = k & 15, ch = mFrasa.prog[b], d = 60 / L.tempo / 4; L.iring(s, t, ch, b, d); const m = mFrasa.mel[k]; if (m) L.alatMel(t, m[0], m[1] * d * .92, L.volMel); }
+function detakMusik() { if (!musikJalan || !AC || AC.state !== 'running') return; if (mWaktu < AC.currentTime) mWaktu = AC.currentTime + .06;
+  while (mWaktu < AC.currentTime + .3) { if (mGanti && mLangkah % 16 === 0) { mGanti = false; mLangkah = 0; } jadwalLangkah(mLangkah, mWaktu); mWaktu += 60 / (mFrasa ? mFrasa.lagu.tempo : 96) / 4; mLangkah++; } }
+setInterval(detakMusik, 80);
+function mulaiMusik() { if (!MUSIK.nyala) return; try { siapkanAudio(); if (AC.state === 'suspended') AC.resume(); } catch (e) { return; } if (!musikJalan) { musikJalan = true; mLangkah = 0; mWaktu = AC.currentTime + .1; }
+  const g = mGain.gain; g.cancelScheduledValues(AC.currentTime); g.setValueAtTime(g.value, AC.currentTime); g.linearRampToValueAtTime(MUSIK.vol * 1.8, AC.currentTime + 2); perbaruiTombolMusik(); }
+function hentikanMusik() { if (!mGain) return; const g = mGain.gain; g.cancelScheduledValues(AC.currentTime); g.setValueAtTime(g.value, AC.currentTime); g.linearRampToValueAtTime(0, AC.currentTime + .6); setTimeout(() => { if (!MUSIK.nyala) musikJalan = false; }, 700); perbaruiTombolMusik(); }
+function aturMusik(nyala) { MUSIK.nyala = nyala; simpanMusik(); nyala ? mulaiMusik() : hentikanMusik(); }
+function aturVolume(v) { MUSIK.vol = v; simpanMusik(); if (mGain && MUSIK.nyala) { mGain.gain.cancelScheduledValues(AC.currentTime); mGain.gain.setTargetAtTime(v * 1.8, AC.currentTime, .05); } }
+function gantiLagu(id) { MUSIK.lagu = id; simpanMusik(); mGanti = true; }   // lagu baru mulai di awal birama berikutnya
+function perbaruiTombolMusik() { const b = document.getElementById('bMusik'); if (!b) return; b.classList.toggle('mati', !MUSIK.nyala);
+  b.innerHTML = (MUSIK.nyala ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v8"/><circle cx="6" cy="18" r="3"/><path d="M15 15l6 6M21 15l-6 6"/></svg>')
+    + `<span class="teks">${MUSIK.nyala ? (laguKini ? laguKini.nama : 'Musik') : 'Musik mati'}</span>`; b.title = MUSIK.nyala ? 'Matikan musik' : 'Nyalakan musik'; }
+// browser hanya mengizinkan suara setelah sentuhan atau tombol pertama
+const pancingMusik = () => { removeEventListener('pointerdown', pancingMusik); removeEventListener('keydown', pancingMusik); mulaiMusik(); };
+addEventListener('pointerdown', pancingMusik); addEventListener('keydown', pancingMusik);
+document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) AC.suspend(); else { AC.resume(); mWaktu = 0; } });
 
 /* =============================== 3D: dasar =============================== */
 const AIR = { tek: null };
@@ -1773,6 +1859,7 @@ function tampilBanner(nama) { $$('.banner').forEach(b => b.remove()); const b = 
 const LBL_PM = document.createElement('div'); LBL_PM.className = 'lbl namaL'; LBL_PM.innerHTML = '<span class="sembunyi"></span><b style="background:#c99a2e">Kamu</b>'; lapisLabel.appendChild(LBL_PM);
 $('#bHutang').onclick = () => { if (S) { bunyi('klik'); tab === 'hutang' ? tutupPanel() : bukaTab('hutang'); } };
 $('#bBank').onclick = () => { if (S) { bunyi('klik'); tab === 'bank' ? tutupPanel() : bukaTab('bank'); } }; $('#bBank').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#bBank').onclick(); } };
+$('#bMusik').onclick = e => { e.stopPropagation(); aturMusik(!MUSIK.nyala); kabar(MUSIK.nyala ? 'Musik dinyalakan.' : 'Musik dimatikan. Nyalakan lagi dari tombol ini atau dari Menu.'); if (tab === 'menu') isiPanel(); }; perbaruiTombolMusik();
 $('#bLevel').onclick = () => { if (S) { bunyi('klik'); dialogLevel(); } };
 
 /* =============================== peta kota dan penanda tujuan =============================== */
@@ -1949,9 +2036,15 @@ function isiPanel() { if (!S || !tab) return; const el = $('#panel'), judul = n 
   else if (tab === 'bank') isiBank(el, judul);
   if (tab === 'laporan' && $('#lapHutang')) { $('#lapHutang').onclick = () => bukaTab('hutang'); $('#lapBank').onclick = () => bukaTab('bank'); }
   if (tab === 'menu') { el.innerHTML = judul('Menu') + `<div style="display:flex;flex-direction:column;gap:8px"><button class="pil" id="mJeda">${jeda ? 'Lanjutkan waktu' : 'Jeda waktu'}</button><a class="pil" href="arkade.html">Kembali ke Arkade</a><button class="pil bahaya" id="mUlang">Mulai ulang dari awal</button></div>
+      <h2 style="margin-top:16px">Suara</h2>
+      <div class="tawar"><label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="mMusik" ${MUSIK.nyala ? 'checked' : ''}> Musik latar</label>
+        <div class="lok" style="margin-top:4px">${MUSIK.nyala && laguKini ? 'Sedang diputar: <b>' + laguKini.nama + '</b>.' : 'Musik mati.'} Lagu disusun langsung di perangkatmu, jadi tidak pernah persis sama.</div>
+        <label class="redup" style="display:flex;gap:10px;align-items:center;font-size:12.5px;margin-top:8px">Volume <input type="range" id="mVol" min="0" max="1" step="0.05" value="${MUSIK.vol}" style="flex:1"></label>
+        <label class="redup" style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin-top:8px">Lagu <select id="mLagu" style="flex:1;background:var(--panel2);color:var(--tinta);border:1px solid var(--garis);border-radius:8px;padding:5px">${[['otomatis', 'Otomatis: ikut waktu dan cuaca'], ...Object.values(LAGU).map(L => [L.id, L.nama])].map(([v, n]) => `<option value="${v}" ${MUSIK.lagu === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin-top:10px"><input type="checkbox" id="mEfek" ${MUSIK.efek !== false ? 'checked' : ''}> Efek suara (koin, pintu, lompat)</label></div>
       <p class="tip">Kontrol: ${HP ? 'joystick kiri bawah untuk berjalan atau menyetir, dorong penuh untuk lari, tombol Lompat di kanan bawah' : 'W A S D atau panah untuk berjalan dan menyetir, Shift lari atau ngebut, Spasi lompat, E naik atau turun mobil dan berinteraksi, Tab peta, P jeda, M beralih Jalan kaki atau Lihat kota'}. Geser layar memutar kamera.</p>
       <p class="tip">Cara main: satu bulan sekitar ${DUR_BULAN} detik pada 1x. Tiap awal bulan gaji masuk, biaya hidup dan cicilan dibayar, koin sewa muncul di atas properti berpenghuni. Masuk ke gedung untuk melayani penyewa: perbaiki masalah, penuhi permintaan, upgrade kamar. Garap kebun untuk tambahan modal. Tiga juragan pesaing ikut berburu properti: peluang bertanda Diincar akan mereka beli begitu tiba, jadi putuskan cepat. Simpan permainan di Rumah Juragan. Ketuk Kas di kanan atas untuk menabung atau berinvestasi di bank dan mengaktifkan asuransi. Musim hujan membawa banjir, musim liburan menaikkan sewa di Pesisir. Kamu menang saat pemasukan pasif per bulan menutup biaya hidup.</p>`;
-    $('#mJeda').onclick = () => { aturLaju(jeda ? 1 : 0); isiPanel(); }; $('#mUlang').onclick = () => { if (confirm('Mulai ulang dari awal? Permainan sekarang akan dihapus.')) mulaiUlang(); }; }
+    $('#mJeda').onclick = () => { aturLaju(jeda ? 1 : 0); isiPanel(); }; $('#mMusik').onchange = e => { aturMusik(e.target.checked); isiPanel(); }; $('#mVol').oninput = e => aturVolume(+e.target.value); $('#mLagu').onchange = e => { gantiLagu(e.target.value); kabar(e.target.value === 'otomatis' ? 'Lagu mengikuti waktu dan cuaca.' : 'Lagu berganti ke ' + LAGU[e.target.value].nama + ' di frasa berikutnya.'); }; $('#mEfek').onchange = e => { MUSIK.efek = e.target.checked; simpanMusik(); }; $('#mUlang').onclick = () => { if (confirm('Mulai ulang dari awal? Permainan sekarang akan dihapus.')) mulaiUlang(); }; }
   $('#tutupPanel').onclick = tutupPanel;
   $$('#panel [data-beli]').forEach(b => b.onclick = () => dialogBeli(S.tawaran.find(t => t.id === b.dataset.beli)));
   $$('#panel [data-ke]').forEach(b => b.onclick = () => { const [x, z] = b.dataset.ke.split(',').map(Number); pergiKe(x, z); });
