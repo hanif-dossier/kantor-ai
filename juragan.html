@@ -359,7 +359,7 @@ const totalCicilan = () => S.properti.reduce((a, p) => a + p.cicilan, 0) + cicil
 const nilaiProperti = () => S.properti.reduce((a, p) => a + p.nilai, 0);
 const sisaUtang = () => S.properti.reduce((a, p) => a + p.pinjaman, 0);
 const koinTotal = () => S.properti.reduce((a, p) => a + (p.koin || 0), 0);
-const kekayaan = () => S.kas + koinTotal() + nilaiProperti() + nilaiInvestasi() - sisaUtang() - hutangLain();
+const kekayaan = () => S.kas + koinTotal() + nilaiProperti() + nilaiInvestasi() + (S.rumah ? S.rumah.nilai || 0 : 0) - sisaUtang() - hutangLain();
 const batasCicilan = (tambah = 0) => S.gaji * BATAS.bank + (S.properti.reduce((a, p) => a + sewaPenuh(p), 0) + tambah) * BATAS.sewaBank;
 const adalahTanah = j => !!(JENIS[j] && JENIS[j].tanah);
 function lawanDi(i) { if (!S || !S.lawan) return null; for (const L of S.lawan) { const m = L.milik.find(x => x.plot === i); if (m) return { L, m, D: LAWAN.find(d => d.id === L.id) }; } return null; }
@@ -705,7 +705,8 @@ const PRESTASI = [
   ['satu', 'Nomor satu', 'Menjadi juragan terkaya di papan juragan', () => !!S.lawan && S.properti.length >= 3 && peringkat()[0].kamu, 15e6],
   ['miliar', 'Miliarder', 'Kekayaan bersih Rp 1 miliar', () => kekayaan() >= 1e9, 25e6],
   ['tim', 'Punya tim', 'Mempekerjakan pengurus kebun dan manajer properti', () => !!(S.kebun.pengurus && S.manajer), 5e6],
-  ['petani', 'Petani rajin', 'Memanen ladang 50 kali', () => ((S.stat || {}).panen || 0) >= 50, 4e6] ];
+  ['petani', 'Petani rajin', 'Memanen ladang 50 kali', () => ((S.stat || {}).panen || 0) >= 50, 4e6],
+  ['rumah', 'Rumah impian', 'Renovasi rumah sampai rumah mewah', () => !!(S.rumah && S.rumah.lv >= 3), 10e6] ];
 let cekPrestasiJalan = false;
 function cekPrestasi() { if (!S || cekPrestasiJalan || diAwal()) return; cekPrestasiJalan = true; const diam = !S.prestasi; S.prestasi ||= {}; let ada = false;
   for (const [id, nama, ket, cek, hadiah] of PRESTASI) { if (S.prestasi[id]) continue; let ok = false; try { ok = cek(); } catch (e) {} if (!ok) continue; S.prestasi[id] = S.bulan; ada = true;
@@ -1336,17 +1337,24 @@ function modelTanah(kerja, papan = 'TANAH JURAGAN') { const g = new THREE.Group(
 function bendera(g, warna) { silinder(g, .06, .06, 5.2, 4.6, 2.6, 4.6, mat('#cfd3d8'), 8); kotak(g, 1.5, .9, .04, 5.38, 4.65, 4.6, mat(warna)); }
 
 /* ---------- Rumah Juragan: rumah pemain, tempat menyimpan permainan ---------- */
-const RUMAH = { x: 66, z: -3, J: [] };
-{ const g = new THREE.Group(), J = RUMAH.J, putih = mat('#f7f3ea'), kayu = mat('#6b4426');
-  kotak(g, 8.2, .35, 7.6, 0, .18, 0, mat('#b9b0a0')); kotak(g, 7.8, 3.2, 6.2, 0, 1.95, -.5, dinding('#f4efe4')); kotak(g, 8, .25, 6.4, 0, 3.62, -.5, putih);
-  kotak(g, 6.6, 2.8, 5.2, 0, 5.15, -1, dinding('#e2cfae')); atap(g, 7.6, 6.2, 2.2, 6.55, genteng('#3f4f66'), -1, dinding('#e2cfae'));
-  kotak(g, 3, .2, 1.8, 1.8, .3, 3.3, mat('#cdbfa8')); kotak(g, 1.3, 2.4, .12, 1.8, 1.55, 2.64, kayu); kotak(g, .1, .1, .1, 2.3, 1.5, 2.72, mat('#f3c550', { metalness: .6 }), false);
+const RUMAH = { x: 66, z: -3, J: [], g: null };
+function modelRumahLuar(lv) { const g = new THREE.Group(), J = [], putih = mat('#f7f3ea'), kayu = mat('#6b4426'), tiga = lv >= 2, mewah = lv >= 3;
+  kotak(g, 8.2, .35, 7.6, 0, .18, 0, mat(mewah ? '#d8d2c4' : '#b9b0a0')); kotak(g, 7.8, 3.2, 6.2, 0, 1.95, -.5, dinding(mewah ? '#f7f3ea' : '#f4efe4')); kotak(g, 8, .25, 6.4, 0, 3.62, -.5, putih);
+  kotak(g, 6.6, 2.8, 5.2, 0, 5.15, -1, dinding(mewah ? '#d8c3a0' : '#e2cfae'));
+  if (tiga) { kotak(g, 6.8, .2, 5.4, 0, 6.62, -1, putih); kotak(g, 6, 2.8, 4.6, 0, 8.05, -1.3, dinding(mewah ? '#2d3136' : '#e2cfae')); jendelaB(g, J, 2.4, 1.3, -1.2, 8, 1.02); jendelaB(g, J, 1.2, 1.3, 1.8, 8, 1.02); }
+  if (mewah) { const air = mat('#4fb6d8', { emissive: '#2a8fc0', emissiveIntensity: .35, roughness: .1, metalness: .2 }); kotak(g, 6.4, .3, 5, 0, 9.6, -1.3, putih); kotak(g, 3.6, .12, 2.6, -.8, 9.8, -1.6, air, false); kotak(g, 6.4, .9, .05, 0, 10.2, 1.2, mat('#cfe7f5', { transparent: true, opacity: .35 }), false);
+    [1.9, 2.6].forEach(x => { const k = kotak(g, .6, .12, 1.6, x, 9.85, -1.6, mat('#f4f1ea')); k.rotation.x = -.15; }); const pa = new THREE.Mesh(new THREE.ConeGeometry(1.2, .45, 8), mat('#2f5a3a')); pa.position.set(2.2, 11.6, .1); g.add(pa); kotak(g, .05, 1.8, .05, 2.2, 10.7, .1, mat('#1a1c1f'), false); }
+  else atap(g, tiga ? 6.9 : 7.6, tiga ? 5.6 : 6.2, 2.2, tiga ? 9.45 : 6.55, genteng(lv >= 1 ? '#2f3f56' : '#3f4f66'), tiga ? -1.3 : -1, dinding('#e2cfae'));
+  kotak(g, 3, .2, 1.8, 1.8, .3, 3.3, mat('#cdbfa8')); kotak(g, 1.3, 2.4, .12, 1.8, 1.55, 2.64, mewah ? mat('#2d3136') : kayu); kotak(g, .1, .1, .1, 2.3, 1.5, 2.72, mat('#f3c550', { metalness: .6 }), false);
   kotak(g, 3.2, .16, 2, 1.8, 3.05, 3.3, putih); [.4, 3.2].forEach(x => kotak(g, .16, 2.9, .16, x, 1.55, 4.2, putih));
   jendelaB(g, J, 2.6, 1.5, -1.9, 1.95, 2.62); jendelaB(g, J, 1.5, 1.2, -1.6, 5.1, 1.62); jendelaB(g, J, 1.5, 1.2, 1.6, 5.1, 1.62);
   kotak(g, 6.6, .14, 1.1, 0, 3.8, 2.05, putih); kotak(g, 6.6, .06, .06, 0, 4.7, 2.58, mat('#3a3f48'), false); for (let x = -3.2; x <= 3.2; x += .4) kotak(g, .04, .9, .04, x, 4.25, 2.58, mat('#3a3f48'), false);
-  pot(g, -3.4, 3.6, .6); pot(g, 3.7, 3.6, .5); kotak(g, .3, 1, .3, -3.9, .5, 4.6, mat('#3a3f48')); kotak(g, .5, .35, .4, -3.9, 1.15, 4.6, mat('#d0392b')); unitAC(g, 3.95, 5.2, -1.2);
-  [-4.6, 4.6].forEach(x => kotak(g, .6, .8, 3.4, x, .4, 3.2, mat('#4f9a3c', { roughness: .95 }))); papanNama(g, 'RUMAH JURAGAN', '#2f5a3a', 3.4, -1.9, 3.15, 2.66);
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); gabungStatis(g, new Set(J)); g.rotation.y = -Math.PI / 2; g.position.set(RUMAH.x, 0, RUMAH.z); scene.add(g); }
+  pot(g, -3.4, 3.6, .6); pot(g, 3.7, 3.6, .5); kotak(g, .3, 1, .3, -3.9, .5, 4.6, mat('#3a3f48')); kotak(g, .5, .35, .4, -3.9, 1.15, 4.6, mat('#d0392b')); if (lv >= 1) { unitAC(g, 3.95, 5.2, -1.2); unitAC(g, -3.95, 2, -1.5); }
+  [-4.6, 4.6].forEach(x => kotak(g, .6, .8, 3.4, x, .4, 3.2, mat('#4f9a3c', { roughness: .95 }))); papanNama(g, 'RUMAH JURAGAN', mewah ? '#8a6a1a' : '#2f5a3a', 3.4, -1.9, 3.15, 2.66);
+  if (mewah) [-4.1, 4.1].forEach(x => { kotak(g, .12, 1.6, .12, x, .8, 4.9, mat('#1a1c1f'), false); bola(g, .18, x, 1.7, 4.9, mat('#fff3d6', { emissive: '#ffcf7a', emissiveIntensity: 1.2 })); });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); gabungStatis(g, new Set(J)); g.rotation.y = -Math.PI / 2; g.position.set(RUMAH.x, 0, RUMAH.z); return { g, J }; }
+function bangunRumahLuar(debu) { const lv = S && S.rumah ? S.rumah.lv : 0; if (RUMAH.g && RUMAH.lv === lv) return; if (RUMAH.g) scene.remove(RUMAH.g); const m = modelRumahLuar(lv); RUMAH.g = m.g; RUMAH.lv = lv; RUMAH.J.length = 0; RUMAH.J.push(...m.J); RUMAH.J.forEach(x => x.material = malam ? JENDELA.nyala : JENDELA.siang); scene.add(m.g); if (debu && typeof debu === 'boolean') { m.g.scale.y = .02; let k = 0; const naikkan = () => { k = Math.min(1, k + .05); m.g.scale.y = .02 + k * .98; if (k < 1) requestAnimationFrame(naikkan); }; naikkan(); } }
+{ const m = modelRumahLuar(0); RUMAH.g = m.g; RUMAH.lv = 0; RUMAH.J.push(...m.J); scene.add(m.g); }
 
 /* ---------- isi wilayah pulau: desa, pelabuhan, bukit, bandara, pantai, kampung nelayan, mercusuar ---------- */
 const PADAT_HIAS = [];
@@ -1730,7 +1738,7 @@ const GEDUNG_INFO = {
   sekolah: { nama: 'SD Negeri 07', W: 12, D: 10, ket: 'Malam hari dipakai kelas literasi keuangan untuk warga: belajar konsep keuangan dan dapat XP besar.' },
   kantor: { nama: 'Graha Juragan', W: 16, D: 12, ket: 'Di dalam: kerja lembur untuk tambahan uang, konsultasi agen properti untuk info properti murah, dan kopi gratis di pantri.' } };
 const TIRAI = document.createElement('div'); TIRAI.id = 'tirai'; document.body.appendChild(TIRAI);
-function tirai(fn) { TIRAI.classList.add('tutup'); setTimeout(() => { fn(); setTimeout(() => TIRAI.classList.remove('tutup'), 80); }, 240); }
+function tirai(fn) { TIRAI.classList.add('tutup'); setTimeout(() => { try { fn(); } finally { setTimeout(() => TIRAI.classList.remove('tutup'), 80); } }, 240); }
 const semangat = () => !!(S && S.semangat > S.jam);
 const aktKe = k => ((S.aktivitas || (S.aktivitas = {}))[k] || { b: 0, n: 0 });
 const bolehAkt = (k, maks = 1) => { const a = aktKe(k); return a.b !== S.bulan || a.n < maks; };
@@ -1880,52 +1888,139 @@ function titikAman(R, x, z) { const kena = (x, z) => R.padat.some(([bx, bz, hx, 
   for (let r = 0; r < 3; r += .3) for (let a = 0; a < 6.28; a += .8) { const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r; if (!kena(nx, nz)) return [nx, nz]; } return [x, z]; }
 const warnaMood = m => m >= 70 ? '#2f9a5f' : m >= 40 ? '#b8860b' : '#c0392b';
 function isiLabelRuang(R) { R.label.forEach(l => { const u = l.u; l.el.innerHTML = (u.m && R.info.mode === 'milik' ? `<i class="pilMasalah" style="font-style:normal">${u.m[0]}</i>` : '') + (u.r && R.info.mode === 'milik' ? `<i class="pilMinta" style="font-style:normal">${u.r[0]}</i>` : '') + `<b style="background:${warnaMood(u.p.mood)}">${esc(u.p.nama)}</b>`; }); }
-function bangunRuangProperti(info) { buangRuangSementara(); const jenis = info.jenis, unit = info.unit, n = unit.length, x0 = 900, z0 = 600, H = 2.7, satu = n === 1;
+// Rencana lantai (10 Okt 2026, pemilik: "ruko tiga lantai dan upgrade lantai kenapa tidak ada lantainya"): ruang dalam
+// sekarang mengikuti jumlah lantai gedung. Kos 10 pintu = 5 kamar per lantai; ruko = toko, kantor dan gudang, tempat
+// tinggal; apartemen dan gedung kantor = lobi lalu satu lantai per unit (naik lift); bangunan yang ditambah lantai
+// mendapat satu lantai per unit baru. Yang dibangun hanya lantai yang sedang dikunjungi.
+function rencanaLantai(info) { const j = info.jenis, u = info.unit.map((_, k) => k), L = [];
+  if (info.mode === 'rumah') { L.push({ nama: 'Lantai 1 · ruang keluarga', gaya: 'rumah1', unit: [0], tanpaPenyewa: true }, { nama: 'Lantai 2 · kamar anak dan ruang kerja', gaya: 'rumah2', unit: [], tanpaPenyewa: true }); if ((S.rumah || {}).lv >= 2) L.push({ nama: 'Lantai 3 · ruang santai', gaya: 'rumah3', unit: [], tanpaPenyewa: true }); return L; }
+  if (j === 'kos10') { for (let f = 0; f * 5 < u.length; f++) L.push({ nama: 'Lantai ' + (f + 1), gaya: j, unit: u.slice(f * 5, f * 5 + 5) }); return L; }
+  if (j === 'apartemen' || j === 'kantor') { L.push({ nama: 'Lobi', gaya: 'lobi', unit: [] }); u.forEach(k => L.push({ nama: 'Lantai ' + (k + 2) + (j === 'kantor' ? ' · kantor penyewa ' + (k + 1) : ' · unit ' + (k + 1)), gaya: j === 'kantor' ? 'kantorLuas' : j, unit: [k] })); return L; }
+  if (j === 'ruko') { L.push({ nama: 'Lantai 1 · toko', gaya: 'ruko', unit: [0] }, { nama: 'Lantai 2 · kantor dan gudang toko', gaya: 'kantorLuas', unit: [0], tanpaPenyewa: true }, { nama: 'Lantai 3 · tempat tinggal', gaya: 'apartemen', unit: [0], tanpaPenyewa: true }); u.slice(1).forEach(k => L.push({ nama: 'Lantai ' + (k + 3) + ' · kantor sewaan', gaya: 'kantorLuas', unit: [k] })); return L; }
+  if (j === 'kafe') { L.push({ nama: 'Lantai 1 · kedai', gaya: 'kafe', unit: [0] }, { nama: 'Lantai 2 · area duduk atas', gaya: 'kafe', unit: [0], tanpaPenyewa: true }); return L; }
+  u.forEach(k => L.push({ nama: 'Lantai ' + (k + 1), gaya: j, unit: [k] })); return L; }
+const LANTAI_KHUSUS = { kantorLuas: 12, lobi: 11, rumah1: 11, rumah2: 11, rumah3: 11 };
+function kursiSederhana(g, x, z, ry, m) { const c = new THREE.Group(); kotak(c, .44, .05, .44, 0, .46, 0, m); kotak(c, .44, .5, .05, 0, .74, -.2, m); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => kotak(c, .04, .46, .04, a * .18, .23, b * .18, mat('#1a1c1f'), false)); c.position.set(x, 0, z); c.rotation.y = ry; g.add(c); }
+// isi lantai khusus; mengembalikan daftar orang [x, z, arah, rupa] yang ikut berdiri di lantai itu
+const ISI_KHUSUS = {
+  kantorLuas(g, W, D, t) { const meja = mat('#e8e4da'), gelap = mat('#2d3136'), layar = mat('#6fb6ff', { emissive: '#6fb6ff', emissiveIntensity: .7 }), org = [];
+    for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) { const x = -W / 2 + 1.6 + k * 2.15, z = -D / 2 + 1.3 + r * 2.2; kotak(g, 1.7, .06, .8, x, .75, z, meja); kotak(g, .06, .72, .7, x - .8, .36, z, gelap, false); kotak(g, .06, .72, .7, x + .8, .36, z, gelap, false); kotak(g, .6, .38, .04, x, 1.05, z - .22, gelap, false); kotak(g, .55, .33, .01, x, 1.05, z - .19, layar, false); kursiSederhana(g, x, z + .62, Math.PI, gelap); }
+    kotak(g, 2.2, .06, 1.1, W / 2 - 1.5, .75, D / 2 - 1.1, mat('#5a3a22')); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => kotak(g, .06, .72, .06, W / 2 - 1.5 + a * 1, .36, D / 2 - 1.1 + b * .45, gelap, false)); kotak(g, 1.8, .9, .04, 0, 1.8, -D / 2 + .12, mat('#f7f3ea'), false);
+    pot(g, W / 2 - .5, -D / 2 + .5, .6); pot(g, -W / 2 + .5, D / 2 - .5, .55); if (t >= 1) kotak(g, .4, 1.1, .4, -W / 2 + .4, .55, -D / 2 + .4, mat('#cfe3f5')); return org; },
+  lobi(g, W, D) { const gelap = mat('#2d3136'), krem = mat('#ece6da', { roughness: .3 });
+    kotak(g, 3, 1.1, .8, 0, .55, -D / 2 + 1.7, gelap); kotak(g, 3.1, .06, .9, 0, 1.12, -D / 2 + 1.7, krem); kotak(g, 4, 1.6, .06, 0, 1.9, -D / 2 + .13, mat('#1f3a5a'), false); kotak(g, 3.4, .25, .02, 0, 1.95, -D / 2 + .17, mat('#f3c550', { emissive: '#f3c550', emissiveIntensity: .5 }), false);
+    kotak(g, 2.2, .42, .85, -W / 2 + 1.6, .21, D / 2 - 1.5, mat('#3a5a7a')); kotak(g, 2.2, .45, .2, -W / 2 + 1.6, .62, D / 2 - 1.05, mat('#3a5a7a')); kotak(g, 1, .4, .6, -W / 2 + 1.6, .2, D / 2 - 2.5, krem);
+    kotak(g, .12, 1.1, 2, -W / 2 + .15, 1.3, -1.2, mat('#b9c0c8', { metalness: .5 }), false); pot(g, W / 2 - .6, D / 2 - .6, .7); pot(g, -W / 2 + .6, -D / 2 + .6, .7);
+    return [[0, -D / 2 + .9, 0, { baju: '#f4efe6', jaket: '#1f3a5a' }]]; },
+  rumah2(g, W, D, t) { const lv = (S.rumah || {}).lv || 0, kayu = mat(['#a07448', '#8a5a2a', '#5a3a1a'][t]), sekat = mat('#efe0bd');
+    kotak(g, .12, 2.6, D * .6, 0, 1.3, -D / 2 + D * .3, sekat);
+    kotak(g, 1.2, .3, 2.1, -W / 2 + 1, .18, -D / 2 + 1.2, kayu); kotak(g, 1.1, .2, 2, -W / 2 + 1, .4, -D / 2 + 1.2, mat('#f4f1ea')); kotak(g, 1.12, .07, 1.2, -W / 2 + 1, .53, -D / 2 + 1.5, mat('#6fb6ff'));
+    kotak(g, 1, 2, .55, -1, 1, -D / 2 + .3, kayu); kotak(g, 2, .02, 1.4, -2.6, .07, .2, mat('#e9a91f'), false); ['#d0392b', '#1f6fd0', '#5aa242'].forEach((w, i) => bola(g, .16, -3.2 + i * .45, .16, .5 + (i % 2) * .3, mat(w)));
+    kotak(g, .9, .06, .5, -2.2, .7, -D / 2 + .35, kayu); kursiSederhana(g, -2.2, -D / 2 + .9, Math.PI, kayu);
+    if (lv >= 1) { kotak(g, 1.6, .06, .8, W / 2 - 1.6, .75, -D / 2 + .8, kayu); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => kotak(g, .05, .72, .05, W / 2 - 1.6 + a * .75, .36, -D / 2 + .8 + b * .35, kayu, false)); kursiSederhana(g, W / 2 - 1.6, -D / 2 + 1.4, Math.PI, mat('#2d3136'));
+      kotak(g, .42, .02, .3, W / 2 - 1.6, .79, -D / 2 + .8, mat('#2a2e34'), false); const l = kotak(g, .42, .28, .02, W / 2 - 1.6, .94, -D / 2 + .65, mat('#6fb6ff', { emissive: '#6fb6ff', emissiveIntensity: .7 }), false); l.rotation.x = -.25;
+      kotak(g, 1.2, 1.9, .35, 1.4, .95, -D / 2 + .25, kayu); for (let f = 0; f < 4; f++) for (let i = 0; i < 5; i++) kotak(g, .16, .3, .25, .95 + i * .22, .3 + f * .45, -D / 2 + .3, mat(['#d0392b', '#1f6fd0', '#e9a91f', '#2f8a6a', '#8a3ad0'][i]), false); }
+    else for (let i = 0; i < 5; i++) kotak(g, .7, .6, .6, W / 2 - 1 - (i % 3) * .8, .3 + Math.floor(i / 3) * .6, -D / 2 + .5, mat('#a77d4c'));
+    return []; },
+  rumah3(g, W, D, t) { const lv = (S.rumah || {}).lv || 0, gelap = mat('#1a1c1f'), kain = mat(['#c9c2b4', '#6f9fc0', '#b8423f'][t]);
+    kotak(g, 3.4, 1.9, .1, -2, 1.6, -D / 2 + .15, gelap); kotak(g, 3.2, 1.75, .02, -2, 1.6, -D / 2 + .21, mat('#3a5a8a', { emissive: '#4a7ab0', emissiveIntensity: .6 }), false);
+    kotak(g, 3.4, .45, .95, -2, .23, .9, kain); kotak(g, 3.4, .55, .25, -2, .65, 1.3, kain); kotak(g, .95, .45, 2, -3.6, .23, .1, kain); kotak(g, 3.2, .02, 2.2, -2, .07, -.8, mat('#7a5a3a'), false); kotak(g, 1.2, .4, .6, -2, .2, -.8, mat('#5a3a1a'));
+    if (lv >= 3) { const air = mat('#4fb6d8', { emissive: '#2a8fc0', emissiveIntensity: .4, roughness: .1, metalness: .2, transparent: true, opacity: .85 }); kotak(g, 3.6, .3, 4.2, W / 2 - 2.3, .1, -.4, mat('#f4efe6')); kotak(g, 3.2, .1, 3.8, W / 2 - 2.3, .26, -.4, air, false);
+      [0, 1].forEach(i => { const k = kotak(g, .7, .12, 1.8, W / 2 - 4.6 + i * 0, .35, -1.8 + i * 2.2, mat('#f4f1ea')); k.rotation.x = -.15; }); pot(g, W / 2 - .5, D / 2 - .5, .8); }
+    else { kotak(g, 2.6, .8, 1.4, W / 2 - 2.3, .4, -.4, mat('#5a3a1a')); kotak(g, 2.4, .06, 1.2, W / 2 - 2.3, .82, -.4, mat('#2f8a4a')); pot(g, W / 2 - .5, D / 2 - .5, .6); }
+    return []; } };
+function bangunRuangProperti(info) { buangRuangSementara(); const jenis = info.jenis, unit = info.unit, x0 = 900, z0 = 600, H = 2.7;
+  const rencana = rencanaLantai(info), li = Math.max(0, Math.min(info.lantai || 0, rencana.length - 1)), F = rencana[li], n = F.unit.length, satu = n <= 1, bawah = li === 0, ext = rencana.length > 1 ? 2.4 : 0, lift = rencana[0].gaya === 'lobi';
   const akar = new THREE.Group(); akar.position.set(x0, 0, z0); scene.add(akar); const g = new THREE.Group(); akar.add(g);
-  const W = satu ? (UKURAN_SATU[jenis] || 8) : Math.ceil(n / 2) * 4.6, D = satu ? 6.4 : 4.4 * 2 + 2.8;
-  const R = { jenis, nama: info.nama, x: x0, z: z0, W, D, akar, dinding: [], padat: [], titik: [], orang: [], label: [], info, sementara: true }; RUANG_SEMENTARA = R;
+  const W = satu ? (LANTAI_KHUSUS[F.gaya] || UKURAN_SATU[F.gaya] || UKURAN_SATU[jenis] || 8) : Math.ceil(n / 2) * 4.6, D = satu ? 6.4 : 4.4 * 2 + 2.8;
+  const R = { jenis, nama: info.nama, x: x0, z: z0, W: W + 2 * ext + .4, D: D + .4, akar, dinding: [], padat: [], titik: [], orang: [], label: [], info: { ...info, lantai: li }, sementara: true, rencana, lantai: li, lantaiNama: F.nama }; RUANG_SEMENTARA = R;
   { const al = new THREE.Mesh(geoKotak(W + 60, .1, D + 60), new THREE.MeshBasicMaterial({ color: '#020304' })); al.position.y = -.07; akar.add(al); }
   const mD = dinding(info.mode === 'rumah' ? '#efe0bd' : '#efe9dd'), lampu = mat('#fff3d6', { emissive: '#ffcf7a', emissiveIntensity: 1.1 });
   const ruas = (xa, za, xb, zb, luar = null) => { const w = Math.hypot(xb - xa, zb - za); if (w < .05) return; const d = new THREE.Mesh(geoKotak(w + .2, H, .2), mD); d.position.set((xa + xb) / 2, H / 2, (za + zb) / 2); d.rotation.y = -Math.atan2(zb - za, xb - xa); d.castShadow = d.receiveShadow = true; akar.add(d);
     R.dinding.push({ m: d, a: [x0 + xa, z0 + za], b: [x0 + xb, z0 + zb], ...(luar ? { nx: luar[0], nz: luar[1], cx: x0 + (xa + xb) / 2, cz: z0 + (za + zb) / 2 } : {}) }); R.padat.push([x0 + (xa + xb) / 2, z0 + (za + zb) / 2, Math.abs(xb - xa) / 2 + .12, Math.abs(zb - za) / 2 + .12]); };
   const pintuDi = (xa, xb, z, lebar, luar) => { const c = (xa + xb) / 2; ruas(xa, z, c - lebar / 2, z, luar); ruas(c + lebar / 2, z, xb, z, luar); };
-  // satu kamar: lantai sesuai tingkat, perabot, lampu, penyewa dengan nama di atas kepala, titik bicara
-  const kamar = (k, cx, cz, Wk, Dk, balik) => { const u = unit[k], rg = new THREE.Group(); rg.position.set(cx, 0, cz); rg.rotation.y = balik ? Math.PI : 0; g.add(rg);
-    kotak(rg, Wk, .08, Dk, 0, .04, 0, mat(LANTAI[u.t], { roughness: .55 }), false); perabot(rg, jenis, u.t, Wk, Dk, u); bola(rg, .15, 0, H - .25, 0, lampu);
+  const tampilPenyewa = !F.tanpaPenyewa;
+  const kamar = (k, cx, cz, Wk, Dk, balik) => { const u = k == null ? { p: null, t: info.mode === 'rumah' ? unit[0].t : 0, m: null, r: null } : unit[k], rg = new THREE.Group(); rg.position.set(cx, 0, cz); rg.rotation.y = balik ? Math.PI : 0; g.add(rg);
+    kotak(rg, Wk, .08, Dk, 0, .04, 0, mat(F.gaya === 'lobi' ? '#d8d2c4' : LANTAI[u.t], { roughness: .55 }), false); bola(rg, .15, 0, H - .25, 0, lampu);
+    const khusus = ISI_KHUSUS[F.gaya]; if (khusus) khusus(rg, Wk, Dk, u.t).forEach(([x, z, arah, rupa]) => { const o = buatOrang({ ...rupaAcak(), ...rupa }); o.g.position.set(cx + x, 0, cz + z); akar.add(o.g); R.orang.push({ p: o, x: cx + x, z: cz + z, arah }); });
+    else perabot(rg, F.gaya === 'rumah1' ? 'kontrakan' : F.gaya, u.t, Wk, Dk, u);
+    if (k == null || !tampilPenyewa) return;
     if (u.p) { const o = buatOrang({ baju: u.p.w, rambut: u.p.rambut, gaya: u.p.gaya || 'pendek', hijab: u.p.hijab || null, celana: pilihAcak(['#1f2a44', '#3a3f48', '#5a4a3a']) }), z = cz + (balik ? -1 : 1) * (satu ? .2 : Dk / 2 - .9);
       o.g.position.set(cx, 0, z); akar.add(o.g); R.orang.push({ p: o, x: cx, z, arah: balik ? Math.PI : 0, penyewa: true, pusat: cx, batas: Wk / 2 - .8, tuju: cx, tunggu: Math.random() * 3 });
       const el = document.createElement('div'); el.className = 'lbl namaL'; el.style.display = 'none'; lapisLabel.appendChild(el); R.label.push({ el, o, u, k }); }
-    const tz = cz + (balik ? -1 : 1) * (Dk / 2 - 1.1), awal = satu ? '' : 'Kamar ' + (k + 1) + ': ';
+    const tz = cz + (balik ? -1 : 1) * (Dk / 2 - 1.1), awal = unit.length > 1 ? (jenis === 'kantor' ? 'Penyewa ' : 'Kamar ') + (k + 1) + ': ' : '';
     if (info.mode === 'milik') R.titik.push({ t: 'g-kamar' + k, x: x0 + cx, z: z0 + tz, r: satu ? 2.6 : 1.9, teks: () => { const v = info.p.unit[k]; return v.p ? `${awal}${v.p.nama}${v.m ? ' · perbaiki ' + v.m[0].toLowerCase() : v.r ? ' · minta ' + v.r[0].toLowerCase() : ' · ' + teksMood(v.p.mood).toLowerCase()}` : `${awal}kosong · ${namaTier(info.p, v.t)}`; }, fn: () => dialogKamar(info.p, k) });
     else if (info.mode === 'lawan' && u.p) R.titik.push({ t: 'g-kamar' + k, x: x0 + cx, z: z0 + tz, r: 1.9, teks: `Ngobrol dengan ${u.p.nama}`, fn: () => kabar(`<b>${esc(u.p.nama)}:</b> "${pilihAcak(OBROLAN_LAWAN[info.lawan] || ['Gedung ini lumayan.'])}"`) }); };
   let mulai;
-  if (satu) { kotak(g, W + .4, .1, D + .4, 0, -.02, 0, mat('#8a8070'), false); kamar(0, 0, 0, W, D, false);
-    ruas(-W / 2, -D / 2, W / 2, -D / 2, [0, -1]); ruas(-W / 2, -D / 2, -W / 2, D / 2, [-1, 0]); ruas(W / 2, -D / 2, W / 2, D / 2, [1, 0]); pintuDi(-W / 2, W / 2, D / 2, 1.5, [0, 1]);
-    kotak(g, 1.6, .02, 1, 0, .1, D / 2 - .55, mat('#3a3f48'), false); R.titik.push({ t: 'g-keluar', x: x0, z: z0 + D / 2 - .5, r: 1.2, teks: 'Keluar', fn: () => keluarGedung() });
+  if (satu) { kotak(g, W + ext + .4, .1, D + .4, ext / 2, -.02, 0, mat('#8a8070'), false); kamar(F.unit.length ? F.unit[0] : null, 0, 0, W, D, false);
+    ruas(-W / 2, -D / 2, W / 2 + ext, -D / 2, [0, -1]); ruas(-W / 2, -D / 2, -W / 2, D / 2, [-1, 0]);
+    if (ext) { ruas(W / 2, -D / 2, W / 2, D / 2 - 2.4); ruas(W / 2 + ext, -D / 2, W / 2 + ext, D / 2, [1, 0]); ruas(W / 2, D / 2, W / 2 + ext, D / 2, [0, 1]); } else ruas(W / 2, -D / 2, W / 2, D / 2, [1, 0]);
+    if (bawah) { pintuDi(-W / 2, W / 2, D / 2, 1.5, [0, 1]); kotak(g, 1.6, .02, 1, 0, .1, D / 2 - .55, mat('#3a3f48'), false); R.titik.push({ t: 'g-keluar', x: x0, z: z0 + D / 2 - .5, r: 1.2, teks: 'Keluar', fn: () => keluarGedung() }); }
+    else ruas(-W / 2, D / 2, W / 2, D / 2, [0, 1]);
     mulai = { x: 0, z: D / 2 - 1.2, arah: Math.PI, yaw: 0, pitch: HP ? .82 : .66, jarak: HP ? 20 : 13 }; }
-  else { const kol = Math.ceil(n / 2), L = 2.8; kotak(g, W + .4, .1, D + .4, 0, -.02, 0, mat('#8a8070'), false); kotak(g, W, .06, L, 0, .05, 0, mat('#c9c0b0', { roughness: .6 }), false);
-    for (let k = 0; k < n; k++) { const depan = k >= kol, i = depan ? k - kol : k, cx = -W / 2 + 2.3 + i * 4.6, cz = depan ? L / 2 + 2.2 : -L / 2 - 2.2; kamar(k, cx, cz, 4.6, 4.4, depan); }
-    ruas(-W / 2, -D / 2, W / 2, -D / 2, [0, -1]); ruas(-W / 2, D / 2, W / 2, D / 2, [0, 1]); ruas(W / 2, -D / 2, W / 2, D / 2, [1, 0]); ruas(-W / 2, -D / 2, -W / 2, -L / 2, [-1, 0]); ruas(-W / 2, L / 2, -W / 2, D / 2, [-1, 0]);
+  else { const kol = Math.ceil(n / 2), L = 2.8; kotak(g, W + ext + .4, .1, D + .4, ext / 2, -.02, 0, mat('#8a8070'), false); kotak(g, W + ext, .06, L, ext / 2, .05, 0, mat('#c9c0b0', { roughness: .6 }), false);
+    for (let i2 = 0; i2 < n; i2++) { const depan = i2 >= kol, i = depan ? i2 - kol : i2, cx = -W / 2 + 2.3 + i * 4.6, cz = depan ? L / 2 + 2.2 : -L / 2 - 2.2; kamar(F.unit[i2], cx, cz, 4.6, 4.4, depan); }
+    ruas(-W / 2, -D / 2, W / 2 + ext, -D / 2, [0, -1]); ruas(-W / 2, D / 2, W / 2 + ext, D / 2, [0, 1]);
+    if (ext) { ruas(W / 2, -D / 2, W / 2, -L / 2); ruas(W / 2, L / 2, W / 2, D / 2); ruas(W / 2 + ext, -D / 2, W / 2 + ext, D / 2, [1, 0]); } else ruas(W / 2, -D / 2, W / 2, D / 2, [1, 0]);
+    if (bawah) { ruas(-W / 2, -D / 2, -W / 2, -L / 2, [-1, 0]); ruas(-W / 2, L / 2, -W / 2, D / 2, [-1, 0]); R.titik.push({ t: 'g-keluar', x: x0 - W / 2 + .6, z: z0, r: 1.2, teks: 'Keluar', fn: () => keluarGedung() }); } else ruas(-W / 2, -D / 2, -W / 2, D / 2, [-1, 0]);
     for (let i = 0; i < kol; i++) { const xa = -W / 2 + i * 4.6, xb = xa + 4.6; pintuDi(xa, xb, -L / 2, 1.1); if (i) ruas(xa, -D / 2, xa, -L / 2); if (i < n - kol) { pintuDi(xa, xb, L / 2, 1.1); if (i) ruas(xa, L / 2, xa, D / 2); } else { ruas(xa, L / 2, xb, L / 2); if (i === n - kol && i) ruas(xa, L / 2, xa, D / 2); } }
-    for (let x = -W / 2 + 2; x < W / 2; x += 4) bola(g, .14, x, H - .2, 0, lampu);
-    R.titik.push({ t: 'g-keluar', x: x0 - W / 2 + .6, z: z0, r: 1.2, teks: 'Keluar', fn: () => keluarGedung() });
+    for (let x = -W / 2 + 2; x < W / 2 + ext; x += 4) bola(g, .14, x, H - .2, 0, lampu);
     mulai = { x: -W / 2 + 1.3, z: 0, arah: Math.PI / 2, yaw: -Math.PI / 2, pitch: HP ? .95 : .88, jarak: HP ? 24 : 17 }; }
-  // tambahan sesuai siapa pemiliknya
-  if (info.mode === 'milik') R.titik.push({ t: 'g-kelola', x: x0 + (satu ? W / 2 - 1.2 : -W / 2 + 1.3), z: z0 + (satu ? D / 2 - 1.1 : -1), r: 1.1, teks: 'Kelola properti (iklan, upgrade, jual)', fn: () => dialogKelola(info.p) });
-  if (info.mode === 'lawan') R.titik.push({ t: 'g-tawar', x: x0 + (satu ? W / 2 - 1.2 : -W / 2 + 1.3), z: z0 + (satu ? D / 2 - 1.1 : -1), r: 1.2, teks: 'Tawar beli gedung ini', fn: () => dialogMilikLawan(info.plot) });
-  if (info.mode === 'tawar') R.titik.push({ t: 'g-beli', x: x0 + (satu ? 0 : -W / 2 + 2.6), z: z0 + (satu ? 0 : 0), r: 2, teks: () => `Beli ${JENIS[jenis].nama.toLowerCase()} ini ${rp(info.t.harga)}`, fn: () => S.properti.some(q => q.plot === info.t.plot) ? kabar('Properti ini sudah milikmu.') : dialogBeli(info.t) });
-  if (info.mode === 'rumah') { const Z0 = -D / 2, kayu = mat('#5a3a1a');
+  // tangga atau lift di ruang samping kanan
+  if (ext) { const bx = W / 2 + ext / 2, gelapT = mat('#3a3f48'); kotak(g, ext, .07, D, bx, .05, 0, mat('#c9c0b0', { roughness: .6 }), false);
+    if (lift) { const zL = -D / 2 + .25; kotak(g, 1.9, 2.5, .25, bx, 1.25, zL, mat('#b9c0c8', { metalness: .6, roughness: .3 })); kotak(g, .04, 2.3, .02, bx, 1.2, zL + .14, gelapT, false); kotak(g, .5, .16, .03, bx, 2.35, zL + .15, mat('#f3c550', { emissive: '#f3c550', emissiveIntensity: .9 }), false); R.padat.push([x0 + bx, z0 + zL, 1, .3]); R.tangga = { x: x0 + bx, z: z0 + zL + 1.4 }; }
+    else { const s0 = satu ? D / 2 - 2.2 : 1.6, pj = 4, nT = 10; for (let i = 0; i < nT; i++) { const h = (i + 1) * .27; kotak(g, 1.4, h, pj / nT, bx, h / 2, s0 - (i + .5) * pj / nT, mat('#d8d2c4')); } kotak(g, .06, .9, pj, bx - .74, 1.8, s0 - pj / 2, mat('#5a3a1a'), false);
+      R.padat.push([x0 + bx, z0 + s0 - pj / 2, .78, pj / 2]); R.tangga = { x: x0 + bx, z: z0 + s0 + .8 }; }
+    R.titik.push({ t: 'g-tangga', x: R.tangga.x, z: R.tangga.z - .2, r: 1.4, teks: () => rencana.length > 2 ? (lift ? 'Lift: pilih lantai' : 'Tangga: pilih lantai') : (li ? 'Turun ke ' + rencana[0].nama : 'Naik ke ' + rencana[1].nama), fn: () => rencana.length > 2 ? dialogLantai() : pindahLantai(li ? 0 : 1) }); }
+  // tambahan sesuai siapa pemiliknya (di lantai dasar)
+  if (bawah && info.mode === 'milik') R.titik.push({ t: 'g-kelola', x: x0 + (satu ? -W / 2 + 1.2 : -W / 2 + 1.3), z: z0 + (satu ? D / 2 - 1.1 : -1), r: 1.1, teks: 'Kelola properti (iklan, upgrade, tambah lantai, jual)', fn: () => dialogKelola(info.p) });
+  if (bawah && info.mode === 'lawan') R.titik.push({ t: 'g-tawar', x: x0 + (satu ? -W / 2 + 1.2 : -W / 2 + 1.3), z: z0 + (satu ? D / 2 - 1.1 : -1), r: 1.2, teks: 'Tawar beli gedung ini', fn: () => dialogMilikLawan(info.plot) });
+  if (info.mode === 'tawar') R.titik.push({ t: 'g-beli', x: x0 + (satu ? 0 : -W / 2 + 2.6), z: z0, r: 2, teks: () => `Beli ${JENIS[jenis].nama.toLowerCase()} ini ${rp(info.t.harga)}`, fn: () => S.properti.some(q => q.plot === info.t.plot) ? kabar('Properti ini sudah milikmu.') : dialogBeli(info.t) });
+  if (info.mode === 'rumah') isiRumahJuragan(R, g, F, W, D);
+  isiLabelRuang(R); akar.updateMatrixWorld(true); tabrakanPerabot(R, g); gabungStatis(g);
+  const [sx, sz] = titikAman(R, x0 + mulai.x, z0 + mulai.z); R.mulai = { ...mulai, x: sx, z: sz }; akar.visible = false; return R; }
+function dialogLantai() { const R = GEDUNG && GEDUNG.R; if (!R || !R.rencana) return; const lift = R.rencana[0].gaya === 'lobi';
+  modal(`<div class="sub">${esc(R.nama)}</div><h3>${lift ? 'Lift' : 'Tangga'}: mau ke lantai berapa?</h3><div class="daftarItem">${R.rencana.map((F, i) => { const isi = F.unit.length && !F.tanpaPenyewa && R.info.mode !== 'tawar' ? F.unit.map(k => R.info.unit[k] && R.info.unit[k].p ? 1 : 0).reduce((a, b) => a + b, 0) + '/' + F.unit.length + ' terisi' : '';
+    return `<div class="item">${ik(i === R.lantai ? '#f3c550' : '#6fb6ff', i === 0 && lift ? 'L' : i + 1)}<div class="isi"><b>${esc(F.nama)}</b><small>${i === R.lantai ? 'kamu di sini' : isi}</small></div>${i === R.lantai ? '' : `<button class="pil kecil utama" data-lantai="${i}">Pergi</button>`}</div>`; }).join('')}</div><div class="tombol"><button class="pil" data-tutup>Tutup</button></div>`,
+    () => $$('[data-lantai]').forEach(b => b.onclick = () => { tutupModal(); pindahLantai(+b.dataset.lantai); })); }
+function pindahLantai(i) { if (!GEDUNG || !GEDUNG.R.sementara) return; const lama = GEDUNG.R.info; bunyi('pintu');
+  tirai(() => { const info = { ...lama, lantai: i }; if (info.mode === 'milik') info.unit = info.p.unit; const R = bangunRuangProperti(info); R.akar.visible = true; R.label.forEach(l => l.el.style.display = ''); GEDUNG.R = R;
+    PM.x = R.tangga.x; PM.z = R.tangga.z + .6; PM.arah = Math.PI; PM.y = PM.vy = 0; KAM.target.set(PM.x, 1.2, PM.z); dekat = null; tampilBanner(R.lantaiNama); }); }
+
+/* ---------- Rumah Juragan: isi dan renovasi ---------- */
+// Pemilik: "rumah saya juga bisa di-upgrade". Empat tingkat. Rumah tinggal tidak menghasilkan uang: nilainya dicatat
+// di neraca (85% biaya renovasi), tetapi biaya hidup naik untuk listrik dan perawatan. Hadiahnya kenyamanan:
+// semangat lebih lama setelah tidur, kerja dari rumah, nonton bersama keluarga, dan berenang.
+const RUMAH_LV = [
+  { nama: 'Rumah awal', ket: 'Dua lantai, perabot sederhana.' },
+  { nama: 'Rumah nyaman', biaya: 35e6, lv: 2, beban: 25e4, ket: 'Perabot dan dapur baru, AC, dan ruang kerja di lantai 2: kerja dari rumah sebulan sekali (5% gaji).' },
+  { nama: 'Rumah tiga lantai', biaya: 180e6, lv: 3, beban: 5e5, ket: 'Tambah lantai 3: ruang keluarga, layar besar untuk nonton bersama, dan meja biliar.' },
+  { nama: 'Rumah mewah', biaya: 450e6, lv: 5, beban: 125e4, ket: 'Perabot mewah, kolam renang di lantai 3, dan kolam di teras atap. Tidur dan berenang memberi semangat paling lama.' } ];
+const tierRumah = () => [0, 1, 1, 2][(S.rumah || {}).lv || 0];
+function isiRumahJuragan(R, g, F, W, D) { const x0 = R.x, z0 = R.z, Z0 = -D / 2, lv = S.rumah.lv;
+  if (F.gaya === 'rumah1') { const kayu = mat(['#a07448', '#8a5a2a', '#5a3a1a'][tierRumah()]);
     kotak(g, 1.4, .06, .7, -4.3, .76, D / 2 - 1.1, kayu); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b2]) => kotak(g, .05, .75, .05, -4.3 + a * .65, .38, D / 2 - 1.1 + b2 * .3, kayu, false)); kotak(g, .4, .02, .28, -4.3, .8, D / 2 - 1.1, mat('#2a2e34'), false); { const l = kotak(g, .4, .26, .02, -4.3, .94, D / 2 - 1.25, mat('#6fb6ff', { emissive: '#6fb6ff', emissiveIntensity: .7 }), false); l.rotation.x = -.25; }
-    kotak(g, 1.2, 1.7, .4, 4.6, .85, D / 2 - .5, kayu); [0, 1, 2].forEach(i => { silinder(g, .1, .14, .3, 4.3 + i * .3, 1.3, D / 2 - .5, mat('#d9b86a', { metalness: .6, roughness: .3 }), 10); bola(g, .1, 4.3 + i * .3, 1.5, D / 2 - .5, mat('#d9b86a', { metalness: .6, roughness: .3 })); });
-    const kel = buatOrang({ baju: '#c0577a', hijab: '#6b4426', celana: '#3a2a4a' }); kel.g.position.set(3.4, 0, Z0 + 1.3); akar.add(kel.g); R.orang.push({ p: kel, x: 3.4, z: Z0 + 1.3, arah: Math.PI });
-    const anak = buatOrang({ baju: '#6fb6ff', celana: '#2f4a7a', rambut: '#2a1d14' }); anak.g.scale.setScalar(.7); anak.g.position.set(-.6, 0, Z0 + 2.2); akar.add(anak.g); R.orang.push({ p: anak, x: -.6, z: Z0 + 2.2, arah: Math.PI, penyewa: true, pusat: -.6, batas: 1.2, tuju: -.6, tunggu: 1 });
-    R.titik.push({ t: 'g-tidur', x: x0 - 3.6, z: z0 + Z0 + 2.7, r: 1.4, teks: 'Tidur sampai awal bulan', fn: () => { S.jam += (1 - S.t) * DUR_BULAN; S.t = 1; kabar('Kamu tidur nyenyak. Selamat pagi, bulan baru.', 'baik'); gantiBulan(); } },
+    kotak(g, 1.2, 1.7, .4, 4.6, .85, D / 2 - .5, kayu); for (let i = 0; i <= Math.min(lv + 1, 3); i++) { silinder(g, .1, .14, .3, 4.15 + i * .3, 1.3, D / 2 - .5, mat('#d9b86a', { metalness: .6, roughness: .3 }), 10); bola(g, .1, 4.15 + i * .3, 1.5, D / 2 - .5, mat('#d9b86a', { metalness: .6, roughness: .3 })); }
+    const kel = buatOrang({ baju: '#c0577a', hijab: '#6b4426', celana: '#3a2a4a' }); kel.g.position.set(3.4, 0, Z0 + 1.3); R.akar.add(kel.g); R.orang.push({ p: kel, x: 3.4, z: Z0 + 1.3, arah: Math.PI });
+    const anak = buatOrang({ baju: '#6fb6ff', celana: '#2f4a7a', rambut: '#2a1d14' }); anak.g.scale.setScalar(.7); anak.g.position.set(-.6, 0, Z0 + 2.2); R.akar.add(anak.g); R.orang.push({ p: anak, x: -.6, z: Z0 + 2.2, arah: Math.PI, penyewa: true, pusat: -.6, batas: 1.2, tuju: -.6, tunggu: 1 });
+    R.titik.push({ t: 'g-tidur', x: x0 - 3.6, z: z0 + Z0 + 2.7, r: 1.4, teks: 'Tidur sampai awal bulan', fn: () => { S.jam += (1 - S.t) * DUR_BULAN; S.t = 1; kabar('Kamu tidur nyenyak. Selamat pagi, bulan baru.', 'baik'); gantiBulan(); if (S.rumah.lv) S.semangat = S.jam + 15 * S.rumah.lv; } },
       { t: 'g-simpan', x: x0 - 4.3, z: z0 + D / 2 - 1.9, r: 1.1, teks: 'Laptop: simpan atau muat permainan', fn: dialogRumah },
       { t: 'g-tv', x: x0 + .2, z: z0 + Z0 + 4.1, r: 1.3, teks: 'Duduk di sofa: buka laporan keuangan', fn: () => bukaTab('laporan') },
       { t: 'g-makan', x: x0 + 3.9, z: z0 + 1.9, r: 1.3, teks: () => bolehAkt('makan') ? 'Makan bersama keluarga' : 'Makan bersama keluarga (sudah bulan ini)', fn: () => mulaiSibuk({ detik: 2.5, teks: 'Makan bersama keluarga...' }, () => { if (bolehAkt('makan')) { pakaiAkt('makan'); tambahXP(10); S.semangat = Math.max(S.semangat || 0, S.jam) + 30; kabar('Perut kenyang, hati senang. Semangat dan +10 XP.', 'baik'); } }) },
-      { t: 'g-piala', x: x0 + 4.6, z: z0 + D / 2 - 1.3, r: 1.1, teks: 'Lemari piala: lihat pencapaian', fn: () => bukaTab('misi') }); }
-  isiLabelRuang(R); akar.updateMatrixWorld(true); tabrakanPerabot(R, g); gabungStatis(g);
-  const [sx, sz] = titikAman(R, x0 + mulai.x, z0 + mulai.z); R.mulai = { ...mulai, x: sx, z: sz }; akar.visible = false; return R; }
+      { t: 'g-piala', x: x0 + 4.6, z: z0 + D / 2 - 1.3, r: 1.1, teks: 'Lemari piala: lihat pencapaian', fn: () => bukaTab('misi') },
+      { t: 'g-renov', x: x0 - 1.9, z: z0 + D / 2 - 1, r: 1, teks: () => `Renovasi rumah (sekarang: ${RUMAH_LV[S.rumah.lv].nama.toLowerCase()})`, fn: dialogRenovasiRumah }); }
+  if (F.gaya === 'rumah2' && lv >= 1) R.titik.push({ t: 'g-wfh', x: x0 + W / 2 - 1.6, z: z0 + Z0 + 1.9, r: 1.3, teks: () => bolehAkt('wfh') ? 'Kerja dari rumah di ruang kerja' : 'Ruang kerja (sudah kerja dari rumah bulan ini)', fn: () => {
+    if (!bolehAkt('wfh')) return kabar('Pekerjaan bulan ini sudah beres.'); const upah = bulat(S.gajiDasar * .05, 1e4); mulaiSibuk({ x: x0 + W / 2 - 1.6, z: z0 + Z0 + 1.4, arah: Math.PI, duduk: true, detik: 3, teks: 'Kerja dari rumah...' }, () => { pakaiAkt('wfh'); S.kas += upah; tambahXP(15); bunyi('gajian'); kabar(`Kerja dari rumah selesai. ${rp(upah)} masuk kas.`, 'baik'); }); } });
+  if (F.gaya === 'rumah3') { R.titik.push({ t: 'g-nonton', x: x0 - 2, z: z0 + 1.9, r: 1.6, teks: () => bolehAkt('nonton') ? 'Nonton film bersama keluarga' : 'Layar besar (sudah nonton bulan ini)', fn: () => mulaiSibuk({ x: x0 - 2, z: z0 + .9, arah: Math.PI, duduk: true, detik: 3, teks: 'Nonton film bersama keluarga...' }, () => { if (bolehAkt('nonton')) { pakaiAkt('nonton'); tambahXP(12); S.semangat = Math.max(S.semangat || 0, S.jam) + 35; kabar('Film yang seru. Semangat dan +12 XP.', 'baik'); } }) });
+    if (lv >= 3) R.titik.push({ t: 'g-renang', x: x0 + W / 2 - 2.3, z: z0 + 2.4, r: 1.6, teks: () => bolehAkt('renang') ? 'Berenang di kolam' : 'Kolam renang (sudah berenang bulan ini)', fn: () => mulaiSibuk({ detik: 3, teks: 'Berenang beberapa putaran...' }, () => { if (bolehAkt('renang')) { pakaiAkt('renang'); S.semangat = Math.max(S.semangat || 0, S.jam) + 60; tambahXP(10); kabar('Segar sekali. Semangat paling lama dan +10 XP.', 'baik'); } }) }); } }
+function dialogRenovasiRumah() { const lv = S.rumah.lv, N = RUMAH_LV[lv + 1];
+  modal(`<div class="sub">Rumah Juragan · ${RUMAH_LV[lv].nama}</div><h3>Renovasi rumah</h3><p>Rumah tinggal tidak menghasilkan uang. Nilai renovasi tercatat sebagai aset (85% dari biayanya), tetapi biaya hidup ikut naik untuk listrik dan perawatan. Yang kamu dapat adalah kenyamanan dan kegiatan baru di rumah.</p>
+    <div class="daftarItem">${RUMAH_LV.map((R, i) => `<div class="item ${i > lv + 1 ? 'kunci' : ''}">${ik(i <= lv ? '#5fd08f' : '#c9a876', i + 1)}<div class="isi"><b>${R.nama}${i === lv ? ' · sekarang' : i < lv ? ' · selesai' : ''}</b><small>${R.ket}${R.biaya ? ` Biaya ${rp(R.biaya)}, biaya hidup naik ${rp(R.beban)}/bln, butuh level ${R.lv}.` : ''}</small></div></div>`).join('')}</div>
+    ${N && (S.kas < N.biaya || S.level < N.lv) ? `<div class="peringatan">${S.level < N.lv ? 'Butuh level ' + N.lv + '. ' : ''}${S.kas < N.biaya ? 'Kas belum cukup: butuh ' + rp(N.biaya) + '.' : ''}</div>` : ''}
+    <div class="tombol"><button class="pil" data-tutup>Tutup</button>${N ? `<button class="pil utama" id="bRenov" ${S.kas >= N.biaya && S.level >= N.lv ? '' : 'disabled'}>Renovasi jadi ${N.nama.toLowerCase()}</button>` : ''}</div>`, () => { if ($('#bRenov')) $('#bRenov').onclick = () => { tutupModal(); renovasiRumah(); }; }); }
+function renovasiRumah() { const N = RUMAH_LV[S.rumah.lv + 1]; if (!N || S.kas < N.biaya || S.level < N.lv) return; S.kas -= N.biaya; S.rumah.lv++; S.rumah.nilai = (S.rumah.nilai || 0) + N.biaya * .85; S.biaya += N.beban;
+  bangunRumahLuar(true); simpan(); bunyi('bangun'); tambahXP(40); perbaruiHud(); kabar(`Renovasi selesai: ${N.nama.toLowerCase()}. ${N.ket} Biaya hidup sekarang ${rp(S.biaya)} per bulan.`, 'level');
+  if (GEDUNG && GEDUNG.R.info && GEDUNG.R.info.mode === 'rumah') { const R = bangunRuangProperti({ ...GEDUNG.R.info, unit: [{ p: null, t: tierRumah(), m: null, r: null }] }); R.akar.visible = true; GEDUNG.R = R; dekat = null; } }
 function masukProperti(p) { if (naik || GEDUNG || !p || adalahTanah(p.jenis)) return; const R = bangunRuangProperti({ mode: 'milik', p, jenis: p.jenis, unit: p.unit, nama: p.nama });
   masukRuang(R, depanPlot(p.plot), R.mulai, p.plot, `${p.nama}. Dekati penyewa untuk melayaninya; keluhan tertulis merah di atas kepala.`); }
 function masukLawan(i) { const X = lawanDi(i); if (!X || naik || GEDUNG || adalahTanah(X.m.jenis)) return; const n = X.m.kamar || 1;
@@ -1934,8 +2029,8 @@ function masukLawan(i) { const X = lawanDi(i); if (!X || naik || GEDUNG || adala
   masukRuang(R, depanPlot(i), R.mulai, i, `Kamu bertamu ke ${JENIS[X.m.jenis].nama.toLowerCase()} milik ${X.D.nama}. Ngobrol dengan penyewanya untuk mencari info.`); }
 function masukTawaran(t) { if (!t || naik || GEDUNG || adalahTanah(t.jenis)) return; const n = t.kamar || 1, R = bangunRuangProperti({ mode: 'tawar', t, jenis: t.jenis, unit: Array.from({ length: n }, () => ({ p: null, t: 0, m: null, r: null })), nama: JENIS[t.jenis].nama + ' ' + t.lokasi });
   masukRuang(R, depanPlot(t.plot), R.mulai, t.plot, `Melihat-lihat ${JENIS[t.jenis].nama.toLowerCase()} yang dijual ${rp(t.harga)}. Ruangannya masih kosong.`); }
-function masukRumah() { if (naik || GEDUNG) return; const R = bangunRuangProperti({ mode: 'rumah', jenis: 'kontrakan', unit: [{ p: null, t: 2, m: null, r: null }], nama: 'Rumah Juragan' });
-  masukRuang(R, { x: 60.5, z: -1.2, arah: -Math.PI / 2 }, R.mulai, null, 'Rumah Juragan. Tidur di kasur, simpan permainan di laptop, laporan di sofa, makan bersama keluarga.'); }
+function masukRumah() { if (naik || GEDUNG) return; S.rumah = S.rumah || { lv: 0, nilai: 0 }; const R = bangunRuangProperti({ mode: 'rumah', jenis: 'kontrakan', unit: [{ p: null, t: tierRumah(), m: null, r: null }], nama: 'Rumah Juragan' });
+  masukRuang(R, { x: 60.5, z: -1.2, arah: -Math.PI / 2 }, R.mulai, null, `Rumah Juragan (${RUMAH_LV[S.rumah.lv].nama.toLowerCase()}). Tidur di kasur, simpan permainan di laptop, naik tangga di kanan, dan renovasi rumah dekat pintu.`); }
 // setelah melayani penyewa atau bulan berganti, ruang dalam properti dibangun ulang supaya perabot dan keluhannya ikut berubah
 function segarRuangProperti() { if (!GEDUNG || !GEDUNG.R.sementara || GEDUNG.R.info.mode !== 'milik') return; const p = GEDUNG.R.info.p; if (!S.properti.includes(p)) return keluarGedung(true);
   const R = bangunRuangProperti({ ...GEDUNG.R.info, unit: p.unit }); R.akar.visible = true; R.label.forEach(l => l.el.style.display = ''); GEDUNG.R = R; dekat = null; }
@@ -2323,7 +2418,7 @@ function isiPanel() { if (!S || !tab) return; const el = $('#panel'), judul = n 
       <tr class="judul"><td colspan="2">Uang keluar</td></tr>${L.keluar.map(([n, v]) => `<tr class="pos"><td>${n}</td><td class="turun">-${rp(v)}</td></tr>`).join('')}<tr class="total"><td>Arus kas bersih</td><td class="${L.bersih >= 0 ? 'naik' : 'turun'}">${rp(L.bersih)}</td></tr>${L.tagih ? `<tr class="judul"><td colspan="2">Sewa tertagih otomatis</td></tr>${L.tagih.rinci.map(([n, j]) => `<tr class="pos"><td>${esc(n)}</td><td class="naik">${rp(j)}</td></tr>`).join('')}` : ''}<tr class="pos"><td class="redup" style="font-size:12px">Bunga yang terbayar lewat cicilan</td><td class="redup" style="font-size:12px">${rp(L.bunga || 0)}</td></tr>`
       : `<tr><td class="redup" style="font-size:13px">Laporan muncul setelah bulan pertama selesai. Perkiraan: gaji ${rp(S.gaji)}, biaya hidup ${rp(S.biaya)}, sisa ${rp(S.gaji - S.biaya)}.</td></tr>`}</table>
       <div class="redup" style="font-size:12px;margin-top:14px">Neraca hari ini</div><table class="lap"><tr class="judul"><td colspan="2">Aset</td></tr><tr class="pos"><td>Kas di tangan</td><td>${rp(S.kas)}</td></tr><tr class="pos"><td>Koin sewa belum ditagih</td><td>${rp(koinTotal())}</td></tr><tr class="pos"><td>Nilai properti</td><td>${rp(nilaiProperti())}</td></tr><tr class="pos"><td>Isi lumbung (harga hari ini)</td><td>${rp(Object.entries(S.kebun.gudang).reduce((a, [k, n]) => a + n * hargaBarang(k), 0))}</td></tr>
-      ${nilaiInvestasi() ? `<tr class="pos"><td>Tabungan dan investasi</td><td>${rp(nilaiInvestasi())}</td></tr>` : ''}<tr class="judul"><td colspan="2">Liabilitas</td></tr><tr class="pos"><td>Sisa KPR (bunga ${persen(S.bunga, 1)})</td><td>${rp(sisaUtang())}</td></tr>${hutangLain() ? `<tr class="pos"><td>Pinjaman dan tagihan lain</td><td>${rp(hutangLain())}</td></tr>` : ''}${S.kas + koinTotal() < 0 ? `<tr class="pos"><td>Pinjaman darurat</td><td class="turun">${rp(-(S.kas + koinTotal()))}</td></tr>` : ''}<tr class="total"><td>Kekayaan bersih</td><td>${rp(kekayaan())}</td></tr></table>
+      ${nilaiInvestasi() ? `<tr class="pos"><td>Tabungan dan investasi</td><td>${rp(nilaiInvestasi())}</td></tr>` : ''}${S.rumah && S.rumah.nilai ? `<tr class="pos"><td>Renovasi rumah tinggal (tidak menghasilkan uang)</td><td>${rp(S.rumah.nilai)}</td></tr>` : ''}<tr class="judul"><td colspan="2">Liabilitas</td></tr><tr class="pos"><td>Sisa KPR (bunga ${persen(S.bunga, 1)})</td><td>${rp(sisaUtang())}</td></tr>${hutangLain() ? `<tr class="pos"><td>Pinjaman dan tagihan lain</td><td>${rp(hutangLain())}</td></tr>` : ''}${S.kas + koinTotal() < 0 ? `<tr class="pos"><td>Pinjaman darurat</td><td class="turun">${rp(-(S.kas + koinTotal()))}</td></tr>` : ''}<tr class="total"><td>Kekayaan bersih</td><td>${rp(kekayaan())}</td></tr></table>
       <canvas class="grafik" id="grafik"></canvas><div class="legenda"><span><i style="background:var(--hijau)"></i>Sewa bersih</span><span><i style="background:var(--merah)"></i>Biaya hidup</span><span><i style="background:var(--emas)"></i>Kas</span></div>`; gambarGrafik(); }
   else if (tab === 'hutang') { const kprs = S.properti.filter(p => p.pinjaman > 0).sort((a, b) => b.pinjaman - a.pinjaman), lain = S.hutang || [], darurat = Math.max(0, -(S.kas + koinTotal()));
     const totalH = sisaUtang() + hutangLain() + darurat, bebanRawat = S.properti.reduce((a, p) => a + sewaPenuh(p) * p.rawat, 0), pbb = nilaiProperti() * .002 / 12, gajiP = S.kebun.pengurus ? S.kebun.pengurus.gaji : 0;
@@ -2409,14 +2504,14 @@ function dialogRumah() { const slot = k => baca('juragan-slot-' + k, null);
     $('#rTidur').onclick = () => { tutupModal(); S.jam += (1 - S.t) * DUR_BULAN; S.t = 1; kabar('Kamu tidur nyenyak. Selamat pagi, bulan baru.', 'baik'); gantiBulan(); }; }); }
 function catatRiwayat() { S.riwayat.push({ b: S.bulan, kas: S.kas + koinTotal(), pasif: pasifBersih(), biaya: S.biaya }); if (S.riwayat.length > 240) S.riwayat.shift(); }
 function mulaiBaru(prof) { const P = PROFESI.find(x => x.id === prof);
-  S = { versi: 3, bulan: 1, t: 0, jam: 0, profesi: P.id, namaProfesi: P.nama, gaji: P.gaji, gajiDasar: P.gaji, ombak: P.ombak || 0, biaya: P.biaya, kas: P.kas, bunga: .1, properti: [], tawaran: [], riwayat: [], lap: null, menang: 0, selesai: false, tip: 0, level: 1, xp: 0, kebun: kebunBaru(), tagihOtomatis: true, riwayatTagih: [], lawan: lawanBaru(), misi: [], investasi: invNol(), asuransi: false, manajer: null, prestasi: {}, stat: {}, lelang: null, pemain: { x: 60.5, z: -1.2 }, mobil: { x: 66, z: -10.6, arah: -Math.PI / 2 } };
+  S = { versi: 3, bulan: 1, t: 0, jam: 0, profesi: P.id, namaProfesi: P.nama, gaji: P.gaji, gajiDasar: P.gaji, ombak: P.ombak || 0, biaya: P.biaya, kas: P.kas, bunga: .1, properti: [], tawaran: [], riwayat: [], lap: null, menang: 0, selesai: false, tip: 0, level: 1, xp: 0, kebun: kebunBaru(), tagihOtomatis: true, riwayatTagih: [], lawan: lawanBaru(), misi: [], rumah: { lv: 0, nilai: 0 }, investasi: invNol(), asuransi: false, manajer: null, prestasi: {}, stat: {}, lelang: null, pemain: { x: 60.5, z: -1.2 }, mobil: { x: 66, z: -10.6, arah: -Math.PI / 2 } };
   S.kebun.ladang[0] = { jenis: 'padi', mulai: -25, siap: 5 }; S.kebun.gudang.jagung = 2; S.tawaran = buatTawaran(); awalLawan(); incarLawan(); catatRiwayat(); simpan(); masukPermainan(); KAM.yaw = -Math.PI / 2; PM.arah = -Math.PI / 2; kabar('Selamat datang di Rumah Juragan. Mobilmu parkir di samping rumah. Tiga juragan lain juga berburu properti di kota, jadi jangan lama-lama memutuskan.', 'baik'); }
 function migrasi(D) { D.misi = D.misi || []; D.level = D.level || 1; D.xp = D.xp || 0; D.jam = D.jam || 0; D.kebun = D.kebun || kebunBaru();
   for (const p of D.properti) { if (p.unit) continue; const n = p.kamar || 1, isi = p.kamar ? (+p.terisi || 0) : (p.terisi ? 1 : 0); p.unit = []; for (let k = 0; k < n; k++) p.unit.push({ p: k < isi ? penyewaBaru(p.jenis) : null, t: 0, m: null, r: null }); sinkronTerisi(p); }
   return D; }
 function masukPermainan() { $('#layarAwal').classList.add('sembunyi'); ['#hudKiri', '#hudKanan', '#hudBawah'].forEach(s => $(s).classList.remove('sembunyi'));
   S.properti.forEach(p => { if (p.plot == null) p.plot = plotBebas().find(i => !S.properti.some(q => q.plot === i)); p.koin = p.koin || 0; }); S.tawaran = (S.tawaran || []).filter(t => t.plot != null && !S.properti.some(p => p.plot === t.plot)); if (!S.tawaran.length) S.tawaran = buatTawaran(); S.t = S.t || 0; S.misi = S.misi || []; if (!S.lawan) { S.lawan = lawanBaru(); awalLawan(); incarLawan(); }
-  syncDunia(); syncKebun(); siapkanMisi(); perbaruiHud(); KAM.yaw = .62; if (S.pemain) { PM.x = S.pemain.x; PM.z = S.pemain.z; } naik = false; PM.g.visible = true; if (S.mobil) Object.assign(MOBILKU, S.mobil); MOBILKU.v = 0; tempatkanMobil(); siapkanAgen(); siapkanPengurus(); aturMode(true); KAM.target.set(PM.x, 1.2, PM.z);
+  S.rumah = S.rumah || { lv: 0, nilai: 0 }; bangunRumahLuar(); syncDunia(); syncKebun(); siapkanMisi(); perbaruiHud(); KAM.yaw = .62; if (S.pemain) { PM.x = S.pemain.x; PM.z = S.pemain.z; } naik = false; PM.g.visible = true; if (S.mobil) Object.assign(MOBILKU, S.mobil); MOBILKU.v = 0; tempatkanMobil(); siapkanAgen(); siapkanPengurus(); aturMode(true); KAM.target.set(PM.x, 1.2, PM.z);
   if (!baca('juragan-petunjuk', 0)) { tulis('juragan-petunjuk', 1); setTimeout(() => kabar(HP ? 'Geser joystick di kiri bawah untuk berjalan, tombol Lompat di kanan bawah. Dekati mobil untuk menyetir.' : 'Jalan dengan W A S D atau panah, Shift lari, Spasi lompat. Dekati mobil lalu tekan E untuk menyetir. Tombol M beralih ke Lihat kota.', 'baik'), 1500); } }
 function tampilAwal() { const ada = baca(SIMPAN, null), r = baca(REKOR, null);
   $('#lanjutSimpan').innerHTML = (ada && !ada.selesai ? `<button class="pil utama" id="bLanjutSimpan" style="margin-top:14px">Lanjutkan: bulan ${ada.bulan}, ${String(ada.namaProfesi).toLowerCase()}, kas ${rp(ada.kas)}</button>` : '') + (r ? `<p class="redup" style="font-size:13px;margin-top:10px">Rekor tercepat di perangkat ini: bebas finansial dalam ${r.bulan} bulan sebagai ${String(r.profesi).toLowerCase()}.</p>` : '');
