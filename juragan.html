@@ -170,6 +170,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .logLelang div{background:var(--panel2);border-radius:8px;padding:5px 8px;display:flex;justify-content:space-between;gap:8px}.logLelang div b{font-family:var(--mono)}.logLelang div.aku{border:1px solid rgba(243,197,80,.45)}
 .hargaLelang{font:800 28px var(--mono);color:var(--emas);text-align:center;margin:6px 0 2px}
 .inpUang{flex:1;min-width:120px;background:var(--panel2);color:var(--tinta);border:1px solid var(--garis);border-radius:10px;padding:7px 10px}
+.versiBaru{position:fixed;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);z-index:31;display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--emas);border-radius:14px;padding:8px 10px 8px 14px;font:700 13px var(--sans);color:var(--tinta);box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:calc(100vw - 24px)}
 #tirai{position:fixed;inset:0;background:#0b0e13;opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:30}#tirai.tutup{opacity:1}
 #layarHujan{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;display:none}
 .tblHutang{border:1px solid rgba(240,113,95,.4);background:rgba(240,113,95,.12);color:#f7b2a7;border-radius:999px;padding:2px 9px;font:800 10.5px var(--sans);white-space:nowrap}.tblHutang.nol{border-color:var(--garis);background:rgba(255,255,255,.05);color:var(--redup)}
@@ -2552,6 +2553,15 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); ka
 setInterval(() => { if (S && !diAwal()) siapkanMisi(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && !diAwal()) simpan(); });
 kotaPajangan(); tampilAwal(); requestAnimationFrame(putaran);
+// Pemberitahuan versi baru (10 Okt 2026): jendela game yang dibiarkan terbuka tetap menjalankan versi lama sampai dimuat
+// ulang, jadi perbaikan tidak terlihat. Tiap 3 menit, dan saat jendela dibuka lagi, halaman membaca nama cache di sw.js.
+// Kalau berbeda dengan versi halaman ini, muncul tombol Muat ulang yang menyimpan permainan dulu lalu langsung melanjutkan.
+// VERSI_HALAMAN harus selalu sama dengan NAMA di sw.js setiap kali versi dinaikkan.
+const VERSI_HALAMAN = 'kantor-v48'; let versiDiberitahu = false;
+async function cekVersiBaru() { if (versiDiberitahu || document.hidden) return; try { const t = await (await fetch('sw.js?v=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/kantor-v\d+/) || [])[0]; if (v && v !== VERSI_HALAMAN) { versiDiberitahu = true; tampilVersiBaru(); } } catch (e) {} }
+function tampilVersiBaru() { const d = document.createElement('div'); d.className = 'versiBaru'; d.setAttribute('role', 'status'); d.innerHTML = '<span>Versi baru Juragan Sewa sudah tersedia.</span><button class="pil kecil utama">Muat ulang</button>';
+  d.querySelector('button').onclick = () => { try { if (S && !diAwal()) { simpan(); sessionStorage.setItem('juragan-langsung', '1'); } } catch (e) {} location.reload(); }; document.body.appendChild(d); }
+setInterval(cekVersiBaru, 180000); document.addEventListener('visibilitychange', cekVersiBaru); setTimeout(cekVersiBaru, 8000);
 </script>
 </body>
 </html>
