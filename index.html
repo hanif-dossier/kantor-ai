@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="ikon-192.png">
 <link rel="apple-touch-icon" href="ikon-192.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Fraunces:opsz,wght@9..144,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@500;700&family=Fraunces:opsz,wght@9..144,700&display=swap">
 <style>
 :root{--latar:#101820;--kartu:#182330;--garis:#2a3745;--tinta:#eef3f6;--redup:#9fb0bd;--hijau:#5fd08f;--kuning:#f3c550;--merah:#f08a7d;--biru:#6fb6ff;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--serif:'Fraunces',Georgia,serif}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--latar);color:var(--tinta);font:15px/1.45 var(--sans);overflow:hidden}
@@ -76,12 +76,46 @@ a{color:var(--biru)}
 .game{position:fixed;inset:0;z-index:8;display:none;background:#101820}.game canvas{display:block;width:100%;height:100%;touch-action:none}.gameHasil{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,90%);text-align:center;display:none;border-radius:22px}
 @media (max-width:600px){.label.gedung .gelembung{display:none}.label.gedung.kerja .gelembung,.label.gedung.gagal .gelembung{display:block}.label.zona .papan-zona{font-size:10px;padding:3px 8px}.label.zona .papan-zona small{display:none}.label .gelembung.kecil{display:none}.label.gedung .gelembung{max-width:150px;font-size:9.5px}.label.gedung .gelembung small{display:none}.label .gelembung{font-size:10px;padding:4px 7px;max-width:120px;border-radius:9px}.label .nama{font-size:10px;padding:1px 6px}.label.istirahat .gelembung{display:none}}
 @media (prefers-reduced-motion:reduce){.label .gelembung .titik::after{animation:none}}
+/* kompleks malam (12 Okt 2026): label dan panel gaya ruang kendali */
+.mode-kompleks .merek,.mode-kompleks .angka{background:rgba(6,10,18,.8);border-color:rgba(110,160,210,.26);border-radius:8px}
+.mode-kompleks .angka b{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700}.mode-kompleks .angka small{letter-spacing:.1em}
+.mode-kompleks .keterangan{background:rgba(6,10,18,.75);border-radius:6px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px}
+.kompleks .label.gedung::after{content:'';width:1px;height:18px;background:linear-gradient(rgba(150,200,255,.75),rgba(150,200,255,0))}
+.kompleks .label .nama,.kompleks .label.gedung .nama{background:rgba(7,12,20,.9);color:#dfe8f2;border:1px solid rgba(120,170,220,.35);border-left:3px solid #6b7a8c;border-radius:4px;font:700 10.5px/1.25 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.07em;text-transform:uppercase;padding:3px 8px;box-shadow:0 0 18px rgba(80,140,220,.18)}
+.kompleks .label.kerja .nama{border-left-color:var(--hijau)}.kompleks .label.selesai .nama{border-left-color:var(--kuning)}.kompleks .label.gagal .nama{border-left-color:var(--merah)}
+.kompleks .label .gelembung,.kompleks .label.kerja .gelembung,.kompleks .label.gagal .gelembung{background:rgba(7,12,20,.82);color:#c9d6e3;border:1px solid rgba(120,170,220,.22);border-radius:6px;box-shadow:none;font-size:10.5px}
+.kompleks .label .gelembung::after{display:none}.kompleks .label.kecil{display:none}.kompleks .label .gelembung small{color:#8aa0b5}
+.hud{position:absolute;inset:0;pointer-events:none;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;color:#cfe0f0}
+.hud-atas{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px;display:flex;gap:7px;align-items:center;font-size:10.5px;letter-spacing:.12em;background:rgba(6,10,18,.72);border:1px solid rgba(110,160,210,.25);border-radius:6px;padding:6px 10px}
+.hud-atas i{font-style:normal;color:#53657a}.hud-atas b{color:#9fd4ff}.hud-live{display:flex;align-items:center;gap:5px;color:#ff8a7a;margin-left:6px}.hud-live em{width:7px;height:7px;border-radius:50%;background:#ff5a4a;animation:kedipHud 1.4s infinite}
+.hud-jam{color:#f3c550;margin-left:6px}@keyframes kedipHud{50%{opacity:.25}}
+.hud-panel{position:absolute;background:rgba(6,10,18,.78);border:1px solid rgba(110,160,210,.25);border-radius:8px;padding:9px 11px;backdrop-filter:blur(6px);pointer-events:auto}
+.hud-judul{font-size:10px;letter-spacing:.16em;color:#7f95ab;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px}.hud-judul span{color:var(--hijau)}
+.hud-unit{left:12px;top:92px;width:262px}
+.hud-baris{display:grid;grid-template-columns:1fr 64px 40px;gap:8px;align-items:center;font-size:11px;padding:4px 0;border-top:1px solid rgba(110,160,210,.12);cursor:pointer}
+.hud-baris:hover .hud-nm{color:#fff}.hud-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hud-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}.hud-bar i{display:block;height:100%;background:var(--hijau);transition:width .6s}
+.hud-n{text-align:right;color:#9fb0bd}.hud-n b{color:var(--merah)}.hud-baris.gagal .hud-nm{color:var(--merah)}
+.hud-log{left:12px;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 38px);width:min(440px,44vw)}
+.hud-ln{font-size:10.5px;line-height:1.5;color:#a9bccd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hud-ln span{color:#5f7488;margin-right:6px}.hud-ln b{color:#e4edf5;font-weight:700}
+.hud-ln.selesai b{color:var(--kuning)}.hud-ln.kerja b{color:var(--hijau)}.hud-ln.gagal b{color:var(--merah)}
+@media (max-width:900px){.hud-atas{display:none}}
+@media (max-width:600px){.mode-kompleks .keterangan{display:none}.hud-unit{display:none}.hud-log{left:8px;right:8px;width:auto;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 44px);padding:7px 9px}.hud-ln{font-size:9.5px}
+  .kompleks .label .nama,.kompleks .label.gedung .nama{font-size:9px;padding:2px 6px}}
 </style>
 </head>
 <body>
 <div id="akar"></div>
 <div class="pesan" id="pesan"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- cahaya berpendar untuk kompleks malam (pustaka contoh three r128) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="kompleks.js"></script>
 <script>
 /* =====================================================================================================
    KANTOR AI: satu halaman. Karyawan AI (workflow GitHub, n8n di laptop, routine Claude) melapor ke database lewat
@@ -1045,7 +1079,10 @@ function mulai() { hentikan();
     <div class="game" id="game"><canvas id="gameKanvas"></canvas><button class="pil kecil" id="gKeluar" style="position:absolute;top:max(12px,env(safe-area-inset-top));right:12px">Keluar</button><div class="panel gameHasil" id="gameHasil"></div></div>`;
   $('#bMuat').onclick = muat; $('#bKeluar').onclick = keluar; $('#bManajer').onclick = bukaManajer; $('#tirai').onclick = e => { if (e.target.id === 'tirai') tutupPanel(); };
   $('#bMode').onclick = () => { MODE = MODE === 'kota' ? 'kantor' : 'kota'; try { localStorage.setItem('kantor-mode', MODE); } catch {} mulai(); };
-  (MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); muat(); timer = setInterval(muat, 60000);
+  // 12 Okt 2026: kota diganti Kompleks Hanif (kompleks.js); kota siang lama masih bisa dibuka dengan ?kota=lama
+  const kompleks = MODE === 'kota' && typeof bangunKompleks === 'function' && new URLSearchParams(location.search).get('kota') !== 'lama';
+  akar.classList.toggle('mode-kompleks', kompleks);
+  (kompleks ? bangunKompleks : MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); muat(); timer = setInterval(muat, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && sesi.baca()) muat(); }); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sesi.baca() ? mulai() : layarMasuk();
