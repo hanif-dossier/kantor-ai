@@ -14,7 +14,7 @@ create table if not exists public.konten_status (
   diubah timestamptz not null default now()
 );
 alter table public.konten_status enable row level security;
--- Format posting per tanggal (6 Okt 2026): null = ikut draf (index.json: Reels Selasa, Kamis, Sabtu), 'carousel' atau 'reels'.
+-- Format posting per tanggal (6 Okt 2026): null = ikut draf (index.json: sejak 12 Okt 2026 Reels Selasa dan Jumat, hari lain carousel), 'carousel' atau 'reels'.
 alter table public.konten_status add column if not exists format text check (format in ('carousel', 'reels'));
 revoke all on public.konten_status from public, anon, authenticated;
 
