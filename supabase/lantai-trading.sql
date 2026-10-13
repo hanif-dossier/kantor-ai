@@ -195,3 +195,16 @@ begin
 end $$;
 grant execute on function public.lantai_akun(text, text) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- SEMUA PAIR + REM DARI PUNCAK (13 Okt 2026 sore). Robot memindai 40 pair USDT perpetual paling ramai; kolom
+-- lantai_robot.simbol tidak dipakai lagi (diisi 'SEMUA'), koin posisi ada di posisi->>'simbol'. Rem darurat diukur dari
+-- PUNCAK saldo (drawdown), batasnya diatur pemilik lewat lantai_setel (10% - 60%).
+create or replace function public.lantai_setel(p_token text, p_rem numeric) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_rem is null or p_rem < 0.1 or p_rem > 0.6 then return jsonb_build_object('ok', false, 'pesan', 'Batas rem darurat harus 10% sampai 60%.'); end if;
+  update lantai_dompet set rem_persen = p_rem, diubah = now() where id = 1;
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.lantai_setel(text, numeric) to anon, authenticated;
+notify pgrst, 'reload schema';
