@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Lantai Trading · Kantor AI</title>
+<meta name="theme-color" content="#0b0f17">
+<link rel="icon" href="ikon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@500;700&family=Fraunces:opsz,wght@9..144,700&display=swap">
+<style>
+/* Lantai Trading (13 Okt 2026), rujukan reel @invista.ja: robot duduk di meja = memegang posisi, nongkrong di kafe atau
+   meja biliar = menunggu sinyal, untung-rugi terbuka melayang di kepala, layar besar = perjalanan modal, robot yang
+   menyentuh batas rugi dikeluarkan ke luar pintu kaca. Data dari lantai_baca (sesi pemilik Kantor AI). */
+:root{--latar:#0b0f17;--kartu:#141b27;--garis:#263244;--tinta:#e8eef5;--redup:#91a3b6;--hijau:#45d483;--merah:#ff6b5e;--kuning:#f3c550;--biru:#6fb6ff;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--latar);color:var(--tinta);font:14px/1.45 var(--sans);overflow:hidden}
+#adegan{position:fixed;inset:0}canvas{display:block;touch-action:none}
+.hud{position:fixed;left:0;right:0;top:0;display:flex;gap:8px;padding:max(10px,env(safe-area-inset-top)) 12px 8px;overflow-x:auto;scrollbar-width:none;pointer-events:none;z-index:3}
+.hud>*{pointer-events:auto;flex:none;background:rgba(9,13,21,.82);border:1px solid var(--garis);border-radius:10px;padding:7px 12px;backdrop-filter:blur(8px)}
+.hud small{display:block;font:700 10px/1.2 var(--mono);letter-spacing:.12em;color:var(--redup);text-transform:uppercase}.hud b{font:700 17px/1.3 var(--mono)}
+.hud .judul b{font:700 19px/1.1 Fraunces,serif}.hud .judul small{margin-top:3px}
+.naik{color:var(--hijau)}.turun{color:var(--merah)}
+.mode{display:inline-block;font:700 10px/1 var(--mono);letter-spacing:.1em;padding:3px 7px;border-radius:5px;background:rgba(111,182,255,.16);color:var(--biru);margin-left:6px;vertical-align:3px}
+.mode.live{background:rgba(255,107,94,.18);color:var(--merah)}
+.alat{position:fixed;right:12px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:8px;z-index:3}
+.pil{border:1px solid var(--garis);background:rgba(9,13,21,.85);color:var(--tinta);border-radius:999px;padding:9px 14px;font:700 13px var(--sans);cursor:pointer;text-decoration:none}
+.pil.utama{background:var(--kuning);color:#1a1206;border-color:transparent}.pil.bahaya{background:var(--merah);color:#200805;border-color:transparent}
+.ket{position:fixed;left:12px;bottom:max(12px,env(safe-area-inset-bottom));font:500 11px/1.4 var(--mono);color:var(--redup);background:rgba(9,13,21,.75);padding:6px 10px;border-radius:8px;max-width:58%;z-index:3}
+.label{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;pointer-events:auto;will-change:transform}
+.label .pnl{font:700 12px/1 var(--mono);padding:4px 8px;border-radius:7px;background:rgba(9,13,21,.88);border:1px solid var(--garis);white-space:nowrap}
+.label .pnl.naik{border-color:rgba(69,212,131,.6)}.label .pnl.turun{border-color:rgba(255,107,94,.6)}
+.label .nama{font:800 11px/1 var(--sans);background:#fff;color:#141b27;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.label .nama i{font-style:normal;font-weight:600;color:#5a6676}
+.label.keluar .nama{background:#ff6b5e;color:#200805}.label.keluar .nama i{color:#4a1410}
+#label{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.tirai{position:fixed;inset:0;background:rgba(3,6,10,.6);display:none;align-items:flex-end;justify-content:center;z-index:5}.tirai.buka{display:flex}
+.panel{width:min(560px,100%);max-height:86vh;overflow:auto;background:var(--kartu);border:1px solid var(--garis);border-radius:20px 20px 0 0;padding:18px 18px max(18px,env(safe-area-inset-bottom))}
+@media (min-width:700px){.tirai{align-items:center}.panel{border-radius:20px}}
+.panel h2{margin:0;font:700 24px/1.15 Fraunces,serif}.panel .sub{color:var(--redup);font-size:13px;margin:2px 0 12px}
+.kisi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.kisi div{background:rgba(255,255,255,.04);border:1px solid var(--garis);border-radius:12px;padding:8px 10px}.kisi small{display:block;color:var(--redup);font-size:11px}.kisi b{font:700 15px var(--mono)}
+.aturan{background:rgba(243,197,80,.08);border:1px solid rgba(243,197,80,.3);border-radius:12px;padding:10px 12px;font-size:13px;margin:10px 0}
+.baris{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--garis);font-size:12.5px}.baris span:last-child{font-family:var(--mono);white-space:nowrap}
+.judul-sub{font:700 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--redup);margin:14px 0 4px}
+.aksi{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.peringatan{background:rgba(255,107,94,.1);border:1px solid rgba(255,107,94,.4);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:10px}
+.masuk{position:fixed;inset:0;display:grid;place-items:center;padding:20px;text-align:center}
+@media (max-width:600px){.hud>*{padding:6px 10px}.hud b{font-size:14px}.ket{display:none}.label .nama i{display:none}}
+</style>
+</head>
+<body>
+<div id="adegan"></div><div id="label"></div>
+<div class="hud" id="hud"></div>
+<div class="ket" id="ket">Memuat lantai…</div>
+<div class="alat"><a class="pil" href="./">Kantor</a><button class="pil" id="bMuat">Muat ulang</button></div>
+<div class="tirai" id="tirai"><div class="panel" id="panel"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const SB_URL = 'https://hzxfheydtrjhizbwbddh.supabase.co', SB_KEY = 'sb_publishable_3c_5VhfP4Z9g1dSU9c00HQ_0QkuiHTm', LS = 'kantor-sesi';
+const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const token = (() => { try { return localStorage.getItem(LS); } catch { return null; } })();
+async function rpc(fn, body) { const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('Server ' + r.status); return r.json(); }
+const usd = (n, d = 2) => (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const usdT = n => (n >= 0 ? '+' : '−') + '$' + Math.abs(n).toFixed(2);
+const pct = n => (n >= 0 ? '+' : '−') + Math.abs(n * 100).toFixed(1) + '%';
+const jam = t => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const harga = v => v == null ? '-' : v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v >= 1 ? v.toFixed(4) : v.toFixed(6);
+const WARNA = [0x4f7aa8, 0xc98f3a, 0x5e9c6a, 0xb45f8c, 0x3a8fc9, 0xd46a8a, 0x8a6d4a, 0x7a6fb3];
+let DATA = null;
+
+if (!token) document.body.innerHTML = `<div class="masuk"><div><h2 style="font-family:Fraunces,serif">Lantai Trading</h2><p style="color:var(--redup)">Masuk dulu di Kantor AI dengan sandi pemilik.</p><a class="pil utama" href="./">Buka Kantor AI</a></div></div>`;
+
+// ---------- adegan 3D
+const wadah = $('#adegan'), renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; wadah.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0f17); scene.fog = new THREE.Fog(0x0b0f17, 40, 80);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 200);
+scene.add(new THREE.HemisphereLight(0xbfd2ff, 0x1a1410, .55));
+const lampu = new THREE.DirectionalLight(0xfff1dc, .9); lampu.position.set(8, 18, 10); lampu.castShadow = true; lampu.shadow.mapSize.set(2048, 2048); Object.assign(lampu.shadow.camera, { left: -20, right: 20, top: 16, bottom: -16 }); scene.add(lampu);
+[[-6, 4.6, -2], [4, 4.6, -2], [12, 4.6, 3]].forEach(([x, y, z]) => { const p = new THREE.PointLight(0xffd6a0, .55, 18); p.position.set(x, y, z); scene.add(p); });
+const L = h => new THREE.Color(h).convertSRGBToLinear();
+const bahan = (h, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: L(h), roughness: .7, ...o }); if (o.emissive != null) m.emissive = L(o.emissive); return m; };
+const GEO = new THREE.BoxGeometry(1, 1, 1);
+const kotak = (m, w, h, d, x, y, z, induk = scene) => { const o = new THREE.Mesh(GEO, m); o.scale.set(w, h, d); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; induk.add(o); return o; };
+const silinder = (m, r, h, x, y, z, induk = scene) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; induk.add(o); return o; };
+const M = { lantai: bahan(0x1d2430, { roughness: .45, metalness: .2 }), dinding: bahan(0x161c26), kayu: bahan(0x7a5234, { roughness: .55 }), arang: bahan(0x22262d, { roughness: .4, metalness: .4 }),
+  karpet: bahan(0x2a3b56, { roughness: .95 }), kaca: new THREE.MeshStandardMaterial({ color: L(0x9fc6e0), roughness: .05, metalness: .3, transparent: true, opacity: .18, depthWrite: false }),
+  sofa: bahan(0x6b3a3a, { roughness: .85 }), hijau: bahan(0x1f6b45, { roughness: .9 }), putih: bahan(0xe8e4dc), emas: bahan(0xc9a24a, { roughness: .3, metalness: .8 }), lampuNeon: bahan(0x111111, { emissive: 0xffc070 }) };
+// ruang: lantai, dinding belakang, karpet meja trading, garis lantai
+kotak(M.lantai, 34, .2, 22, 0, -.1, 0); kotak(M.dinding, 34, 7, .3, 0, 3.5, -10.6); kotak(M.dinding, .3, 7, 22, -17, 3.5, 0); kotak(M.karpet, 18, .02, 10, -4, .01, 0);
+kotak(M.lampuNeon, 34, .08, .08, 0, 6.9, -10.4);
+// layar besar di dinding: perjalanan modal (tekstur kanvas digambar ulang tiap data baru)
+const kanvasLayar = document.createElement('canvas'); kanvasLayar.width = 1600; kanvasLayar.height = 640; const tekLayar = new THREE.CanvasTexture(kanvasLayar); tekLayar.encoding = THREE.sRGBEncoding;
+kotak(M.arang, 15.4, 6.2, .3, -4, 3.7, -10.3); const layar = new THREE.Mesh(new THREE.PlaneGeometry(15, 6), new THREE.MeshBasicMaterial({ map: tekLayar, toneMapped: false })); layar.position.set(-4, 3.7, -10.13); scene.add(layar);
+// 8 meja trading (2 baris x 4), tiap meja 2 monitor; posisi duduk menghadap layar besar
+const MEJA = []; const mejaMonitor = [];
+for (let b = 0; b < 2; b++) for (let k = 0; k < 4; k++) { const x = -10.5 + k * 4.3, z = -3 + b * 5;
+  kotak(M.kayu, 3.2, .12, 1.5, x, 1.5, z); [-1.4, 1.4].forEach(dx => kotak(M.arang, .1, 1.45, 1.2, x + dx, .75, z));
+  const layarM = []; [-.7, .7].forEach(dx => { kotak(M.arang, .08, .5, .08, x + dx, 1.8, z - .45); const kn = document.createElement('canvas'); kn.width = 256; kn.height = 160;
+    const t = new THREE.CanvasTexture(kn); t.encoding = THREE.sRGBEncoding; const mon = new THREE.Mesh(new THREE.BoxGeometry(1.25, .78, .06), [M.arang, M.arang, M.arang, M.arang, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }), M.arang]);
+    mon.position.set(x + dx, 2.4, z - .5); mon.castShadow = true; scene.add(mon); layarM.push({ kn, t }); });
+  kotak(M.arang, .7, .5, .7, x, .45, z + 1.1); kotak(M.arang, .7, .7, .1, x, 1, z + 1.45);   // kursi
+  MEJA.push({ x, z: z + 1.05, layarM }); }
+// kafe: meja bar, mesin kopi, bangku; sofa; meja biliar
+kotak(M.kayu, 1, 1.1, 5.5, 13, .55, -6); kotak(M.putih, 1.1, .08, 5.6, 13, 1.12, -6); kotak(M.arang, .6, .7, .5, 13.1, 1.5, -7.8); kotak(M.emas, .3, .3, .3, 13.1, 1.95, -7.8);
+[-7.5, -6, -4.5].forEach(z => silinder(M.arang, .25, .9, 11.9, .45, z));
+kotak(M.sofa, 3.6, .55, 1.2, 12, .3, 1.2); kotak(M.sofa, 3.6, .9, .35, 12, .75, 1.75); kotak(M.kayu, 1.6, .4, .8, 12, .2, -.2);
+kotak(M.kayu, 4.4, .75, 2.6, 7.5, .38, 6.5); kotak(M.hijau, 4.1, .06, 2.3, 7.5, .78, 6.5); [[0xffffff, -1.2, .4], [0xe03b2e, .6, -.3], [0xf3c550, 1.1, .5], [0x2b5fd0, .2, .6]].forEach(([c, dx, dz]) => { const b = new THREE.Mesh(new THREE.SphereGeometry(.09, 12, 8), bahan(c, { roughness: .2 })); b.position.set(7.5 + dx, .9, 6.5 + dz); scene.add(b); });
+const tongkat = kotak(M.kayu, 2.4, .04, .04, 6, 1.1, 5.3); tongkat.rotation.z = -.25;
+// pintu kaca keluar (kiri depan) dan teras luar untuk robot yang dikeluarkan
+kotak(M.kaca, .08, 3.4, 4, -16.9, 1.7, 7); kotak(M.arang, .12, .12, 4.2, -16.9, 3.45, 7); kotak(bahan(0x2a1414), 6, .1, 6, -20.5, .02, 7);
+const papanKeluar = document.createElement('canvas'); papanKeluar.width = 512; papanKeluar.height = 96; { const x = papanKeluar.getContext('2d'); x.fillStyle = '#3a0f0c'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ff8a7e'; x.font = 'bold 44px JetBrains Mono, monospace'; x.textAlign = 'center'; x.fillText('DIKELUARKAN', 256, 62); }
+const tk = new THREE.CanvasTexture(papanKeluar); tk.encoding = THREE.sRGBEncoding; const pk = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .5), new THREE.MeshBasicMaterial({ map: tk, toneMapped: false })); pk.position.set(-16.75, 3.9, 7); pk.rotation.y = Math.PI / 2; scene.add(pk);
+// tempat menunggu: kafe (berdiri), sofa (duduk), biliar (berdiri)
+const TUNGGU = [[11.6, -7.5, -Math.PI / 2, 'kopi'], [11.6, -6, -Math.PI / 2, 'kopi'], [11.6, -4.5, -Math.PI / 2, 'kopi'], [11.2, 1.1, Math.PI, 'sofa'], [12.8, 1.1, Math.PI, 'sofa'], [5.4, 6.5, Math.PI / 2, 'biliar'], [9.6, 6.5, -Math.PI / 2, 'biliar'], [7.5, 8.4, Math.PI, 'biliar']];
+const KELUAR = [[-19.5, 5.5], [-21, 6.5], [-19.5, 8], [-21, 9], [-20.2, 4.6], [-22, 7.7], [-18.8, 9.2], [-22, 5]];
+
+// ---------- orang (robot trader)
+function buatOrang(warna) { const g = new THREE.Group(), m = c => bahan(c, { roughness: .75 });
+  const k = (w, h, d, c, x, y, z, induk = g) => { const o = new THREE.Mesh(GEO, m(c)); o.scale.set(w, h, d); o.position.set(x, y, z); o.castShadow = true; induk.add(o); return o; };
+  const badan = k(.72, .8, .5, warna, 0, 1.45, 0); k(.26, .44, .02, 0xf6f3ee, 0, 1.6, -.255); k(.08, .38, .025, 0x7a1f2b, 0, 1.55, -.266);
+  const kepala = k(.56, .56, .56, 0xb9c4d0, 0, 2.15, 0); k(.6, .14, .6, 0x30363f, 0, 2.38, 0); k(.4, .1, .02, 0x6fe3ff, 0, 2.18, -.29);   // kepala robot dengan visor
+  const sendi = (x, y) => { const s = new THREE.Group(); s.position.set(x, y, 0); g.add(s); return s; };
+  const lk = sendi(-.46, 1.78), ln = sendi(.46, 1.78); for (const l of [lk, ln]) { k(.18, .62, .18, warna, 0, -.31, 0, l); k(.16, .14, .16, 0xb9c4d0, 0, -.68, 0, l); }
+  const kk = sendi(-.18, 1.05), kn = sendi(.18, 1.05); for (const x of [kk, kn]) { k(.26, .95, .3, 0x2b3c55, 0, -.48, 0, x); k(.28, .14, .42, 0x222222, 0, -.98, -.06, x); }
+  g.scale.setScalar(.82); scene.add(g); return { g, badan, kepala, lk, ln, kk, kn }; }
+const ROBOT = {};   // id -> { o (orang), label, tujuan, tempat }
+
+function gambarLayar() { const x = kanvasLayar.getContext('2d'), W = 1600, H = 640, R = DATA.robot, modal = DATA.modal;
+  x.fillStyle = '#060a12'; x.fillRect(0, 0, W, H); x.fillStyle = '#9fd4ff'; x.font = 'bold 34px JetBrains Mono, monospace'; x.fillText('LANTAI TRADING · MODAL 8 ROBOT', 40, 60);
+  const awal = R.reduce((a, r) => a + +r.modal_awal, 0), kini = modal.length ? +modal.at(-1).t : awal;
+  x.font = 'bold 72px JetBrains Mono, monospace'; x.fillStyle = kini >= awal ? '#45d483' : '#ff6b5e'; x.fillText(usd(kini), 40, 150); x.font = '32px JetBrains Mono, monospace'; x.fillText(`${usdT(kini - awal)}  (${pct(kini / awal - 1)})  sejak mulai`, 40, 200);
+  // grafik
+  const gx = 40, gy = 240, gw = 1000, gh = 360; x.strokeStyle = '#1d2a3c'; x.lineWidth = 2; for (let i = 0; i <= 4; i++) { x.beginPath(); x.moveTo(gx, gy + i * gh / 4); x.lineTo(gx + gw, gy + i * gh / 4); x.stroke(); }
+  if (modal.length > 1) { const v = modal.map(m => +m.t), lo = Math.min(awal, ...v), hi = Math.max(awal, ...v), sp = hi - lo || 1, X = i => gx + i / (v.length - 1) * gw, Y = n => gy + gh - (n - lo) / sp * gh;
+    x.setLineDash([10, 10]); x.strokeStyle = '#5b6b80'; x.beginPath(); x.moveTo(gx, Y(awal)); x.lineTo(gx + gw, Y(awal)); x.stroke(); x.setLineDash([]);
+    x.strokeStyle = kini >= awal ? '#45d483' : '#ff6b5e'; x.lineWidth = 5; x.beginPath(); v.forEach((n, i) => i ? x.lineTo(X(i), Y(n)) : x.moveTo(X(i), Y(n))); x.stroke(); }
+  else { x.fillStyle = '#5b6b80'; x.font = '28px JetBrains Mono, monospace'; x.fillText('Grafik muncul setelah beberapa putaran (tiap 5 menit).', gx + 20, gy + gh / 2); }
+  // daftar robot
+  x.font = 'bold 26px JetBrains Mono, monospace'; R.forEach((r, i) => { const y = 270 + i * 44, m = +r.kas + (r.posisi?.terbuka || 0), u = m - +r.modal_awal;
+    x.fillStyle = r.status === 'dikeluarkan' ? '#ff6b5e' : '#d9e3ee'; x.fillText(r.nama.padEnd(6) + r.simbol.replace('USDT', '').padEnd(5), 1080, y);
+    x.fillStyle = u >= 0 ? '#45d483' : '#ff6b5e'; x.fillText(usdT(u).padStart(8), 1300, y); x.fillStyle = r.posisi ? '#f3c550' : '#5b6b80'; x.fillText(r.status === 'dikeluarkan' ? 'OUT' : r.posisi ? r.posisi.sisi.toUpperCase() : '-', 1480, y); });
+  tekLayar.needsUpdate = true; }
+function gambarMonitor(m, r) { m.layarM.forEach((L2, j) => { const x = L2.kn.getContext('2d'), w = 256, h = 160, aktif = !!r?.posisi; x.fillStyle = aktif ? '#07111c' : '#05070b'; x.fillRect(0, 0, w, h);
+    if (!r) return; x.strokeStyle = aktif ? ((r.posisi.terbuka || 0) >= 0 ? '#45d483' : '#ff6b5e') : '#1e2a3a'; x.lineWidth = 3; x.beginPath(); let y = 90;
+    for (let i = 0; i < 24; i++) { y += Math.sin(i * 1.7 + j + r.urut) * 9 + (aktif ? ((r.posisi.terbuka || 0) >= 0 ? -1.6 : 1.6) : 0); x.lineTo(10 + i * 10, Math.max(20, Math.min(150, y))); } x.stroke();
+    x.fillStyle = '#9fb3c8'; x.font = 'bold 20px JetBrains Mono, monospace'; x.fillText(j ? r.simbol.replace('USDT', '') : r.interval, 10, 26); L2.t.needsUpdate = true; }); }
+
+function tempatkanRobot() { let iTunggu = 0, iKeluar = 0; DATA.robot.forEach((r, i) => { let R2 = ROBOT[r.id];
+    if (!R2) { const o = buatOrang(WARNA[i % 8]); o.g.userData.robot = r.id; const l = document.createElement('div'); l.className = 'label'; l.onclick = () => bukaPanel(r.id); $('#label').appendChild(l);
+      R2 = ROBOT[r.id] = { o, label: l, pos: new THREE.Vector3(MEJA[i].x, 0, MEJA[i].z + 1.8) }; o.g.position.copy(R2.pos); }
+    R2.r = r; const meja = MEJA[i];
+    if (r.status === 'dikeluarkan') { const [x, z] = KELUAR[iKeluar++ % KELUAR.length]; R2.tujuan = new THREE.Vector3(x, 0, z); R2.mode = 'keluar'; R2.hadap = Math.PI / 2; }
+    else if (r.posisi) { R2.tujuan = new THREE.Vector3(meja.x, 0, meja.z); R2.mode = 'duduk'; R2.hadap = 0; }
+    else { const [x, z, h, jenis] = TUNGGU[iTunggu++ % TUNGGU.length]; R2.tujuan = new THREE.Vector3(x, 0, z); R2.mode = r.status === 'jeda' ? 'sofa' : jenis; R2.hadap = h; }
+    gambarMonitor(meja, r.status === 'dikeluarkan' ? null : r);
+    const m = +r.kas + (r.posisi?.terbuka || 0), u = m - +r.modal_awal, buka = r.posisi ? r.posisi.terbuka || 0 : null;
+    R2.label.className = 'label' + (r.status === 'dikeluarkan' ? ' keluar' : '');
+    R2.label.innerHTML = `<div class="pnl ${(buka ?? u) >= 0 ? 'naik' : 'turun'}">${buka != null ? `${r.posisi.sisi.toUpperCase()} ${usdT(buka)}` : r.status === 'dikeluarkan' ? 'dikeluarkan ' + usdT(u) : r.status === 'jeda' ? 'jeda' : 'menunggu sinyal'}</div><div class="nama">${esc(r.nama)} <i>${esc(r.simbol.replace('USDT', ''))}${r.live ? ' · LIVE' : ''}</i></div>`; }); }
+
+function gambarHud() { const R = DATA.robot, awal = R.reduce((a, r) => a + +r.modal_awal, 0), kini = R.reduce((a, r) => a + +r.kas + (r.posisi?.terbuka || 0), 0), live = R.some(r => r.live);
+  $('#hud').innerHTML = `<div class="judul"><b>Lantai Trading</b><small>Binance futures<span class="mode ${live ? 'live' : ''}">${live ? 'ADA UANG SUNGGUHAN' : 'SIMULASI'}</span></small></div>
+    <div><small>Modal 8 robot</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usd(kini)}</b></div><div><small>Sejak mulai</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usdT(kini - awal)}</b></div>
+    <div><small>Posisi terbuka</small><b>${R.filter(r => r.posisi).length}</b></div><div><small>Dikeluarkan</small><b class="${R.some(r => r.status === 'dikeluarkan') ? 'turun' : ''}">${R.filter(r => r.status === 'dikeluarkan').length}</b></div>
+    <div><small>Transaksi</small><b>${R.reduce((a, r) => a + (r.statistik?.transaksi || 0), 0)}</b></div>`;
+  $('#ket').textContent = `Putaran terakhir ${DATA.terakhir ? jam(DATA.terakhir) : '-'} · tiap 5 menit · geser untuk memutar, ketuk robot untuk rinciannya`; }
+
+function bukaPanel(id) { const R2 = ROBOT[id]; if (!R2) return; const r = R2.r, s = r.statistik || {}, p = r.posisi, m = +r.kas + (p?.terbuka || 0), T = DATA.transaksi.filter(t => t.robot === id).slice(0, 8);
+  $('#panel').innerHTML = `<h2>${esc(r.nama)} · ${esc(s.judul || r.strategi)}</h2><div class="sub">${esc(r.simbol)} · lilin ${esc(r.interval)} · ${r.live ? '<b style="color:var(--merah)">uang sungguhan</b>' : 'simulasi'} · status ${esc(r.status)}</div>
+    <div class="aturan"><b>Aturan tertulis.</b> ${esc(s.aturan || '-')} Risiko ${(+r.risiko * 100).toFixed(0)}% kas per transaksi, leverage paling besar ${r.leverage}x, dikeluarkan kalau modal turun ${(+r.batas_rugi * 100).toFixed(0)}% dari ${usd(+r.modal_awal)}.</div>
+    <div class="kisi"><div><small>Modal sekarang</small><b class="${m >= +r.modal_awal ? 'naik' : 'turun'}">${usd(m)}</b></div><div><small>Untung-rugi</small><b class="${m >= +r.modal_awal ? 'naik' : 'turun'}">${usdT(m - +r.modal_awal)}</b></div><div><small>Turun terdalam</small><b>${((s.ddMaks || 0) * 100).toFixed(1)}%</b></div>
+      <div><small>Transaksi</small><b>${s.transaksi || 0}</b></div><div><small>Menang</small><b>${s.transaksi ? Math.round(s.menang / s.transaksi * 100) + '%' : '-'}</b></div><div><small>Harga ${esc(r.simbol.replace('USDT', ''))}</small><b>${harga(s.mark)}</b></div></div>
+    ${p ? `<div class="judul-sub">Posisi terbuka</div><div class="baris"><span>${p.sisi.toUpperCase()} ${harga(p.qty)} ${esc(r.simbol.replace('USDT', ''))} di ${harga(p.masuk)}</span><span class="${(p.terbuka || 0) >= 0 ? 'naik' : 'turun'}">${usdT(p.terbuka || 0)}</span></div>
+      <div class="baris"><span>Stop loss · take profit</span><span>${harga(p.sl)} · ${harga(p.tp)}</span></div><div class="baris"><span>Alasan masuk</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(p.alasan)}</span></div>` : `<div class="judul-sub">Menunggu sinyal</div><div class="baris"><span>Sinyal terakhir</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(s.terakhirSinyal?.teks || 'belum ada')}</span></div>`}
+    ${r.catatan ? `<div class="peringatan">${esc(r.catatan)}</div>` : ''}
+    <div class="judul-sub">Transaksi terakhir</div>${T.length ? T.map(t => `<div class="baris"><span>${jam(t.waktuKeluar)} · ${t.sisi.toUpperCase()} · ${esc(t.alasanKeluar)}</span><span class="${t.pnl >= 0 ? 'naik' : 'turun'}">${usdT(t.pnl)}</span></div>`).join('') : '<div class="baris"><span>Belum ada</span><span></span></div>'}
+    <div class="aksi">${r.status === 'aktif' ? `<button class="pil" data-aksi="jeda">Jeda</button>` : r.status === 'jeda' ? `<button class="pil utama" data-aksi="lanjut">Lanjutkan</button>` : `<button class="pil utama" data-aksi="mulai-ulang">Mulai ulang dari ${usd(+r.modal_awal)}</button>`}
+      ${r.status !== 'dikeluarkan' ? (r.live ? `<button class="pil" data-aksi="live-mati">Kembali ke simulasi</button>` : `<button class="pil bahaya" data-aksi="live-nyala">Pakai uang sungguhan…</button>`) : ''}<button class="pil" id="bTutup">Tutup</button></div>
+    ${!DATA.kunciBursa ? `<div class="sub" style="margin-top:10px">Kunci API Binance belum dipasang. Saklar uang sungguhan baru bekerja setelah kamu sendiri memasang BINANCE_KEY dan BINANCE_SECRET di Supabase → Edge Functions → Secrets.</div>` : ''}`;
+  $('#tirai').classList.add('buka'); $('#bTutup').onclick = () => $('#tirai').classList.remove('buka');
+  document.querySelectorAll('[data-aksi]').forEach(b => b.onclick = async () => { const a = b.dataset.aksi;
+    if (a === 'live-nyala' && prompt(`Robot ${r.nama} akan membuka posisi dengan SALDO SUNGGUHAN di Binance futures (leverage sampai ${r.leverage}x, rugi bisa sampai ${(+r.batas_rugi * 100).toFixed(0)}% modal robot atau lebih kalau harga melompat).\n\nKetik YA untuk melanjutkan.`) !== 'YA') return;
+    b.disabled = true; try { const j = await rpc('lantai_atur', { p_token: token, p_robot: id, p_aksi: a }); if (!j.ok) throw new Error(j.pesan); await muat(); bukaPanel(id); } catch (e) { alert(e.message); b.disabled = false; } }); }
+$('#tirai').onclick = e => { if (e.target.id === 'tirai') $('#tirai').classList.remove('buka'); };
+
+async function muat() { try { const j = await rpc('lantai_baca', { p_token: token }); if (!j.ok) { location.href = './'; return; } DATA = j; gambarLayar(); tempatkanRobot(); gambarHud(); }
+  catch (e) { $('#ket').textContent = 'Gagal memuat: ' + e.message; } }
+$('#bMuat').onclick = muat;
+
+// ---------- kamera & interaksi
+const kam = { sudut: .35, tinggi: 15, jarak: 26, pusat: new THREE.Vector3(-1, 1, 0) };
+const aturKamera = () => { camera.position.set(kam.pusat.x + Math.sin(kam.sudut) * kam.jarak, kam.tinggi, kam.pusat.z + Math.cos(kam.sudut) * kam.jarak); camera.lookAt(kam.pusat); };
+const ukur = () => { const hp = innerWidth < 600; renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.fov = hp ? 58 : 42; kam.jarak = hp ? 40 : 26; kam.tinggi = hp ? 30 : 15; kam.pusat.x = hp ? 1.5 : -1; kam.sudut = hp ? .15 : .35; camera.updateProjectionMatrix(); aturKamera(); };
+addEventListener('resize', ukur); ukur();
+let seret = null; const el = renderer.domElement;
+el.addEventListener('pointerdown', e => { seret = { x: e.clientX, y: e.clientY, s: kam.sudut, t: kam.tinggi, g: 0 }; el.setPointerCapture(e.pointerId); });
+el.addEventListener('pointermove', e => { if (!seret) return; const dx = e.clientX - seret.x, dy = e.clientY - seret.y; seret.g += Math.abs(dx) + Math.abs(dy); kam.sudut = seret.s - dx * .006; kam.tinggi = Math.max(5, Math.min(40, seret.t + dy * .05)); aturKamera(); });
+el.addEventListener('pointerup', e => { if (seret && seret.g < 6) { const r = el.getBoundingClientRect(), v = new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), ray = new THREE.Raycaster(); ray.setFromCamera(v, camera);
+    const hit = ray.intersectObjects(Object.values(ROBOT).map(x => x.o.g), true)[0]; let o = hit?.object; while (o && !o.userData.robot) o = o.parent; if (o) bukaPanel(o.userData.robot); } seret = null; });
+el.addEventListener('wheel', e => { kam.jarak = Math.max(12, Math.min(50, kam.jarak + e.deltaY * .02)); aturKamera(); }, { passive: true });
+
+// ---------- animasi: berjalan ke tujuan, duduk mengetik, minum kopi, main biliar, terkulai di luar pintu
+const v3 = new THREE.Vector3(); let t0 = performance.now();
+function frame(now) { const t = now / 1000, dt = Math.min(.05, (now - t0) / 1000); t0 = now;
+  for (const R2 of Object.values(ROBOT)) { const o = R2.o, g = o.g; if (!R2.tujuan) continue; const jarak = g.position.distanceTo(R2.tujuan);
+    if (jarak > .05) { const arah = R2.tujuan.clone().sub(g.position).normalize(); g.position.addScaledVector(arah, Math.min(jarak, dt * 3.2)); g.rotation.y = Math.atan2(-arah.x, -arah.z);
+      const a = Math.sin(t * 9) * .6; o.kk.rotation.x = a; o.kn.rotation.x = -a; o.lk.rotation.x = -a * .7; o.ln.rotation.x = a * .7; g.position.y = 0; }
+    else { g.rotation.y += ((R2.hadap ?? 0) - g.rotation.y) * .15; const m = R2.mode;
+      if (m === 'duduk') { g.position.y = -.38; o.kk.rotation.x = o.kn.rotation.x = 1.5; o.lk.rotation.x = 1.25 + Math.sin(t * 14) * .08; o.ln.rotation.x = 1.25 + Math.cos(t * 13) * .08; o.kepala.rotation.y = Math.sin(t * .5 + R2.r.urut) * .25; }
+      else if (m === 'sofa') { g.position.y = -.42; o.kk.rotation.x = o.kn.rotation.x = 1.5; o.lk.rotation.x = o.ln.rotation.x = .3; o.kepala.rotation.x = .35 + Math.sin(t * 1.2) * .05; }
+      else if (m === 'kopi') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.ln.rotation.x = (t + R2.r.urut) % 5 < 1.3 ? 2.3 : .5; o.lk.rotation.x = .2; o.kepala.rotation.y = Math.sin(t * .8 + R2.r.urut) * .4; }
+      else if (m === 'biliar') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.lk.rotation.x = o.ln.rotation.x = .9 + Math.sin(t * 2 + R2.r.urut) * .35; o.badan.rotation.x = .25; }
+      else if (m === 'keluar') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.lk.rotation.x = o.ln.rotation.x = 0; o.kepala.rotation.x = .5; } }
+    v3.set(g.position.x, g.position.y + 2.55, g.position.z).project(camera); R2.label.style.transform = `translate(${(v3.x + 1) / 2 * innerWidth}px, ${(1 - v3.y) / 2 * innerHeight}px) translate(-50%,-100%)`; R2.label.style.opacity = v3.z < 1 ? 1 : 0; }
+  renderer.render(scene, camera); requestAnimationFrame(frame); }
+if (token) { muat(); setInterval(muat, 20000); requestAnimationFrame(frame); }
+</script>
+</body>
+</html>
