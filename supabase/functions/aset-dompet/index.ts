@@ -9,7 +9,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const PEMILIK = 'ac358e3f-0316-48eb-a09a-3ac6ee8e0739';
 const KEY = Deno.env.get('BYBIT_KEY') ?? '', SECRET = Deno.env.get('BYBIT_SECRET') ?? '', BYBIT = 'https://api.bybit.com';
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-region', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-region, x-kunci-pemilik', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const jawab = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'content-type': 'application/json' } });
 
 async function tanda(teks: string) { const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -21,7 +21,9 @@ async function bybit(jalur: string, q: Record<string, string>) { const qs = new 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const jwt = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  const { data: u } = await sb.auth.getUser(jwt); if (u?.user?.id !== PEMILIK) return jawab({ ok: false, pesan: 'Hanya pemilik.' }, 401);
+  // pemeriksaan dari laptop pemilik memakai kunci server (cs_rahasia lantai_kunci), selain itu wajib akun Markasku pemilik
+  const kunciUji = req.headers.get('x-kunci-pemilik'), kunciServer = kunciUji ? (await sb.from('cs_rahasia').select('nilai').eq('nama', 'lantai_kunci').maybeSingle()).data?.nilai : null;
+  if (!(kunciUji && kunciServer && kunciUji === kunciServer)) { const { data: u } = await sb.auth.getUser(jwt); if (u?.user?.id !== PEMILIK) return jawab({ ok: false, pesan: 'Hanya pemilik.' }, 401); }
   if (!KEY || !SECRET) return jawab({ ok: true, siap: false, pesan: 'Kunci Bybit baca-saja belum dipasang.' });
   try {
     const per: Record<string, { simbol: string; jumlah: number; akun: Record<string, number> }> = {};
