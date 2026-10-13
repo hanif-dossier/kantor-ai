@@ -108,3 +108,72 @@ revoke all on function public.lantai__tick() from public, anon, authenticated;
 select cron.unschedule('lantai-trading') where exists (select 1 from cron.job where jobname = 'lantai-trading');
 select cron.schedule('lantai-trading', '*/5 * * * *', $c$select public.lantai__tick()$c$);
 notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- DOMPET BERSAMA (13 Okt 2026, aturan pemilik): "kas nya tetap 100dollar tidak terpisah, 3 posisi sudah cukup ...
+-- setelah nyampai 300dollar resiko nya 9dollar ... begitu seterusnya", rem darurat "saldo turun 40%", leverage
+-- "sesuaikan dengan risk nya". Delapan robot memakai SATU saldo. Kolom lantai_robot.kas sekarang = untung-rugi bersih
+-- robot itu sendiri (mulai 0), modal_awal/leverage/risiko/batas_rugi per robot tidak dipakai lagi oleh mesin.
+--   tingkat       : patokan risiko. Risiko per transaksi = risiko_persen x tingkat ($100 -> $3). Saldo >= 3 x tingkat
+--                   -> tingkat dikali 3 ($300 -> $9, $900 -> $27, ...). Tingkat tidak pernah turun.
+--   maks_posisi   : posisi terbuka bersamaan paling banyak (3; rugi terburuk serentak 9% tingkat)
+--   rem_persen    : saldo <= (1 - rem_persen) x tingkat -> semua posisi ditutup, status 'berhenti' sampai pemilik
+--                   menyalakan lagi di lantai.html
+--   keluar_persen : robot dikeluarkan kalau rugi bersihnya sendiri >= keluar_persen x tingkat (15% -> $15)
+--   lev_maks      : batas atas leverage hitungan otomatis
+-- =====================================================================================================
+create table if not exists public.lantai_dompet (
+  id int primary key default 1 check (id = 1),
+  modal_awal numeric not null default 100,
+  kas numeric not null default 100,
+  ekuitas numeric not null default 100,
+  tingkat numeric not null default 100,
+  risiko_persen numeric not null default 0.03,
+  maks_posisi int not null default 3,
+  rem_persen numeric not null default 0.4,
+  keluar_persen numeric not null default 0.15,
+  lev_maks int not null default 20,
+  puncak numeric not null default 100,
+  status text not null default 'aktif' check (status in ('aktif', 'berhenti')),
+  catatan text,
+  mulai timestamptz not null default now(),
+  diubah timestamptz not null default now()
+);
+alter table public.lantai_dompet enable row level security;
+revoke all on public.lantai_dompet from public, anon, authenticated;
+insert into public.lantai_dompet (id) values (1) on conflict (id) do nothing;
+alter table public.lantai_robot alter column kas set default 0;
+
+create or replace function public.lantai_baca(p_token text) returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  return jsonb_build_object('ok', true,
+    'dompet', (select to_jsonb(d) from lantai_dompet d where id = 1),
+    'robot', coalesce((select jsonb_agg(to_jsonb(r) order by r.urut) from lantai_robot r), '[]'::jsonb),
+    'transaksi', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'robot', t.robot, 'waktu', t.waktu) || t.data order by t.waktu desc) from (select * from lantai_transaksi order by waktu desc limit 60) t), '[]'::jsonb),
+    'modal', coalesce((select jsonb_agg(jsonb_build_object('w', m.waktu, 't', m.total) order by m.waktu) from (
+       select distinct on (date_trunc('hour', waktu)) waktu, total from lantai_modal where waktu > now() - interval '14 days' order by date_trunc('hour', waktu), waktu desc) m), '[]'::jsonb),
+    'terakhir', (select max(waktu) from lantai_modal),
+    'kunciBursa', (select count(*) > 0 from cs_rahasia where nama = 'lantai_bursa_siap'));
+end $$;
+
+create or replace function public.lantai_atur(p_token text, p_robot text, p_aksi text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare r lantai_robot;
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_aksi = 'dompet-lanjut' then   -- setelah rem darurat: pemilik menyalakan lagi, tingkat dihitung ulang dari saldo sekarang
+    update lantai_dompet set status = 'aktif', tingkat = greatest(ekuitas, 1), puncak = ekuitas,
+      catatan = 'Dinyalakan lagi pemilik ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI') || ', tingkat baru ' || round(ekuitas, 2), diubah = now()
+      where id = 1 and status = 'berhenti';
+    return jsonb_build_object('ok', true); end if;
+  select * into r from lantai_robot where id = p_robot; if r.id is null then return jsonb_build_object('ok', false, 'pesan', 'Robot tidak ada.'); end if;
+  if p_aksi = 'live-nyala' then update lantai_robot set live = true, catatan = 'Uang sungguhan dinyalakan pemilik ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI'), diubah = now() where id = p_robot;
+  elsif p_aksi = 'live-mati' then update lantai_robot set live = false, catatan = 'Kembali ke simulasi ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI'), diubah = now() where id = p_robot;
+  elsif p_aksi = 'jeda' then update lantai_robot set status = 'jeda', diubah = now() where id = p_robot and status = 'aktif';
+  elsif p_aksi = 'lanjut' then update lantai_robot set status = 'aktif', diubah = now() where id = p_robot and status = 'jeda';
+  elsif p_aksi = 'mulai-ulang' then   -- robot yang dikeluarkan boleh dicoba lagi; hitungan rugi bersihnya kembali 0 (riwayat tetap)
+    update lantai_robot set status = 'aktif', kas = 0, posisi = null, live = false, catatan = 'Dimulai ulang pemilik ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI'), diubah = now() where id = p_robot and status = 'dikeluarkan';
+  else return jsonb_build_object('ok', false, 'pesan', 'Aksi tidak dikenal.'); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+notify pgrst, 'reload schema';

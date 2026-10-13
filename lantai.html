@@ -45,6 +45,7 @@
 .aksi{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .peringatan{background:rgba(255,107,94,.1);border:1px solid rgba(255,107,94,.4);border-radius:12px;padding:10px 12px;font-size:13px;margin-top:10px}
 .masuk{position:fixed;inset:0;display:grid;place-items:center;padding:20px;text-align:center}
+.hud .rem{display:flex;align-items:center;gap:10px;border-color:var(--merah);max-width:420px}.hud .rem small{white-space:normal;text-transform:none;letter-spacing:0;font:600 12px/1.35 var(--sans);color:var(--tinta)}
 @media (max-width:600px){.hud>*{padding:6px 10px}.hud b{font-size:14px}.ket{display:none}.label .nama i{display:none}}
 </style>
 </head>
@@ -127,9 +128,11 @@ function buatOrang(warna) { const g = new THREE.Group(), m = c => bahan(c, { rou
   g.scale.setScalar(.82); scene.add(g); return { g, badan, kepala, lk, ln, kk, kn }; }
 const ROBOT = {};   // id -> { o (orang), label, tujuan, tempat }
 
-function gambarLayar() { const x = kanvasLayar.getContext('2d'), W = 1600, H = 640, R = DATA.robot, modal = DATA.modal;
-  x.fillStyle = '#060a12'; x.fillRect(0, 0, W, H); x.fillStyle = '#9fd4ff'; x.font = 'bold 34px JetBrains Mono, monospace'; x.fillText('LANTAI TRADING · MODAL 8 ROBOT', 40, 60);
-  const awal = R.reduce((a, r) => a + +r.modal_awal, 0), kini = modal.length ? +modal.at(-1).t : awal;
+const dompet = () => DATA.dompet || { modal_awal: 100, kas: 100, ekuitas: 100, tingkat: 100, risiko_persen: .03, maks_posisi: 3, rem_persen: .4, keluar_persen: .15, status: 'aktif' };
+const pnlRobot = r => +r.kas + (r.posisi?.terbuka || 0);
+function gambarLayar() { const x = kanvasLayar.getContext('2d'), W = 1600, H = 640, R = DATA.robot, modal = DATA.modal, D = dompet();
+  x.fillStyle = '#060a12'; x.fillRect(0, 0, W, H); x.fillStyle = '#9fd4ff'; x.font = 'bold 34px JetBrains Mono, monospace'; x.fillText(`LANTAI TRADING · SALDO BERSAMA · RISIKO ${usd(+D.risiko_persen * +D.tingkat)}/TRANSAKSI`, 40, 60);
+  const awal = +D.modal_awal, kini = +D.ekuitas;
   x.font = 'bold 72px JetBrains Mono, monospace'; x.fillStyle = kini >= awal ? '#45d483' : '#ff6b5e'; x.fillText(usd(kini), 40, 150); x.font = '32px JetBrains Mono, monospace'; x.fillText(`${usdT(kini - awal)}  (${pct(kini / awal - 1)})  sejak mulai`, 40, 200);
   // grafik
   const gx = 40, gy = 240, gw = 1000, gh = 360; x.strokeStyle = '#1d2a3c'; x.lineWidth = 2; for (let i = 0; i <= 4; i++) { x.beginPath(); x.moveTo(gx, gy + i * gh / 4); x.lineTo(gx + gw, gy + i * gh / 4); x.stroke(); }
@@ -138,7 +141,7 @@ function gambarLayar() { const x = kanvasLayar.getContext('2d'), W = 1600, H = 6
     x.strokeStyle = kini >= awal ? '#45d483' : '#ff6b5e'; x.lineWidth = 5; x.beginPath(); v.forEach((n, i) => i ? x.lineTo(X(i), Y(n)) : x.moveTo(X(i), Y(n))); x.stroke(); }
   else { x.fillStyle = '#5b6b80'; x.font = '28px JetBrains Mono, monospace'; x.fillText('Grafik muncul setelah beberapa putaran (tiap 5 menit).', gx + 20, gy + gh / 2); }
   // daftar robot
-  x.font = 'bold 26px JetBrains Mono, monospace'; R.forEach((r, i) => { const y = 270 + i * 44, m = +r.kas + (r.posisi?.terbuka || 0), u = m - +r.modal_awal;
+  x.font = 'bold 26px JetBrains Mono, monospace'; R.forEach((r, i) => { const y = 270 + i * 44, u = pnlRobot(r);
     x.fillStyle = r.status === 'dikeluarkan' ? '#ff6b5e' : '#d9e3ee'; x.fillText(r.nama.padEnd(6) + r.simbol.replace('USDT', '').padEnd(5), 1080, y);
     x.fillStyle = u >= 0 ? '#45d483' : '#ff6b5e'; x.fillText(usdT(u).padStart(8), 1300, y); x.fillStyle = r.posisi ? '#f3c550' : '#5b6b80'; x.fillText(r.status === 'dikeluarkan' ? 'OUT' : r.posisi ? r.posisi.sisi.toUpperCase() : '-', 1480, y); });
   tekLayar.needsUpdate = true; }
@@ -155,32 +158,37 @@ function tempatkanRobot() { let iTunggu = 0, iKeluar = 0; DATA.robot.forEach((r,
     else if (r.posisi) { R2.tujuan = new THREE.Vector3(meja.x, 0, meja.z); R2.mode = 'duduk'; R2.hadap = 0; }
     else { const [x, z, h, jenis] = TUNGGU[iTunggu++ % TUNGGU.length]; R2.tujuan = new THREE.Vector3(x, 0, z); R2.mode = r.status === 'jeda' ? 'sofa' : jenis; R2.hadap = h; }
     gambarMonitor(meja, r.status === 'dikeluarkan' ? null : r);
-    const m = +r.kas + (r.posisi?.terbuka || 0), u = m - +r.modal_awal, buka = r.posisi ? r.posisi.terbuka || 0 : null;
+    const u = pnlRobot(r), buka = r.posisi ? r.posisi.terbuka || 0 : null;
     R2.label.className = 'label' + (r.status === 'dikeluarkan' ? ' keluar' : '');
     R2.label.innerHTML = `<div class="pnl ${(buka ?? u) >= 0 ? 'naik' : 'turun'}">${buka != null ? `${r.posisi.sisi.toUpperCase()} ${usdT(buka)}` : r.status === 'dikeluarkan' ? 'dikeluarkan ' + usdT(u) : r.status === 'jeda' ? 'jeda' : 'menunggu sinyal'}</div><div class="nama">${esc(r.nama)} <i>${esc(r.simbol.replace('USDT', ''))}${r.live ? ' · LIVE' : ''}</i></div>`; }); }
 
-function gambarHud() { const R = DATA.robot, awal = R.reduce((a, r) => a + +r.modal_awal, 0), kini = R.reduce((a, r) => a + +r.kas + (r.posisi?.terbuka || 0), 0), live = R.some(r => r.live);
+function gambarHud() { const R = DATA.robot, D = dompet(), awal = +D.modal_awal, kini = +D.ekuitas, live = R.some(r => r.live), henti = D.status === 'berhenti';
   $('#hud').innerHTML = `<div class="judul"><b>Lantai Trading</b><small>Binance futures<span class="mode ${live ? 'live' : ''}">${live ? 'ADA UANG SUNGGUHAN' : 'SIMULASI'}</span></small></div>
-    <div><small>Modal 8 robot</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usd(kini)}</b></div><div><small>Sejak mulai</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usdT(kini - awal)}</b></div>
-    <div><small>Posisi terbuka</small><b>${R.filter(r => r.posisi).length}</b></div><div><small>Dikeluarkan</small><b class="${R.some(r => r.status === 'dikeluarkan') ? 'turun' : ''}">${R.filter(r => r.status === 'dikeluarkan').length}</b></div>
+    <div><small>Saldo bersama</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usd(kini)}</b></div><div><small>Sejak mulai</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usdT(kini - awal)}</b></div>
+    <div><small>Risiko/transaksi</small><b>${usd(+D.risiko_persen * +D.tingkat)}</b></div><div><small>Naik ke ${usd(+D.risiko_persen * +D.tingkat * 3)} di</small><b>${usd(3 * +D.tingkat)}</b></div>
+    <div><small>${henti ? 'Rem darurat' : 'Rem darurat di'}</small><b class="${henti ? 'turun' : ''}">${henti ? 'MENYALA' : usd((1 - +D.rem_persen) * +D.tingkat)}</b></div>
+    <div><small>Posisi terbuka</small><b>${R.filter(r => r.posisi).length}/${D.maks_posisi}</b></div><div><small>Dikeluarkan</small><b class="${R.some(r => r.status === 'dikeluarkan') ? 'turun' : ''}">${R.filter(r => r.status === 'dikeluarkan').length}</b></div>
     <div><small>Transaksi</small><b>${R.reduce((a, r) => a + (r.statistik?.transaksi || 0), 0)}</b></div>`;
+  if (henti) { $('#hud .judul').insertAdjacentHTML('afterend', `<div class="rem"><small>${esc(D.catatan || 'Rem darurat menyala.')}</small><button class="pil utama" id="bLanjutDompet">Nyalakan lagi</button></div>`);
+    $('#bLanjutDompet').onclick = async e => { if (prompt(`Semua robot akan trading lagi. Tingkat risiko dihitung ulang dari saldo sekarang ${usd(kini)} (risiko ${usd(+D.risiko_persen * kini)} per transaksi).\n\nKetik YA untuk melanjutkan.`) !== 'YA') return;
+      e.target.disabled = true; try { const j = await rpc('lantai_atur', { p_token: token, p_robot: '', p_aksi: 'dompet-lanjut' }); if (!j.ok) throw new Error(j.pesan); await muat(); } catch (x) { alert(x.message); e.target.disabled = false; } }; }
   $('#ket').textContent = `Putaran terakhir ${DATA.terakhir ? jam(DATA.terakhir) : '-'} · tiap 5 menit · geser untuk memutar, ketuk robot untuk rinciannya`; }
 
-function bukaPanel(id) { const R2 = ROBOT[id]; if (!R2) return; const r = R2.r, s = r.statistik || {}, p = r.posisi, m = +r.kas + (p?.terbuka || 0), T = DATA.transaksi.filter(t => t.robot === id).slice(0, 8);
+function bukaPanel(id) { const R2 = ROBOT[id]; if (!R2) return; const r = R2.r, s = r.statistik || {}, p = r.posisi, m = pnlRobot(r), D = dompet(), risiko = +D.risiko_persen * +D.tingkat, batas = +D.keluar_persen * +D.tingkat, T = DATA.transaksi.filter(t => t.robot === id).slice(0, 8);
   $('#panel').innerHTML = `<h2>${esc(r.nama)} · ${esc(s.judul || r.strategi)}</h2><div class="sub">${esc(r.simbol)} · lilin ${esc(r.interval)} · ${r.live ? '<b style="color:var(--merah)">uang sungguhan</b>' : 'simulasi'} · status ${esc(r.status)}</div>
-    <div class="aturan"><b>Aturan tertulis.</b> ${esc(s.aturan || '-')} Risiko ${(+r.risiko * 100).toFixed(0)}% kas per transaksi, leverage paling besar ${r.leverage}x, dikeluarkan kalau modal turun ${(+r.batas_rugi * 100).toFixed(0)}% dari ${usd(+r.modal_awal)}.</div>
-    <div class="kisi"><div><small>Modal sekarang</small><b class="${m >= +r.modal_awal ? 'naik' : 'turun'}">${usd(m)}</b></div><div><small>Untung-rugi</small><b class="${m >= +r.modal_awal ? 'naik' : 'turun'}">${usdT(m - +r.modal_awal)}</b></div><div><small>Turun terdalam</small><b>${((s.ddMaks || 0) * 100).toFixed(1)}%</b></div>
+    <div class="aturan"><b>Aturan tertulis.</b> ${esc(s.aturan || '-')} Memakai saldo bersama 8 robot (paling banyak ${D.maks_posisi} posisi terbuka sekaligus). Rugi kalau stop loss kena paling besar ${usd(risiko)}; leverage dihitung otomatis supaya harga likuidasi selalu lebih jauh dari stop loss. Dikeluarkan kalau rugi bersih robot ini mencapai ${usd(batas)}.</div>
+    <div class="kisi"><div><small>Untung-rugi robot</small><b class="${m >= 0 ? 'naik' : 'turun'}">${usdT(m)}</b></div><div><small>Sisa sebelum dikeluarkan</small><b>${usd(Math.max(0, m + batas))}</b></div><div><small>Untung bersih total</small><b class="${(s.pnl || 0) >= 0 ? 'naik' : 'turun'}">${usdT(s.pnl || 0)}</b></div>
       <div><small>Transaksi</small><b>${s.transaksi || 0}</b></div><div><small>Menang</small><b>${s.transaksi ? Math.round(s.menang / s.transaksi * 100) + '%' : '-'}</b></div><div><small>Harga ${esc(r.simbol.replace('USDT', ''))}</small><b>${harga(s.mark)}</b></div></div>
     ${p ? `<div class="judul-sub">Posisi terbuka</div><div class="baris"><span>${p.sisi.toUpperCase()} ${harga(p.qty)} ${esc(r.simbol.replace('USDT', ''))} di ${harga(p.masuk)}</span><span class="${(p.terbuka || 0) >= 0 ? 'naik' : 'turun'}">${usdT(p.terbuka || 0)}</span></div>
-      <div class="baris"><span>Stop loss · take profit</span><span>${harga(p.sl)} · ${harga(p.tp)}</span></div><div class="baris"><span>Alasan masuk</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(p.alasan)}</span></div>` : `<div class="judul-sub">Menunggu sinyal</div><div class="baris"><span>Sinyal terakhir</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(s.terakhirSinyal?.teks || 'belum ada')}</span></div>`}
+      <div class="baris"><span>Stop loss · take profit</span><span>${harga(p.sl)} · ${harga(p.tp)}</span></div><div class="baris"><span>Leverage · risiko · margin</span><span>${p.leverage || 1}x · ${usd(p.risiko || 0)} · ${usd(p.margin || 0)}</span></div><div class="baris"><span>Alasan masuk</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(p.alasan)}</span></div>` : `<div class="judul-sub">Menunggu sinyal</div><div class="baris"><span>Sinyal terakhir</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(s.terakhirSinyal?.teks || 'belum ada')}</span></div>`}
     ${r.catatan ? `<div class="peringatan">${esc(r.catatan)}</div>` : ''}
     <div class="judul-sub">Transaksi terakhir</div>${T.length ? T.map(t => `<div class="baris"><span>${jam(t.waktuKeluar)} · ${t.sisi.toUpperCase()} · ${esc(t.alasanKeluar)}</span><span class="${t.pnl >= 0 ? 'naik' : 'turun'}">${usdT(t.pnl)}</span></div>`).join('') : '<div class="baris"><span>Belum ada</span><span></span></div>'}
-    <div class="aksi">${r.status === 'aktif' ? `<button class="pil" data-aksi="jeda">Jeda</button>` : r.status === 'jeda' ? `<button class="pil utama" data-aksi="lanjut">Lanjutkan</button>` : `<button class="pil utama" data-aksi="mulai-ulang">Mulai ulang dari ${usd(+r.modal_awal)}</button>`}
+    <div class="aksi">${r.status === 'aktif' ? `<button class="pil" data-aksi="jeda">Jeda</button>` : r.status === 'jeda' ? `<button class="pil utama" data-aksi="lanjut">Lanjutkan</button>` : `<button class="pil utama" data-aksi="mulai-ulang">Mulai ulang (rugi robot kembali $0)</button>`}
       ${r.status !== 'dikeluarkan' ? (r.live ? `<button class="pil" data-aksi="live-mati">Kembali ke simulasi</button>` : `<button class="pil bahaya" data-aksi="live-nyala">Pakai uang sungguhan…</button>`) : ''}<button class="pil" id="bTutup">Tutup</button></div>
     ${!DATA.kunciBursa ? `<div class="sub" style="margin-top:10px">Kunci API Binance belum dipasang. Saklar uang sungguhan baru bekerja setelah kamu sendiri memasang BINANCE_KEY dan BINANCE_SECRET di Supabase → Edge Functions → Secrets.</div>` : ''}`;
   $('#tirai').classList.add('buka'); $('#bTutup').onclick = () => $('#tirai').classList.remove('buka');
   document.querySelectorAll('[data-aksi]').forEach(b => b.onclick = async () => { const a = b.dataset.aksi;
-    if (a === 'live-nyala' && prompt(`Robot ${r.nama} akan membuka posisi dengan SALDO SUNGGUHAN di Binance futures (leverage sampai ${r.leverage}x, rugi bisa sampai ${(+r.batas_rugi * 100).toFixed(0)}% modal robot atau lebih kalau harga melompat).\n\nKetik YA untuk melanjutkan.`) !== 'YA') return;
+    if (a === 'live-nyala' && prompt(`Robot ${r.nama} akan membuka posisi dengan SALDO SUNGGUHAN di Binance futures (rugi per transaksi sekitar ${usd(risiko)}, leverage dihitung otomatis; rugi bisa lebih besar kalau harga melompat melewati stop loss).\n\nKetik YA untuk melanjutkan.`) !== 'YA') return;
     b.disabled = true; try { const j = await rpc('lantai_atur', { p_token: token, p_robot: id, p_aksi: a }); if (!j.ok) throw new Error(j.pesan); await muat(); bukaPanel(id); } catch (e) { alert(e.message); b.disabled = false; } }); }
 $('#tirai').onclick = e => { if (e.target.id === 'tirai') $('#tirai').classList.remove('buka'); };
 

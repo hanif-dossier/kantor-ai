@@ -1,10 +1,12 @@
 // Lantai Trading (13 Okt 2026): mesin 8 robot Binance USDT-M futures. Dipanggil pg_cron tiap 5 menit (lantai__tick,
 // header x-region ap-south-1 dan x-lantai-kunci). Aturan tiap robot ditulis sebelum robot berjalan:
-//   - satu robot satu strategi satu koin, satu posisi sekaligus;
-//   - ukuran posisi: rugi kalau stop loss kena = `risiko` x kas (bawaan 2%), nilai posisi paling besar kas x leverage;
+//   - satu robot satu strategi satu koin, satu posisi sekaligus; delapan robot berbagi SATU dompet (lantai_dompet, $100),
+//     paling banyak 3 posisi terbuka bersamaan;
+//   - ukuran posisi: rugi kalau stop loss kena = 3% x tingkat ($3 selama saldo di bawah $300; tingkat naik 3x tiap saldo
+//     menyentuh 3x tingkat: $300 -> $9, $900 -> $27 ...); leverage dihitung per transaksi, likuidasi selalu di luar stop loss;
 //   - stop loss selalu dipasang; take profit kalau strateginya punya;
-//   - modal turun sampai (1 - batas_rugi) x modal awal (bawaan 20%) -> posisi ditutup, robot DIKELUARKAN, tidak trading lagi
-//     sampai pemilik memulai ulang.
+//   - rem darurat: saldo turun 40% dari tingkat -> semua posisi ditutup, semua robot berhenti sampai pemilik menyalakan lagi;
+//   - robot yang rugi bersihnya sendiri mencapai 15% tingkat DIKELUARKAN sampai pemilik memulai ulang.
 // SIMULASI (bawaan): harga sungguhan, isian di harga mark + selip 0,02%, biaya taker 0,05% per sisi, funding diabaikan.
 // UANG SUNGGUHAN hanya kalau robot.live = true (dinyalakan pemilik di lantai.html) DAN secret BINANCE_KEY + BINANCE_SECRET
 // ada (dipasang pemilik sendiri). Satu koin hanya boleh dipegang satu robot live (mode one-way Binance).
@@ -140,7 +142,7 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
   const S = STRATEGI[r.strategi], raw = await ambil(`${FAPI}/fapi/v1/klines?symbol=${r.simbol}&interval=${r.interval}&limit=1000`), kini = Date.now();
   const K: Lilin[] = raw.filter((x: any[]) => x[6] < kini).map((x: any[]) => ({ t: x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] }));
   const fr = r.strategi === 'lawan-funding' ? (await ambil(`${FAPI}/fapi/v1/fundingRate?symbol=${r.simbol}&limit=1000`)).map((x: any) => [+x.fundingTime, +x.fundingRate]) : [];
-  let kas = +r.modal_awal, pos: any = null, puncak = kas, dd = 0, n = 0, menang = 0, dilewati = 0; const daftar: string[] = [];
+  const AWAL = 100, RISIKO = 3, BATAS = 15; let kas = AWAL, pos: any = null, puncak = kas, dd = 0, n = 0, menang = 0, dilewati = 0; const daftar: string[] = [];
   const tutup = (harga: number, alasan: string, t: number) => { const keluar = harga * (pos.sisi === 'long' ? 1 - SELIP : 1 + SELIP), arah = pos.sisi === 'long' ? 1 : -1;
     const bersih = (keluar - pos.masuk) * pos.qty * arah - (pos.masuk + keluar) * pos.qty * BIAYA; kas += bersih; n++; if (bersih > 0) menang++;
     if (daftar.length < 6) daftar.push(`${new Date(pos.t).toISOString().slice(5, 16)} ${pos.sisi} ${bersih >= 0 ? '+' : ''}${bersih.toFixed(2)} ${alasan}`); pos = null; };
@@ -151,12 +153,12 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
       if (pos && S.keluar) { const a = S.keluar(ctx, pos.sisi); if (a) tutup(x.c, a, x.t); }
       if (pos && S.maksLilin && i - pos.i >= S.maksLilin) tutup(x.c, 'batas lama', x.t); }
     const modal = kas + (pos ? (x.c - pos.masuk) * pos.qty * (pos.sisi === 'long' ? 1 : -1) : 0); puncak = Math.max(puncak, modal); dd = Math.max(dd, (puncak - modal) / puncak);
-    if (modal <= +r.modal_awal * (1 - +r.batas_rugi)) { if (pos) tutup(x.c, 'batas rugi', x.t); daftar.push('DIKELUARKAN di ' + new Date(x.t).toISOString().slice(5, 16)); break; }
+    if (modal <= AWAL - BATAS) { if (pos) tutup(x.c, 'batas rugi', x.t); daftar.push('DIKELUARKAN di ' + new Date(x.t).toISOString().slice(5, 16)); break; }
     if (!pos) { const s = S.masuk(ctx); if (s) { const harga = x.c * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl);
-      let qty = Math.min(jarak > 0 ? kas * +r.risiko / jarak : 0, kas * +r.leverage / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
+      let qty = Math.min(jarak > 0 ? RISIKO / jarak : 0, Math.min(20, Math.floor(.8 / (jarak / harga))) * (kas / 3) / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
       if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, masuk: harga, qty, i, t: x.t }; } } }
   return { robot: r.nama, simbol: r.simbol, interval: r.interval, dari: new Date(K[210].t).toISOString().slice(0, 10), sampai: new Date(K.at(-1)!.t).toISOString().slice(0, 10),
-    transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / +r.modal_awal - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
+    transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / AWAL - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
 
 // ---------- putaran
 Deno.serve(async (req) => {
@@ -173,71 +175,102 @@ Deno.serve(async (req) => {
     const bisaLive = !!(KEY && SECRET);
     if (bisaLive) await db.from('cs_rahasia').upsert({ nama: 'lantai_bursa_siap', nilai: kini.toISOString() }); else await db.from('cs_rahasia').delete().eq('nama', 'lantai_bursa_siap');
     const { data: robot, error } = await db.from('lantai_robot').select('*').order('urut'); if (error) throw error;
+    const { data: D0 } = await db.from('lantai_dompet').select('*').eq('id', 1).single();
+    // Dompet bersama (13 Okt 2026, pemilik): satu saldo untuk 8 robot, paling banyak `maks_posisi` posisi bersamaan, rugi per
+    // transaksi = risiko_persen x TINGKAT (bukan x saldo harian). Tingkat naik 3x setiap saldo menyentuh 3x tingkat
+    // ($100 -> risiko $3; saldo $300 -> tingkat $300, risiko $9; dst.). Rem darurat: saldo <= (1 - rem_persen) x tingkat
+    // -> semua posisi ditutup, semua robot berhenti. Robot dikeluarkan kalau rugi bersihnya sendiri >= keluar_persen x tingkat.
+    // Leverage dihitung per transaksi: sekecil mungkin supaya margin `maks_posisi` posisi muat di saldo, dan selalu cukup kecil
+    // sehingga harga likuidasi (isolated) lebih jauh dari stop loss.
+    const D = { ...D0 }; let kasD = +D.kas;
     const info = await ambil(`${FAPI}/fapi/v1/exchangeInfo`), aturanKoin: Record<string, { langkah: number; tik: number; minNilai: number }> = {};
     for (const s of info.symbols) { const f = Object.fromEntries(s.filters.map((x: any) => [x.filterType, x]));
       aturanKoin[s.symbol] = { langkah: +f.LOT_SIZE.stepSize, tik: +f.PRICE_FILTER.tickSize, minNilai: +(f.MIN_NOTIONAL?.notional ?? 5) }; }
     const premi = Object.fromEntries((await ambil(`${FAPI}/fapi/v1/premiumIndex`)).map((x: any) => [x.symbol, { mark: +x.markPrice, funding: +x.lastFundingRate }]));
     const cache: Record<string, Lilin[]> = {};
     const bulat = (v: number, l: number) => Math.floor(v / l + 1e-9) * l, dp = (l: number) => Math.max(0, -Math.floor(Math.log10(l)));
-    const liveSimbol = new Set<string>(); const perRobot: Record<string, number> = {}; let total = 0;
+    const liveSimbol = new Set<string>();
+    const R = [] as any[];   // keadaan kerja tiap robot selama putaran
 
+    // ---- tahap 1: siapkan data, urus posisi terbuka
     for (const r of robot!) {
-      const S = STRATEGI[r.strategi], kunciL = r.simbol + r.interval; cache[kunciL] ??= await lilin(r.simbol, r.interval); const k = cache[kunciL];
-      const mark = premi[r.simbol]?.mark ?? k[k.length - 1].c, ctx: Ctx = { k, funding: premi[r.simbol]?.funding }, st = { transaksi: 0, menang: 0, kalah: 0, pnl: 0, puncak: +r.modal_awal, ddMaks: 0, ...(r.statistik || {}) };
-      let kas = +r.kas, pos = r.posisi as any, status = r.status, live = !!r.live, catatan = r.catatan;
-      const pakaiLive = live && bisaLive && !liveSimbol.has(r.simbol); if (live && !bisaLive) catatan = 'Saklar uang sungguhan nyala, tapi kunci Binance belum dipasang. Tetap simulasi.';
-      if (live && liveSimbol.has(r.simbol)) catatan = `Koin ${r.simbol} sudah dipegang robot live lain. Robot ini tetap simulasi.`; if (pakaiLive) liveSimbol.add(r.simbol);
-      const tutup = async (harga: number, alasan: string, olehBursa = false) => {
-        let keluar = harga;
-        if (pakaiLive && !olehBursa) { await batalSemua(AKUN_LIVE, r.simbol);
+      const S = STRATEGI[r.strategi], kunciL = r.simbol + r.interval;
+      try { cache[kunciL] ??= await lilin(r.simbol, r.interval); } catch (e) { log.push(`${r.nama}: data ${String((e as Error).message).slice(0, 80)}`); continue; }
+      const k = cache[kunciL], mark = premi[r.simbol]?.mark ?? k[k.length - 1].c;
+      const w: any = { r, S, k, mark, ctx: { k, funding: premi[r.simbol]?.funding }, st: { transaksi: 0, menang: 0, kalah: 0, pnl: 0, ...(r.statistik || {}) },
+        pnl: +r.kas, pos: r.posisi, status: r.status, live: !!r.live, catatan: r.catatan };
+      w.pakaiLive = w.live && bisaLive && !liveSimbol.has(r.simbol);
+      if (w.live && !bisaLive) w.catatan = 'Saklar uang sungguhan nyala, tapi kunci Binance belum dipasang. Tetap simulasi.';
+      if (w.live && liveSimbol.has(r.simbol)) w.catatan = `Koin ${r.simbol} sudah dipegang robot live lain. Robot ini tetap simulasi.`; if (w.pakaiLive) liveSimbol.add(r.simbol);
+      w.tutup = async (harga: number, alasan: string, olehBursa = false) => { const pos = w.pos; let keluar = harga;
+        if (w.pakaiLive && !olehBursa) { await batalSemua(AKUN_LIVE, r.simbol);
           const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: pos.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: pos.qty.toFixed(dp(aturanKoin[r.simbol].langkah)), reduceOnly: true, newOrderRespType: 'RESULT' });
           keluar = +o.avgPrice || harga; }
-        else if (!pakaiLive) keluar = harga * (pos.sisi === 'long' ? 1 - SELIP : 1 + SELIP);
-        if (pakaiLive && olehBursa) await batalSemua(AKUN_LIVE, r.simbol);   // order pengaman pasangannya (TP atau SL) jangan tertinggal
+        else if (!w.pakaiLive) keluar = harga * (pos.sisi === 'long' ? 1 - SELIP : 1 + SELIP);
+        if (w.pakaiLive && olehBursa) await batalSemua(AKUN_LIVE, r.simbol);   // order pengaman pasangannya jangan tertinggal
         const arah = pos.sisi === 'long' ? 1 : -1, kotor = (keluar - pos.masuk) * pos.qty * arah, biaya = (pos.masuk + keluar) * pos.qty * BIAYA, bersih = kotor - biaya;
-        kas += bersih; st.transaksi++; bersih > 0 ? st.menang++ : st.kalah++; st.pnl += bersih;
-        await db.from('lantai_transaksi').insert({ robot: r.id, data: { sisi: pos.sisi, masuk: pos.masuk, keluar, qty: pos.qty, pnl: +bersih.toFixed(4), biaya: +biaya.toFixed(4), alasanMasuk: pos.alasan, alasanKeluar: alasan, waktuMasuk: pos.waktu, waktuKeluar: kini.toISOString(), live: !!pos.live, simbol: r.simbol } });
-        log.push(`${r.nama} tutup ${pos.sisi} ${r.simbol} ${bersih >= 0 ? '+' : ''}${bersih.toFixed(2)} (${alasan})`); pos = null; };
-
-      try {
-        // 1. posisi terbuka: stop loss / take profit pada lilin sesudah masuk, jejak, sinyal keluar, batas lama
+        w.pnl += bersih; kasD += bersih; w.st.transaksi++; bersih > 0 ? w.st.menang++ : w.st.kalah++; w.st.pnl = (w.st.pnl || 0) + bersih;
+        await db.from('lantai_transaksi').insert({ robot: r.id, data: { sisi: pos.sisi, masuk: pos.masuk, keluar, qty: pos.qty, leverage: pos.leverage, risiko: pos.risiko, pnl: +bersih.toFixed(4), biaya: +biaya.toFixed(4), alasanMasuk: pos.alasan, alasanKeluar: alasan, waktuMasuk: pos.waktu, waktuKeluar: kini.toISOString(), live: !!pos.live, simbol: r.simbol } });
+        log.push(`${r.nama} tutup ${pos.sisi} ${r.simbol} ${bersih >= 0 ? '+' : ''}${bersih.toFixed(2)} (${alasan})`); w.pos = null; };
+      try { const pos = w.pos;
         if (pos) {
-          if (pakaiLive && pos.live) { const pr = (await bursa('GET', '/fapi/v2/positionRisk', { symbol: r.simbol }))[0]; if (pr && +pr.positionAmt === 0) await tutup(pos.sl, 'ditutup bursa (stop loss atau take profit)', true); }
-          if (pos) for (const x of k.filter(x => x.t > Date.parse(pos.waktu))) {
-            const kenaSl = pos.sisi === 'long' ? x.l <= pos.sl : x.h >= pos.sl, kenaTp = pos.tp != null && (pos.sisi === 'long' ? x.h >= pos.tp : x.l <= pos.tp);
-            if (kenaSl) { await tutup(pos.sl, 'stop loss'); break; } if (kenaTp) { await tutup(pos.tp, 'take profit'); break; } }
-          if (pos && S.jejak) { const g = S.jejak(ctx, pos.sisi); if (g != null && (pos.sisi === 'long' ? g > pos.sl : g < pos.sl)) pos.sl = g; }
-          if (pos && S.keluar) { const a = S.keluar(ctx, pos.sisi); if (a) await tutup(mark, a); }
-          if (pos && S.maksLilin && k.filter(x => x.t > Date.parse(pos.waktu)).length >= S.maksLilin) await tutup(mark, `sudah ${S.maksLilin} lilin`);
-        }
-        // 2. modal & batas rugi: dikeluarkan kalau modal (termasuk untung-rugi terbuka) di bawah batas
-        const terbuka = pos ? (mark - pos.masuk) * pos.qty * (pos.sisi === 'long' ? 1 : -1) : 0; let modal = kas + terbuka;
-        if (status === 'aktif' && modal <= +r.modal_awal * (1 - +r.batas_rugi)) { if (pos) await tutup(mark, 'batas rugi robot tersentuh'); modal = kas; status = 'dikeluarkan'; live = false;
-          catatan = `Dikeluarkan ${kini.toISOString().slice(0, 16).replace('T', ' ')} UTC: modal ${modal.toFixed(2)} di bawah batas ${(+r.modal_awal * (1 - +r.batas_rugi)).toFixed(2)}.`; log.push(`${r.nama} DIKELUARKAN`); }
-        st.puncak = Math.max(st.puncak, modal); st.ddMaks = Math.max(st.ddMaks, (st.puncak - modal) / st.puncak);
-        // 3. masuk: hanya pada lilin tutup yang belum pernah dinilai
-        const lilinAkhir = k[k.length - 1].t;
-        if (!pos && status === 'aktif' && st.lilinDinilai !== lilinAkhir) {
-          st.lilinDinilai = lilinAkhir; const s = S.masuk(ctx);
-          if (s) { const A = aturanKoin[r.simbol], harga = mark * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl);
-            let qty = jarak > 0 ? (kas * +r.risiko) / jarak : 0; qty = Math.min(qty, (kas * +r.leverage) / harga); qty = bulat(qty, A.langkah);
-            const salahArah = s.sisi === 'long' ? s.sl >= harga : s.sl <= harga;
-            if (salahArah) st.terakhirSinyal = { waktu: kini.toISOString(), teks: s.alasan + ' (dilewati: harga sudah melewati stop loss)' };
-            else if (qty * harga < A.minNilai) st.terakhirSinyal = { waktu: kini.toISOString(), teks: `${s.alasan} (dilewati: nilai posisi ${(qty * harga).toFixed(2)} di bawah minimal Binance ${A.minNilai})` };
-            else { let masuk = harga;
-              if (pakaiLive) { await bursa('POST', '/fapi/v1/marginType', { symbol: r.simbol, marginType: 'ISOLATED' }).catch(() => null); await bursa('POST', '/fapi/v1/leverage', { symbol: r.simbol, leverage: +r.leverage });
-                const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: s.sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), newOrderRespType: 'RESULT' }); masuk = +o.avgPrice || mark;
-                await pasangPengaman(AKUN_LIVE, r.simbol, s.sisi, s.sl, s.tp, A.tik); }
-              pos = { sisi: s.sisi, masuk, qty, sl: s.sl, tp: s.tp, alasan: s.alasan, waktu: new Date(lilinAkhir).toISOString(), live: pakaiLive };
-              st.terakhirSinyal = { waktu: kini.toISOString(), teks: s.alasan }; log.push(`${r.nama} buka ${s.sisi} ${r.simbol} di ${masuk} (${s.alasan})${pakaiLive ? ' LIVE' : ''}`); } }
-        }
-        const terbuka2 = pos ? (mark - pos.masuk) * pos.qty * (pos.sisi === 'long' ? 1 : -1) : 0;
-        if (pos) pos.terbuka = +terbuka2.toFixed(4); modal = kas + terbuka2; perRobot[r.id] = +modal.toFixed(4); total += modal;
-        st.mark = mark; st.aturan = S.aturan; st.judul = S.judul;
-        await db.from('lantai_robot').update({ kas: +kas.toFixed(6), posisi: pos, status, live, catatan, statistik: st, diubah: kini.toISOString() }).eq('id', r.id);
-      } catch (e) { log.push(`${r.nama}: ${String((e as Error).message || e).slice(0, 160)}`); await db.from('lantai_robot').update({ catatan: 'Galat putaran terakhir: ' + String((e as Error).message || e).slice(0, 200), diubah: kini.toISOString() }).eq('id', r.id); perRobot[r.id] = +r.kas; total += +r.kas; }
-    }
-    await db.from('lantai_modal').insert({ waktu: kini.toISOString(), total: +total.toFixed(4), per_robot: perRobot });
-    return new Response(JSON.stringify({ ok: true, total: +total.toFixed(2), log }), { headers: { 'content-type': 'application/json' } });
+          if (w.pakaiLive && pos.live) { const pr = (await bursa('GET', '/fapi/v2/positionRisk', { symbol: r.simbol }))[0]; if (pr && +pr.positionAmt === 0) await w.tutup(pos.sl, 'ditutup bursa (stop loss atau take profit)', true); }
+          if (w.pos) for (const x of k.filter(x => x.t > Date.parse(w.pos.waktu))) {
+            const kenaSl = w.pos.sisi === 'long' ? x.l <= w.pos.sl : x.h >= w.pos.sl, kenaTp = w.pos.tp != null && (w.pos.sisi === 'long' ? x.h >= w.pos.tp : x.l <= w.pos.tp);
+            if (kenaSl) { await w.tutup(w.pos.sl, 'stop loss'); break; } if (kenaTp) { await w.tutup(w.pos.tp, 'take profit'); break; } }
+          if (w.pos && S.jejak) { const g = S.jejak(w.ctx, w.pos.sisi); if (g != null && (w.pos.sisi === 'long' ? g > w.pos.sl : g < w.pos.sl)) w.pos.sl = g; }
+          if (w.pos && S.keluar) { const a = S.keluar(w.ctx, w.pos.sisi); if (a) await w.tutup(mark, a); }
+          if (w.pos && S.maksLilin && k.filter(x => x.t > Date.parse(w.pos.waktu)).length >= S.maksLilin) await w.tutup(mark, `sudah ${S.maksLilin} lilin`);
+        } } catch (e) { w.galat = String((e as Error).message || e).slice(0, 200); log.push(`${r.nama}: ${w.galat}`); }
+      R.push(w); }
+
+    // ---- saldo, tingkat, rem darurat, robot yang dikeluarkan
+    const terbuka = (w: any) => w.pos ? (w.mark - w.pos.masuk) * w.pos.qty * (w.pos.sisi === 'long' ? 1 : -1) : 0;
+    let ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0);
+    while (ekuitas >= 3 * +D.tingkat) { D.tingkat = 3 * +D.tingkat; log.push(`Tingkat naik ke ${D.tingkat}, risiko per transaksi ${(+D.risiko_persen * D.tingkat).toFixed(2)}`); }
+    if (D.status === 'aktif' && ekuitas <= (1 - +D.rem_persen) * +D.tingkat) {
+      for (const w of R) if (w.pos) await w.tutup(w.mark, 'rem darurat saldo').catch(() => null);
+      D.status = 'berhenti'; D.catatan = `Rem darurat ${kini.toISOString().slice(0, 16).replace('T', ' ')} UTC: saldo ${ekuitas.toFixed(2)} di bawah ${((1 - +D.rem_persen) * +D.tingkat).toFixed(2)}. Semua robot berhenti.`; log.push('REM DARURAT');
+      ekuitas = kasD; }
+    const batasRobot = -(+D.keluar_persen) * +D.tingkat;
+    for (const w of R) if (w.status === 'aktif' && w.pnl + terbuka(w) <= batasRobot) { if (w.pos) await w.tutup(w.mark, 'batas rugi robot tersentuh').catch(() => null);
+      w.status = 'dikeluarkan'; w.live = false; w.catatan = `Dikeluarkan ${kini.toISOString().slice(0, 16).replace('T', ' ')} UTC: rugi bersih robot ${w.pnl.toFixed(2)} mencapai batas ${batasRobot.toFixed(2)}.`; log.push(`${w.r.nama} DIKELUARKAN`); }
+    ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0);
+
+    // ---- tahap 2: posisi baru (slot terbatas, risiko tetap per tingkat, leverage menyesuaikan)
+    const risikoUsd = +D.risiko_persen * +D.tingkat, maks = +D.maks_posisi;
+    let marginPakai = R.reduce((a, w) => a + (w.pos ? w.pos.qty * w.pos.masuk / (w.pos.leverage || 1) : 0), 0), jumlahPos = R.filter(w => w.pos).length;
+    for (const w of R) { const r = w.r, S = w.S, k = w.k, lilinAkhir = k[k.length - 1].t;
+      if (w.galat || w.pos || w.status !== 'aktif' || D.status !== 'aktif' || w.st.lilinDinilai === lilinAkhir) continue;
+      w.st.lilinDinilai = lilinAkhir; const s = S.masuk(w.ctx); if (!s) continue;
+      const lewati = (teks: string) => { w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: `${s.alasan} (dilewati: ${teks})` }; };
+      if (jumlahPos >= maks) { lewati(`sudah ${maks} posisi terbuka`); continue; }
+      const A = aturanKoin[r.simbol], harga = w.mark * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl), d = jarak / harga;
+      if (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga) { lewati('harga sudah melewati stop loss'); continue; }
+      const levAman = Math.max(1, Math.min(+D.lev_maks, Math.floor(.8 / d)));   // likuidasi isolated sekitar 1/leverage, harus lebih jauh dari stop loss
+      let qty = bulat(risikoUsd / jarak, A.langkah), nilai = qty * harga;
+      let lev = Math.max(1, Math.ceil(nilai / (ekuitas / maks)));
+      if (lev > levAman) { lev = levAman; qty = bulat(levAman * (ekuitas / maks) / harga, A.langkah); nilai = qty * harga; }
+      const margin = nilai / lev;
+      if (nilai < A.minNilai) { lewati(`nilai posisi ${nilai.toFixed(2)} di bawah minimal Binance ${A.minNilai}`); continue; }
+      if (marginPakai + margin > ekuitas) { lewati(`margin ${margin.toFixed(2)} tidak muat di sisa saldo`); continue; }
+      try { let masuk = harga;
+        if (w.pakaiLive) { await bursa('POST', '/fapi/v1/marginType', { symbol: r.simbol, marginType: 'ISOLATED' }).catch(() => null); await bursa('POST', '/fapi/v1/leverage', { symbol: r.simbol, leverage: lev });
+          const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: s.sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), newOrderRespType: 'RESULT' }); masuk = +o.avgPrice || w.mark;
+          await pasangPengaman(AKUN_LIVE, r.simbol, s.sisi, s.sl, s.tp, A.tik); }
+        w.pos = { sisi: s.sisi, masuk, qty, sl: s.sl, tp: s.tp, alasan: s.alasan, waktu: new Date(lilinAkhir).toISOString(), live: w.pakaiLive, leverage: lev, risiko: +(qty * jarak).toFixed(4), margin: +margin.toFixed(4) };
+        marginPakai += margin; jumlahPos++;
+        w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: s.alasan }; log.push(`${r.nama} buka ${s.sisi} ${r.simbol} di ${masuk}, ${lev}x, risiko ${(qty * jarak).toFixed(2)} (${s.alasan})${w.pakaiLive ? ' LIVE' : ''}`); }
+      catch (e) { w.galat = String((e as Error).message || e).slice(0, 200); log.push(`${r.nama}: ${w.galat}`); } }
+
+    // ---- simpan
+    const perRobot: Record<string, number> = {};
+    for (const w of R) { const t = terbuka(w); if (w.pos) w.pos.terbuka = +t.toFixed(4); perRobot[w.r.id] = +(w.pnl + t).toFixed(4);
+      w.st.mark = w.mark; w.st.aturan = w.S.aturan; w.st.judul = w.S.judul;
+      await db.from('lantai_robot').update({ kas: +w.pnl.toFixed(6), posisi: w.pos, status: w.status, live: w.live, catatan: w.galat ? 'Galat putaran terakhir: ' + w.galat : w.catatan, statistik: w.st, diubah: kini.toISOString() }).eq('id', w.r.id); }
+    ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0); D.puncak = Math.max(+D.puncak || 0, ekuitas);
+    await db.from('lantai_dompet').update({ kas: +kasD.toFixed(6), tingkat: D.tingkat, status: D.status, catatan: D.catatan, puncak: +D.puncak.toFixed(4), ekuitas: +ekuitas.toFixed(4), diubah: kini.toISOString() }).eq('id', 1);
+    await db.from('lantai_modal').insert({ waktu: kini.toISOString(), total: +ekuitas.toFixed(4), per_robot: perRobot });
+    return new Response(JSON.stringify({ ok: true, total: +ekuitas.toFixed(2), tingkat: D.tingkat, posisi: jumlahPos, log }), { headers: { 'content-type': 'application/json' } });
   } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String((e as Error).message || e), log }), { status: 500, headers: { 'content-type': 'application/json' } }); }
 });
