@@ -187,7 +187,7 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
     const modal = kas + (pos ? (x.c - pos.masuk) * pos.qty * (pos.sisi === 'long' ? 1 : -1) : 0); puncak = Math.max(puncak, modal); dd = Math.max(dd, (puncak - modal) / puncak);
     if (modal <= AWAL - BATAS) { if (pos) tutup(x.c, 'batas rugi', x.t); daftar.push('DIKELUARKAN di ' + new Date(x.t).toISOString().slice(5, 16)); break; }
     if (!pos) { const s = S.masuk(ctx); if (s) { const harga = x.c * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl);
-      let qty = Math.min(jarak > 0 ? RISIKO / jarak : 0, Math.min(20, Math.floor(.8 / (jarak / harga))) * (kas / 3) / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
+      let qty = Math.min(jarak > 0 ? RISIKO / (jarak + (harga + s.sl) * BIAYA + s.sl * SELIP) : 0, Math.min(20, Math.floor(.8 / (jarak / harga))) * (kas / 3) / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
       if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, tp: harga + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * jarak, masuk: harga, qty, i, t: x.t }; } } }
   return { robot: r.nama, simbol: r.simbol, interval: r.interval, dari: new Date(K[210].t).toISOString().slice(0, 10), sampai: new Date(K.at(-1)!.t).toISOString().slice(0, 10),
     transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / AWAL - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
@@ -374,7 +374,10 @@ Deno.serve(async (req) => {
         const harga = mark * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl), d = jarak / harga;
         if (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga) { alasanLewat.push(`${sim}: harga sudah lewat stop loss`); continue; }
         const levAman = Math.max(1, Math.min(+D.lev_maks, Math.floor(.8 / d)));   // likuidasi isolated sekitar 1/leverage, harus lebih jauh dari stop loss
-        let qty = bulat(risikoUsd / jarak, A.langkah), nilai = qty * harga, lev = Math.max(1, Math.ceil(nilai / (ekuitas / maks)));
+        // rugi per koin kalau stop loss kena = jarak + biaya masuk & keluar + selip saat stop loss tereksekusi; jadi rugi total
+        // (termasuk biaya) tetap paling besar risikoUsd sesuai aturan pemilik
+        const rugiPerKoin = jarak + (harga + s.sl) * BIAYA + s.sl * SELIP;
+        let qty = bulat(risikoUsd / rugiPerKoin, A.langkah), nilai = qty * harga, lev = Math.max(1, Math.ceil(nilai / (ekuitas / maks)));
         if (lev > levAman) { lev = levAman; qty = bulat(levAman * (ekuitas / maks) / harga, A.langkah); nilai = qty * harga; }
         const margin = nilai / lev;
         if (nilai < A.minNilai) { alasanLewat.push(`${sim}: nilai ${nilai.toFixed(2)} di bawah minimal ${A.minNilai}`); continue; }
@@ -388,10 +391,10 @@ Deno.serve(async (req) => {
             try { await pasangPengaman(B, sim, s.sisi, s.sl, tpDari(masuk), A.tik); }
             catch (e) { await bursa('POST', '/fapi/v1/order', { symbol: sim, side: s.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), reduceOnly: true }, B).catch(() => null);
               await batalSemua(B, sim); dipegang[a].delete(sim); throw new Error('stop loss gagal dipasang, posisi langsung ditutup: ' + (e as Error).message); } }
-          w.pos = { simbol: sim, sisi: s.sisi, masuk, qty, sl: s.sl, slAwal: s.sl, tp: tpDari(masuk), rr: Math.max(RR_MIN, S.rr), alasan: s.alasan, waktu: new Date(akhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * jarak).toFixed(4), margin: +margin.toFixed(4) };
+          w.pos = { simbol: sim, sisi: s.sisi, masuk, qty, sl: s.sl, slAwal: s.sl, tp: tpDari(masuk), rr: Math.max(RR_MIN, S.rr), alasan: s.alasan, waktu: new Date(akhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * rugiPerKoin).toFixed(4), margin: +margin.toFixed(4) };
           w.mark = mark; marginPakai += margin; jumlahPos++; terpakai.add(sim);
           w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: `${sim.replace('USDT', '')}: ${s.alasan}` };
-          log.push(`${r.nama} buka ${s.sisi} ${sim} di ${masuk}, ${lev}x, risiko ${(qty * jarak).toFixed(2)}, 1:${Math.max(RR_MIN, S.rr)} (${s.alasan}; ${calon.length} sinyal dari ${daftar.length} pair)${a ? ' ' + a.toUpperCase() : ''}`); break; }
+          log.push(`${r.nama} buka ${s.sisi} ${sim} di ${masuk}, ${lev}x, risiko ${(qty * rugiPerKoin).toFixed(2)}, 1:${Math.max(RR_MIN, S.rr)} (${s.alasan}; ${calon.length} sinyal dari ${daftar.length} pair)${a ? ' ' + a.toUpperCase() : ''}`); break; }
         catch (e) { alasanLewat.push(`${sim}: ${String((e as Error).message || e).slice(0, 120)}`); } }
       if (!w.pos && alasanLewat.length) w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: 'dilewati: ' + alasanLewat.slice(0, 3).join('; ') }; }
 
