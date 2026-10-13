@@ -43,41 +43,44 @@ function supertrend(k: Lilin[], n = 10, m = 3) { const a = atr(k, n), garis: num
 // ---------- strategi: masuk() dinilai pada lilin terakhir yang tutup; keluar() untuk posisi terbuka
 type Sinyal = { sisi: 'long' | 'short'; sl: number; tp: number | null; alasan: string } | null;
 type Ctx = { k: Lilin[]; funding?: number };
-const STRATEGI: Record<string, { judul: string; aturan: string; masuk: (x: Ctx) => Sinyal; keluar?: (x: Ctx, sisi: string) => string | null; maksLilin?: number; jejak?: (x: Ctx, sisi: string) => number | null }> = {
-  'ikut-tren': { judul: 'Ikut tren', aturan: 'EMA 20 memotong EMA 50: ke atas long, ke bawah short. Stop loss 2 ATR, take profit 4 ATR, keluar kalau potongan berbalik.',
+// Aturan pemilik (13 Okt 2026): risk:reward paling rendah 1:2, lebih banyak 1:3. Setiap strategi punya `rr`; take profit
+// TIDAK diambil dari sinyal tetapi dihitung mesin dari harga masuk sebenarnya: masuk +/- rr x jarak stop loss.
+const RR_MIN = 2;
+const STRATEGI: Record<string, { judul: string; aturan: string; rr: number; masuk: (x: Ctx) => Sinyal; keluar?: (x: Ctx, sisi: string) => string | null; maksLilin?: number; jejak?: (x: Ctx, sisi: string) => number | null }> = {
+  'ikut-tren': { judul: 'Ikut tren', rr: 3, aturan: 'EMA 20 memotong EMA 50: ke atas long, ke bawah short. Stop loss 2 ATR, take profit 3x jarak stop loss (1:3), keluar lebih awal kalau potongan EMA berbalik.',
     masuk: ({ k }) => { const c = k.map(x => x.c), a = ema(c, 20), b = ema(c, 50), t = atr(k), i = c.length - 1;
       if (a[i] > b[i] && a[i - 1] <= b[i - 1]) return { sisi: 'long', sl: c[i] - 2 * t[i], tp: c[i] + 4 * t[i], alasan: 'EMA 20 memotong EMA 50 ke atas' };
       if (a[i] < b[i] && a[i - 1] >= b[i - 1]) return { sisi: 'short', sl: c[i] + 2 * t[i], tp: c[i] - 4 * t[i], alasan: 'EMA 20 memotong EMA 50 ke bawah' }; return null; },
     keluar: ({ k }, s) => { const c = k.map(x => x.c), a = ema(c, 20), b = ema(c, 50), i = c.length - 1; return (s === 'long' ? a[i] < b[i] : a[i] > b[i]) ? 'tren berbalik' : null; } },
-  'tembus-kisaran': { judul: 'Tembus kisaran', aturan: 'Harga tutup di atas tertinggi 20 lilin: long; di bawah terendah 20 lilin: short. Stop loss 1,5 ATR, keluar kalau tembus balik kisaran 10 lilin.',
+  'tembus-kisaran': { judul: 'Tembus kisaran', rr: 3, aturan: 'Harga tutup di atas tertinggi 20 lilin: long; di bawah terendah 20 lilin: short. Stop loss 1,5 ATR, take profit 3x jarak stop loss (1:3), keluar lebih awal kalau tembus balik kisaran 10 lilin.',
     masuk: ({ k }) => { const i = k.length - 1, s = k.slice(i - 20, i), hh = Math.max(...s.map(x => x.h)), ll = Math.min(...s.map(x => x.l)), t = atr(k)[i], c = k[i].c;
       if (c > hh) return { sisi: 'long', sl: c - 1.5 * t, tp: null, alasan: 'tutup di atas tertinggi 20 lilin' }; if (c < ll) return { sisi: 'short', sl: c + 1.5 * t, tp: null, alasan: 'tutup di bawah terendah 20 lilin' }; return null; },
     keluar: ({ k }, s) => { const i = k.length - 1, w = k.slice(i - 10, i); return s === 'long' ? (k[i].c < Math.min(...w.map(x => x.l)) ? 'tembus balik ke bawah kisaran 10 lilin' : null) : (k[i].c > Math.max(...w.map(x => x.h)) ? 'tembus balik ke atas kisaran 10 lilin' : null); } },
-  'pantulan-rsi': { judul: 'Pantulan RSI', aturan: 'RSI 14 naik dari bawah 35 dan harga di atas EMA 200: long; turun dari atas 65 dan harga di bawah EMA 200: short. Stop loss 1,5 ATR, take profit 2 ATR, keluar di RSI 60 atau 40.',
+  'pantulan-rsi': { judul: 'Pantulan RSI', rr: 2, aturan: 'RSI 14 naik dari bawah 35 dan harga di atas EMA 200: long; turun dari atas 65 dan harga di bawah EMA 200: short. Stop loss 1,5 ATR, take profit 2x jarak stop loss (1:2).',
     masuk: ({ k }) => { const c = k.map(x => x.c), r = rsi(c), e = ema(c, 200), t = atr(k), i = c.length - 1;
       if (r[i - 1] < 35 && r[i] >= 35 && c[i] > e[i]) return { sisi: 'long', sl: c[i] - 1.5 * t[i], tp: c[i] + 2 * t[i], alasan: `RSI naik dari ${r[i - 1].toFixed(0)} ke ${r[i].toFixed(0)}, harga di atas EMA 200` };
       if (r[i - 1] > 65 && r[i] <= 65 && c[i] < e[i]) return { sisi: 'short', sl: c[i] + 1.5 * t[i], tp: c[i] - 2 * t[i], alasan: `RSI turun dari ${r[i - 1].toFixed(0)} ke ${r[i].toFixed(0)}, harga di bawah EMA 200` }; return null; },
-    keluar: ({ k }, s) => { const r = rsi(k.map(x => x.c)), i = r.length - 1; return s === 'long' ? (r[i] > 60 ? 'RSI sudah 60' : null) : (r[i] < 40 ? 'RSI sudah 40' : null); } },
-  'kembali-ke-tengah': { judul: 'Kembali ke tengah', aturan: 'Harga tutup di luar pita Bollinger (20, 2): di bawah pita long, di atas pita short. Take profit di garis tengah, stop loss 1,5 ATR.',
+  },
+  'kembali-ke-tengah': { judul: 'Kembali ke tengah', rr: 2, aturan: 'Harga tutup di luar pita Bollinger (20, 2): di bawah pita long, di atas pita short. Stop loss 1,5 ATR, take profit 2x jarak stop loss (1:2), paling lama 48 lilin (12 jam).',
     masuk: ({ k }) => { const c = k.map(x => x.c), m = sma(c, 20), i = c.length - 1, sd = Math.sqrt(c.slice(i - 19).reduce((a, x) => a + (x - m[i]) ** 2, 0) / 20), t = atr(k)[i];
       if (c[i] < m[i] - 2 * sd) return { sisi: 'long', sl: c[i] - 1.5 * t, tp: m[i], alasan: 'tutup di bawah pita bawah Bollinger' };
       if (c[i] > m[i] + 2 * sd) return { sisi: 'short', sl: c[i] + 1.5 * t, tp: m[i], alasan: 'tutup di atas pita atas Bollinger' }; return null; },
-    maksLilin: 24 },
-  'momentum-macd': { judul: 'Momentum MACD', aturan: 'Garis MACD (12, 26) memotong sinyal (9) searah posisi nol: di atas nol long, di bawah nol short. Stop loss 2 ATR, take profit 3 ATR, paling lama 24 lilin.',
+    maksLilin: 48 },
+  'momentum-macd': { judul: 'Momentum MACD', rr: 3, aturan: 'Garis MACD (12, 26) memotong sinyal (9) searah posisi nol: di atas nol long, di bawah nol short. Stop loss 2 ATR, take profit 3x jarak stop loss (1:3), paling lama 48 lilin (2 hari).',
     masuk: ({ k }) => { const c = k.map(x => x.c), a = ema(c, 12), b = ema(c, 26), m = a.map((x, i) => x - b[i]), s = ema(m, 9), t = atr(k), i = c.length - 1;
       if (m[i] > s[i] && m[i - 1] <= s[i - 1] && m[i] > 0) return { sisi: 'long', sl: c[i] - 2 * t[i], tp: c[i] + 3 * t[i], alasan: 'MACD memotong sinyal ke atas di atas nol' };
       if (m[i] < s[i] && m[i - 1] >= s[i - 1] && m[i] < 0) return { sisi: 'short', sl: c[i] + 2 * t[i], tp: c[i] - 3 * t[i], alasan: 'MACD memotong sinyal ke bawah di bawah nol' }; return null; },
-    maksLilin: 24 },
-  'lonjakan-volume': { judul: 'Lonjakan volume', aturan: 'Volume lebih dari 3 kali rata-rata 20 lilin dan badan lilin lebih dari 60% rentangnya: ikut arah lilin. Stop loss 1 ATR, take profit 2 ATR, paling lama 8 lilin.',
+    maksLilin: 48 },
+  'lonjakan-volume': { judul: 'Lonjakan volume', rr: 3, aturan: 'Volume lebih dari 3 kali rata-rata 20 lilin dan badan lilin lebih dari 60% rentangnya: ikut arah lilin. Stop loss 1 ATR, take profit 3x jarak stop loss (1:3), paling lama 16 lilin (4 jam).',
     masuk: ({ k }) => { const i = k.length - 1, x = k[i], rata = k.slice(i - 20, i).reduce((a, y) => a + y.v, 0) / 20, t = atr(k)[i], badan = Math.abs(x.c - x.o), rentang = x.h - x.l || 1e-12;
       if (x.v > 3 * rata && badan > .6 * rentang) return x.c > x.o ? { sisi: 'long', sl: x.c - t, tp: x.c + 2 * t, alasan: `volume ${(x.v / rata).toFixed(1)}x rata-rata, lilin naik` } : { sisi: 'short', sl: x.c + t, tp: x.c - 2 * t, alasan: `volume ${(x.v / rata).toFixed(1)}x rata-rata, lilin turun` };
-      return null; }, maksLilin: 8 },
-  'lawan-funding': { judul: 'Lawan funding', aturan: 'Funding rate di atas 0,03% (terlalu banyak long): short; di bawah -0,01% (terlalu banyak short): long. Stop loss 1,5 ATR, take profit 2 ATR, paling lama 8 jam.',
+      return null; }, maksLilin: 16 },
+  'lawan-funding': { judul: 'Lawan funding', rr: 2, aturan: 'Funding rate di atas 0,03% (terlalu banyak long): short; di bawah -0,01% (terlalu banyak short): long. Stop loss 1,5 ATR, take profit 2x jarak stop loss (1:2), paling lama 16 jam.',
     masuk: ({ k, funding }) => { if (funding == null) return null; const i = k.length - 1, t = atr(k)[i], c = k[i].c;
       if (funding > .0003) return { sisi: 'short', sl: c + 1.5 * t, tp: c - 2 * t, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong long` };
       if (funding < -.0001) return { sisi: 'long', sl: c - 1.5 * t, tp: c + 2 * t, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong short` }; return null; },
-    maksLilin: 8 },
-  'supertrend': { judul: 'Supertrend', aturan: 'Supertrend (10, 3) berbalik arah: ikut arah baru. Stop loss di garis supertrend dan ikut bergeser, keluar kalau supertrend berbalik lagi.',
+    maksLilin: 16 },
+  'supertrend': { judul: 'Supertrend', rr: 3, aturan: 'Supertrend (10, 3) berbalik arah: ikut arah baru. Stop loss di garis supertrend dan ikut bergeser mengunci untung, take profit 3x jarak stop loss awal (1:3), keluar kalau supertrend berbalik lagi.',
     masuk: ({ k }) => { const { garis, arah } = supertrend(k), i = k.length - 1;
       if (arah[i] === 1 && arah[i - 1] === -1) return { sisi: 'long', sl: garis[i], tp: null, alasan: 'supertrend berbalik naik' };
       if (arah[i] === -1 && arah[i - 1] === 1) return { sisi: 'short', sl: garis[i], tp: null, alasan: 'supertrend berbalik turun' }; return null; },
@@ -161,7 +164,7 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
     if (modal <= AWAL - BATAS) { if (pos) tutup(x.c, 'batas rugi', x.t); daftar.push('DIKELUARKAN di ' + new Date(x.t).toISOString().slice(5, 16)); break; }
     if (!pos) { const s = S.masuk(ctx); if (s) { const harga = x.c * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl);
       let qty = Math.min(jarak > 0 ? RISIKO / jarak : 0, Math.min(20, Math.floor(.8 / (jarak / harga))) * (kas / 3) / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
-      if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, masuk: harga, qty, i, t: x.t }; } } }
+      if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, tp: harga + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * jarak, masuk: harga, qty, i, t: x.t }; } } }
   return { robot: r.nama, simbol: r.simbol, interval: r.interval, dari: new Date(K[210].t).toISOString().slice(0, 10), sampai: new Date(K.at(-1)!.t).toISOString().slice(0, 10),
     transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / AWAL - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
 
@@ -233,6 +236,10 @@ Deno.serve(async (req) => {
             const a = akunPos(w.pos); if (a) { await batalSemua(AKUN[a], r.simbol); await pasangPengaman(AKUN[a], r.simbol, w.pos.sisi, g, w.pos.tp, aturanKoin[r.simbol].tik); } } }   // stop loss di bursa ikut digeser
           if (w.pos && S.keluar) { const a = S.keluar(w.ctx, w.pos.sisi); if (a) await w.tutup(mark, a); }
           if (w.pos && S.maksLilin && k.filter(x => x.t > Date.parse(w.pos.waktu)).length >= S.maksLilin) await w.tutup(mark, `sudah ${S.maksLilin} lilin`);
+          if (w.pos && !w.pos.rr && w.pos.qty > 0 && w.pos.risiko > 0) { const rr = Math.max(RR_MIN, S.rr), arah = w.pos.sisi === 'long' ? 1 : -1, tpBaru = w.pos.masuk + arah * rr * (w.pos.risiko / w.pos.qty);
+            if (arah * (mark - tpBaru) >= 0) await w.tutup(mark, `sudah melewati target 1:${rr}`);
+            else { w.pos.tp = tpBaru; w.pos.rr = rr; const a = akunPos(w.pos); if (a) { await batalSemua(AKUN[a], r.simbol); await pasangPengaman(AKUN[a], r.simbol, w.pos.sisi, w.pos.sl, tpBaru, aturanKoin[r.simbol].tik); }
+              log.push(`${r.nama} take profit disesuaikan ke 1:${rr} (${tpBaru})`); } }
           // posisi simulasi yang dibuka sebelum akun demo dinyalakan dipindah ke Binance Demo (jumlah, SL, TP sama). Harga masuk
           // catatan tetap harga masuk awal supaya untung-rugi dompet tidak berubah; harga isi di demo disimpan di masukBursa.
           // Hanya ke DEMO: posisi simulasi tidak pernah dipindah ke uang sungguhan.
@@ -281,14 +288,15 @@ Deno.serve(async (req) => {
       if (marginPakai + margin > ekuitas) { lewati(`margin ${margin.toFixed(2)} tidak muat di sisa saldo`); continue; }
       const a = w.akunPilihan && !dipegang[w.akunPilihan].has(r.simbol) ? w.akunPilihan : null;
       if (w.akunPilihan && !a) log.push(`${r.nama}: koin ${r.simbol} sudah dipegang robot lain di akun ${w.akunPilihan}, posisi ini dicatat sebagai simulasi`);
+      const tpDari = (m: number) => m + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * Math.abs(m - s.sl);
       try { let masuk = harga;
         if (a) { const B = AKUN[a]; await bursa('POST', '/fapi/v1/marginType', { symbol: r.simbol, marginType: 'ISOLATED' }, B).catch(() => null); await bursa('POST', '/fapi/v1/leverage', { symbol: r.simbol, leverage: lev }, B);
           const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: s.sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), newOrderRespType: 'RESULT' }, B); masuk = +o.avgPrice || w.mark;
           dipegang[a].add(r.simbol);
-          try { await pasangPengaman(B, r.simbol, s.sisi, s.sl, s.tp, A.tik); }
+          try { await pasangPengaman(B, r.simbol, s.sisi, s.sl, tpDari(masuk), A.tik); }
           catch (e) { await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: s.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), reduceOnly: true }, B).catch(() => null);
             await batalSemua(B, r.simbol); dipegang[a].delete(r.simbol); throw new Error('stop loss gagal dipasang, posisi langsung ditutup: ' + (e as Error).message); } }
-        w.pos = { sisi: s.sisi, masuk, qty, sl: s.sl, tp: s.tp, alasan: s.alasan, waktu: new Date(lilinAkhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * jarak).toFixed(4), margin: +margin.toFixed(4) };
+        w.pos = { sisi: s.sisi, masuk, qty, sl: s.sl, slAwal: s.sl, tp: tpDari(masuk), rr: Math.max(RR_MIN, S.rr), alasan: s.alasan, waktu: new Date(lilinAkhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * jarak).toFixed(4), margin: +margin.toFixed(4) };
         marginPakai += margin; jumlahPos++;
         w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: s.alasan }; log.push(`${r.nama} buka ${s.sisi} ${r.simbol} di ${masuk}, ${lev}x, risiko ${(qty * jarak).toFixed(2)} (${s.alasan})${a ? ' ' + a.toUpperCase() : ''}`); }
       catch (e) { w.galat = String((e as Error).message || e).slice(0, 200); log.push(`${r.nama}: ${w.galat}`); } }
