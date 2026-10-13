@@ -233,6 +233,19 @@ Deno.serve(async (req) => {
             const a = akunPos(w.pos); if (a) { await batalSemua(AKUN[a], r.simbol); await pasangPengaman(AKUN[a], r.simbol, w.pos.sisi, g, w.pos.tp, aturanKoin[r.simbol].tik); } } }   // stop loss di bursa ikut digeser
           if (w.pos && S.keluar) { const a = S.keluar(w.ctx, w.pos.sisi); if (a) await w.tutup(mark, a); }
           if (w.pos && S.maksLilin && k.filter(x => x.t > Date.parse(w.pos.waktu)).length >= S.maksLilin) await w.tutup(mark, `sudah ${S.maksLilin} lilin`);
+          // posisi simulasi yang dibuka sebelum akun demo dinyalakan dipindah ke Binance Demo (jumlah, SL, TP sama). Harga masuk
+          // catatan tetap harga masuk awal supaya untung-rugi dompet tidak berubah; harga isi di demo disimpan di masukBursa.
+          // Hanya ke DEMO: posisi simulasi tidak pernah dipindah ke uang sungguhan.
+          if (w.pos && !akunPos(w.pos) && w.akunPilihan === 'demo' && !dipegang.demo.has(r.simbol) && (w.pos.sisi === 'long' ? mark > w.pos.sl : mark < w.pos.sl)) {
+            const B = AKUN.demo, A = aturanKoin[r.simbol], q = w.pos.qty.toFixed(dp(A.langkah));
+            await bursa('POST', '/fapi/v1/marginType', { symbol: r.simbol, marginType: 'ISOLATED' }, B).catch(() => null);
+            await bursa('POST', '/fapi/v1/leverage', { symbol: r.simbol, leverage: w.pos.leverage || 1 }, B);
+            const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: w.pos.sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: q, newOrderRespType: 'RESULT' }, B);
+            dipegang.demo.add(r.simbol);
+            try { await pasangPengaman(B, r.simbol, w.pos.sisi, w.pos.sl, w.pos.tp, A.tik); }
+            catch (e) { await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: w.pos.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: q, reduceOnly: true }, B).catch(() => null);
+              await batalSemua(B, r.simbol); dipegang.demo.delete(r.simbol); throw new Error('pindah ke demo batal, stop loss gagal dipasang: ' + (e as Error).message); }
+            w.pos.akun = 'demo'; w.pos.masukBursa = +o.avgPrice || mark; log.push(`${r.nama} posisi ${w.pos.sisi} ${r.simbol} dipindah ke Binance Demo di ${w.pos.masukBursa}`); }
         } } catch (e) { w.galat = String((e as Error).message || e).slice(0, 200); log.push(`${r.nama}: ${w.galat}`); }
       R.push(w); }
 
