@@ -107,7 +107,8 @@ async function batalSemua(akun: Akun, simbol: string) {
 
 // ---------- uji jalur live di Binance Testnet (uang mainan): satu siklus penuh, tiap langkah dilaporkan
 async function ujiTestnet(simbol: string) {
-  const TN: Akun = { base: 'https://testnet.binancefuture.com', key: Deno.env.get('BINANCE_TESTNET_KEY') ?? '', secret: Deno.env.get('BINANCE_TESTNET_SECRET') ?? '' };
+  // Testnet futures lama diganti Binance Demo Trading (Okt 2026): kunci dibuat di demo.binance.com, API di demo-fapi.binance.com
+  const TN: Akun = { base: Deno.env.get('BINANCE_TESTNET_URL') ?? 'https://demo-fapi.binance.com', key: Deno.env.get('BINANCE_TESTNET_KEY') ?? '', secret: Deno.env.get('BINANCE_TESTNET_SECRET') ?? '' };
   if (!TN.key || !TN.secret) return { ok: false, pesan: 'Secret BINANCE_TESTNET_KEY dan BINANCE_TESTNET_SECRET belum dipasang.' };
   const langkah: { langkah: string; ok: boolean; isi: string }[] = [], catat = (l: string, ok: boolean, isi: string) => langkah.push({ langkah: l, ok, isi: String(isi).slice(0, 220) });
   const B = (m: string, j: string, p: Record<string, string | number | boolean> = {}) => bursa(m, j, p, TN);
@@ -192,6 +193,7 @@ Deno.serve(async (req) => {
           const o = await bursa('POST', '/fapi/v1/order', { symbol: r.simbol, side: pos.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: pos.qty.toFixed(dp(aturanKoin[r.simbol].langkah)), reduceOnly: true, newOrderRespType: 'RESULT' });
           keluar = +o.avgPrice || harga; }
         else if (!pakaiLive) keluar = harga * (pos.sisi === 'long' ? 1 - SELIP : 1 + SELIP);
+        if (pakaiLive && olehBursa) await batalSemua(AKUN_LIVE, r.simbol);   // order pengaman pasangannya (TP atau SL) jangan tertinggal
         const arah = pos.sisi === 'long' ? 1 : -1, kotor = (keluar - pos.masuk) * pos.qty * arah, biaya = (pos.masuk + keluar) * pos.qty * BIAYA, bersih = kotor - biaya;
         kas += bersih; st.transaksi++; bersih > 0 ? st.menang++ : st.kalah++; st.pnl += bersih;
         await db.from('lantai_transaksi').insert({ robot: r.id, data: { sisi: pos.sisi, masuk: pos.masuk, keluar, qty: pos.qty, pnl: +bersih.toFixed(4), biaya: +biaya.toFixed(4), alasanMasuk: pos.alasan, alasanKeluar: alasan, waktuMasuk: pos.waktu, waktuKeluar: kini.toISOString(), live: !!pos.live, simbol: r.simbol } });
