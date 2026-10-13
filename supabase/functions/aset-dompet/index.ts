@@ -91,5 +91,16 @@ Deno.serve(async (req) => {
     if (!usd) { const t = await fetch(`${BYBIT}/v5/market/tickers?category=spot&symbol=${k.simbol}USDT`).then(r => r.json()).catch(() => null); usd = +(t?.result?.list?.[0]?.lastPrice ?? 0); idr = usd * kurs; }
     return { ...k, hargaUsd: usd, hargaIdr: idr, nilaiUsd: k.jumlah * usd, nilaiIdr: k.jumlah * idr }; }));
   koin.sort((a, b) => b.nilaiIdr - a.nilaiIdr);
-  return jawab({ ok: true, siap: koin.length > 0, sumber: sumber.join(', '), galat, koin, totalUsd: koin.reduce((a, k) => a + k.nilaiUsd, 0), totalIdr: koin.reduce((a, k) => a + k.nilaiIdr, 0), kurs, waktu: new Date().toISOString() });
+  // Sinkron ke Markasku (pemilik 13 Okt 2026: "yang terlihat di Markasku itu data lama makanya di-update"): nilai aset
+  // crypto di dokumen keuangan/aset diganti saldo sungguhan. Kas (dari arus kas), aset lain, dan utang tidak disentuh.
+  let sinkron: unknown = null; const badan = await req.json().catch(() => ({}));
+  if (badan.sinkron && koin.length && !galat.some(x => !x.startsWith('Kunci Bybit'))) {
+    const { data: dok } = await sb.from('markas_dokumen').select('data').eq('user_id', PEMILIK).eq('path', 'keuangan/aset').maybeSingle();
+    if (dok?.data?.aset) { const d = dok.data, peta = Object.fromEntries(koin.map(k => [k.simbol, k])), diubah: string[] = [];
+      for (const a of d.aset) { const k = peta[String(a.nama || '').trim().toUpperCase()]; if (!k || !(k.hargaIdr > 0) || a.kas || !['Bitcoin', 'Altcoin', 'Stablecoin', 'Crypto'].includes(a.kategori)) continue;
+        const baru = Math.round(k.nilaiIdr); if (Math.abs(baru - (+a.nilai || 0)) >= 1) { diubah.push(`${a.nama} ${a.nilai} -> ${baru}`); a.nilai = baru; }
+        a.jumlahKoin = +k.jumlah.toFixed(8); a.sumberLive = Object.keys(k.akun).join(', '); a.diperbaruiLive = new Date().toISOString(); }
+      if (diubah.length) { d.diperbarui = new Date().toISOString(); await sb.from('markas_dokumen').update({ data: d, diperbarui: d.diperbarui }).eq('user_id', PEMILIK).eq('path', 'keuangan/aset'); }
+      sinkron = { diubah }; } }
+  return jawab({ sinkron, ok: true, siap: koin.length > 0, sumber: sumber.join(', '), galat, koin, totalUsd: koin.reduce((a, k) => a + k.nilaiUsd, 0), totalIdr: koin.reduce((a, k) => a + k.nilaiIdr, 0), kurs, waktu: new Date().toISOString() });
 });
