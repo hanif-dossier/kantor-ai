@@ -208,3 +208,44 @@ begin
 end $$;
 grant execute on function public.lantai_setel(text, numeric) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- PENGINTAI HYPERLIQUID (13 Okt 2026, pemilik: "buatkan bot pengintai hyperliquidnya"). Robot ke-9 mengikuti 30 trader
+-- paling untung di Hyperliquid (posisi mereka publik). Daftar dipilih ulang tiap hari 06.50 WIB dari papan peringkat
+-- (lantai__segar_paus), posisinya dibaca tiap putaran oleh mesin.
+create table if not exists public.lantai_paus (
+  alamat text primary key,
+  skor jsonb not null default '{}'::jsonb,      -- nilai akun, untung bulan ini, ROI, untung total
+  posisi jsonb not null default '{}'::jsonb,    -- koin -> { sisi, nilai, sejak } (sejak null = sudah ada saat mulai dipantau)
+  dipilih timestamptz,
+  diperiksa timestamptz
+);
+alter table public.lantai_paus enable row level security;
+revoke all on public.lantai_paus from public, anon, authenticated;
+insert into public.lantai_robot (id, urut, nama, strategi, simbol, interval, kas) values ('paus-hl', 9, 'Pengintai', 'ikut-paus', 'SEMUA', '15m', 0) on conflict (id) do nothing;
+
+create or replace function public.lantai__segar_paus() returns bigint language plpgsql security definer set search_path = public, extensions as $$
+begin
+  return net.http_post('https://hzxfheydtrjhizbwbddh.supabase.co/functions/v1/lantai-trading',
+    jsonb_build_object('segarPaus', true), '{}'::jsonb,
+    jsonb_build_object('Content-Type', 'application/json', 'x-region', 'ap-south-1', 'x-lantai-kunci', (select nilai from cs_rahasia where nama = 'lantai_kunci')),
+    120000);
+end $$;
+revoke all on function public.lantai__segar_paus() from public, anon, authenticated;
+select cron.unschedule('lantai-paus') where exists (select 1 from cron.job where jobname = 'lantai-paus');
+select cron.schedule('lantai-paus', '50 23 * * *', $c$select public.lantai__segar_paus()$c$);
+
+create or replace function public.lantai_baca(p_token text) returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  return jsonb_build_object('ok', true,
+    'dompet', (select to_jsonb(d) from lantai_dompet d where id = 1),
+    'robot', coalesce((select jsonb_agg(to_jsonb(r) order by r.urut) from lantai_robot r), '[]'::jsonb),
+    'transaksi', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'robot', t.robot, 'waktu', t.waktu) || t.data order by t.waktu desc) from (select * from lantai_transaksi order by waktu desc limit 60) t), '[]'::jsonb),
+    'modal', coalesce((select jsonb_agg(jsonb_build_object('w', m.waktu, 't', m.total) order by m.waktu) from (
+       select distinct on (date_trunc('hour', waktu)) waktu, total from lantai_modal where waktu > now() - interval '14 days' order by date_trunc('hour', waktu), waktu desc) m), '[]'::jsonb),
+    'paus', jsonb_build_object('jumlah', (select count(*) from lantai_paus), 'berposisi', (select count(*) from lantai_paus where posisi <> '{}'::jsonb), 'diperiksa', (select max(diperiksa) from lantai_paus),
+      'teratas', coalesce((select jsonb_agg(jsonb_build_object('alamat', left(alamat, 6) || '…' || right(alamat, 4), 'untungBulan', skor->'untungBulan', 'roiBulan', skor->'roiBulan', 'posisi', (select count(*) from jsonb_object_keys(posisi))) order by (skor->>'untungBulan')::numeric desc) from (select * from lantai_paus order by (skor->>'untungBulan')::numeric desc limit 5) p), '[]'::jsonb)),
+    'terakhir', (select max(waktu) from lantai_modal),
+    'kunciBursa', (select count(*) > 0 from cs_rahasia where nama = 'lantai_bursa_siap'));
+end $$;
+notify pgrst, 'reload schema';

@@ -48,7 +48,20 @@ type Sinyal = { sisi: 'long' | 'short'; sl: number; tp: number | null; alasan: s
 const SEMESTA_N = 40, SEMESTA_VOL_MIN = 50e6, STABIL = /^(USDC|FDUSD|TUSD|BUSD|USDP|DAI|EUR|AEUR|USDE|BFUSD|XUSD|RLUSD|USD1)USDT$/;
 const IV_MS: Record<string, number> = { '15m': 9e5, '1h': 36e5, '4h': 144e5 };
 const UJI_KOIN = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT'];
-type Ctx = { k: Lilin[]; funding?: number };
+// Pair per strategi (13 Okt 2026, pemilik: "random ya bisa btc juga altcoin besar tetapi sesuaikan juga dengan strategi
+// masing2"). 'besar' = BTC + altcoin besar (tren, momentum, pantulan butuh pasar likuid yang rapi); 'luas' = altcoin besar +
+// pair paling ramai hari ini (breakout, lonjakan volume, funding ekstrem sering terjadi di koin yang sedang ramai);
+// 'paus' = koin yang sedang dibuka trader top Hyperliquid. Dari sinyal yang ada, pilihan diundi berbobot kekuatan sinyal.
+const BESAR = ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA', 'AVAX', 'LINK', 'TRX', 'DOT', 'LTC', 'BCH', 'NEAR', 'SUI', 'APT', 'ARB', 'OP', 'INJ', 'UNI', 'AAVE', 'ATOM',
+  'HBAR', 'XLM', 'FIL', 'ETC', 'TAO', 'HYPE', 'ENA', 'WLD', 'SEI', 'TIA', 'ONDO', '1000PEPE', '1000SHIB', 'RENDER', 'FET', 'TON', 'ICP'].map(x => x + 'USDT');
+const KUMPULAN: Record<string, 'besar' | 'luas' | 'paus'> = { 'ikut-tren': 'besar', 'momentum-macd': 'besar', 'supertrend': 'besar', 'pantulan-rsi': 'besar', 'kembali-ke-tengah': 'besar',
+  'tembus-kisaran': 'luas', 'lonjakan-volume': 'luas', 'lawan-funding': 'luas', 'ikut-paus': 'paus' };
+const BESAR_VOL_MIN = 20e6;
+const HL_INFO = 'https://api.hyperliquid.xyz/info', HL_PAPAN = 'https://stats-data.hyperliquid.xyz/Mainnet/leaderboard', PAUS_N = 30, PAUS_BARU_MS = 36e5;
+const hlKeBinance = (c: string) => (/^k[A-Z]/.test(c) ? '1000' + c.slice(1) : c) + 'USDT';   // kPEPE -> 1000PEPEUSDT
+const undiBerbobot = <T extends { s: any }>(xs: T[]) => xs.map(x => ({ x, kunci: Math.pow(Math.random(), 1 / Math.max(.1, x.s.kuat ?? 1)) })).sort((a, b) => b.kunci - a.kunci).map(o => o.x);
+type Paus = { long: number; short: number; baruLong: number; baruShort: number };
+type Ctx = { k: Lilin[]; funding?: number; paus?: Paus };
 // Aturan pemilik (13 Okt 2026): risk:reward paling rendah 1:2, lebih banyak 1:3. Setiap strategi punya `rr`; take profit
 // TIDAK diambil dari sinyal tetapi dihitung mesin dari harga masuk sebenarnya: masuk +/- rr x jarak stop loss.
 const RR_MIN = 2;
@@ -86,6 +99,11 @@ const STRATEGI: Record<string, { judul: string; aturan: string; rr: number; masu
       if (funding > .0003) return { sisi: 'short', sl: c + 1.5 * t, tp: c - 2 * t, kuat: Math.abs(funding) * 1e4, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong long` };
       if (funding < -.0001) return { sisi: 'long', sl: c - 1.5 * t, tp: c + 2 * t, kuat: Math.abs(funding) * 1e4, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong short` }; return null; },
     maksLilin: 16 },
+  'ikut-paus': { judul: 'Pengintai Hyperliquid', rr: 3, aturan: 'Memantau 30 trader paling untung di Hyperliquid (nilai akun minimal $100 rb, untung bulan ini dan sepanjang masa, aktif trading tapi bukan bot market maker). Masuk kalau minimal 2 dari mereka baru membuka posisi searah di koin yang sama dalam 1 jam terakhir dan yang searah lebih banyak minimal 3 orang dari yang berlawanan. Stop loss 3 ATR lilin 15 menit, take profit 3x jarak stop loss (1:3), keluar lebih awal kalau mereka sudah tidak condong ke arah posisi.',
+    masuk: ({ k, paus }) => { if (!paus) return null; const i = k.length - 1, t = atr(k)[i], c = k[i].c, net = paus.long - paus.short;
+      if (paus.baruLong >= 2 && net >= 3) return { sisi: 'long', sl: c - 3 * t, tp: null, kuat: net + paus.baruLong, alasan: `${paus.baruLong} trader top Hyperliquid baru buka long (${paus.long} long vs ${paus.short} short)` };
+      if (paus.baruShort >= 2 && -net >= 3) return { sisi: 'short', sl: c + 3 * t, tp: null, kuat: -net + paus.baruShort, alasan: `${paus.baruShort} trader top Hyperliquid baru buka short (${paus.short} short vs ${paus.long} long)` }; return null; },
+    keluar: ({ paus }, s) => { if (!paus) return null; const net = paus.long - paus.short; return (s === 'long' ? net < 1 : net > -1) ? 'trader top Hyperliquid sudah tidak condong ke arah ini' : null; } },
   'supertrend': { judul: 'Supertrend', rr: 3, aturan: 'Supertrend (10, 3) berbalik arah: ikut arah baru. Stop loss di garis supertrend dan ikut bergeser mengunci untung, take profit 3x jarak stop loss awal (1:3), keluar kalau supertrend berbalik lagi.',
     masuk: ({ k }) => { const { garis, arah } = supertrend(k), i = k.length - 1;
       if (arah[i] === 1 && arah[i - 1] === -1) return { sisi: 'long', sl: garis[i], tp: null, alasan: 'supertrend berbalik naik' };
@@ -174,12 +192,46 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
   return { robot: r.nama, simbol: r.simbol, interval: r.interval, dari: new Date(K[210].t).toISOString().slice(0, 10), sampai: new Date(K.at(-1)!.t).toISOString().slice(0, 10),
     transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / AWAL - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
 
+// ---------- Hyperliquid
+// Papan peringkat 39 MB dibaca bertahap (baris demi baris) supaya memori fungsi tidak habis, lalu dipilih 30 trader.
+async function segarPaus() {
+  const r = await fetch(HL_PAPAN); if (!r.ok || !r.body) throw new Error('papan Hyperliquid ' + r.status);
+  const baca = r.body.pipeThrough(new TextDecoderStream()).getReader(), calon: any[] = []; let buf = '', n = 0;
+  // berkasnya JSON berindentasi: potong per penanda "ethAddress", buang penutup/pembuka di ekor, tutup lagi dengan '}'
+  const proses = (t: string) => { if (!t.startsWith('"ethAddress"')) return; const j = '{' + t.replace(/[\s,{\]}]*$/, '') + '}';
+    try { const x = JSON.parse(j); n++; const w = Object.fromEntries(x.windowPerformances), av = +x.accountValue, vb = +w.month.vlm / Math.max(1, av);
+      if (av >= 1e5 && +w.month.pnl > 0 && +w.allTime.pnl > 0 && +w.week.pnl > -.05 * av && +w.month.roi >= .05 && +w.month.roi <= 5 && vb >= 3 && vb < 300)
+        calon.push({ alamat: x.ethAddress, skor: { nilaiAkun: Math.round(av), untungBulan: Math.round(+w.month.pnl), roiBulan: +(+w.month.roi * 100).toFixed(1), untungTotal: Math.round(+w.allTime.pnl), nama: x.displayName } }); } catch { /* baris rusak dilewati */ } };
+  for (;;) { const { value, done } = await baca.read(); if (done) break; buf += value; let awal = buf.indexOf('"ethAddress"'), i; if (awal < 0) continue;
+    while ((i = buf.indexOf('"ethAddress"', awal + 1)) > 0) { proses(buf.slice(awal, i)); awal = i; } buf = buf.slice(awal); }
+  proses(buf);
+  const pilih = calon.sort((a, b) => b.skor.untungBulan - a.skor.untungBulan).slice(0, PAUS_N), kini = new Date().toISOString();
+  const { data: lama } = await db.from('lantai_paus').select('alamat'); const tetap = new Set(pilih.map(x => x.alamat));
+  const buang = (lama || []).map((x: any) => x.alamat).filter((a: string) => !tetap.has(a)); if (buang.length) await db.from('lantai_paus').delete().in('alamat', buang);
+  for (const p of pilih) await db.from('lantai_paus').upsert({ alamat: p.alamat, skor: p.skor, dipilih: kini }, { onConflict: 'alamat' });
+  return { ok: true, dibaca: n, lolosSaring: calon.length, dipilih: pilih.length, contoh: pilih.slice(0, 5).map(x => `${x.alamat.slice(0, 8)} akun $${x.skor.nilaiAkun} untung bulan ini $${x.skor.untungBulan} (${x.skor.roiBulan}%)`) }; }
+// Posisi 30 trader dibaca tiap putaran. `sejak` = pertama kali posisi itu terlihat (null kalau sudah ada saat mulai dipantau),
+// jadi "baru buka" = terlihat dalam 1 jam terakhir. Hasil: per pair Binance, jumlah trader long/short dan yang baru buka.
+async function pantauPaus(kini: Date) {
+  const { data: rows } = await db.from('lantai_paus').select('*'); if (!rows?.length) return null;
+  const hasil: Record<string, Paus> = {}, t = kini.getTime();
+  await Promise.all(rows.map(async (row: any) => { try {
+    const j = await (await fetch(HL_INFO, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'clearinghouseState', user: row.alamat }) })).json();
+    const lama = row.posisi || {}, baru: Record<string, any> = {};
+    for (const p of j.assetPositions || []) { const x = p.position, sisi = +x.szi > 0 ? 'long' : 'short', c = x.coin;
+      baru[c] = { sisi, nilai: Math.round(+x.positionValue), sejak: lama[c]?.sisi === sisi ? lama[c].sejak : (row.diperiksa ? kini.toISOString() : null) };
+      const b = hlKeBinance(c), h = hasil[b] ??= { long: 0, short: 0, baruLong: 0, baruShort: 0 }; h[sisi as 'long' | 'short']++;
+      if (baru[c].sejak && t - Date.parse(baru[c].sejak) <= PAUS_BARU_MS) sisi === 'long' ? h.baruLong++ : h.baruShort++; }
+    await db.from('lantai_paus').update({ posisi: baru, diperiksa: kini.toISOString() }).eq('alamat', row.alamat); } catch { /* dompet ini dilewati putaran ini */ } }));
+  return hasil; }
+
 // ---------- putaran
 Deno.serve(async (req) => {
   const kunci = (await db.from('cs_rahasia').select('nilai').eq('nama', 'lantai_kunci').maybeSingle()).data?.nilai;
   if (!kunci || req.headers.get('x-lantai-kunci') !== kunci) return new Response('ditolak', { status: 401 });
   const log: string[] = [], kini = new Date();
   const badan = await req.json().catch(() => ({}));
+  if (badan.segarPaus) { try { return new Response(JSON.stringify(await segarPaus()), { headers: { 'content-type': 'application/json' } }); } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String(e) }), { status: 500 }); } }
   if (badan.ujiTestnet) return new Response(JSON.stringify(await ujiTestnet(badan.simbol || 'BTCUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.pindai) {   // pindai semua pair untuk semua robot pada lilin terakhir yang sudah tutup, TANPA membuka posisi (untuk diperiksa)
     const t24 = await ambil(`${FAPI}/fapi/v1/ticker/24hr`), info = await ambil(`${FAPI}/fapi/v1/exchangeInfo`), premi = Object.fromEntries((await ambil(`${FAPI}/fapi/v1/premiumIndex`)).map((x: any) => [x.symbol, +x.lastFundingRate]));
@@ -227,6 +279,14 @@ Deno.serve(async (req) => {
     const semesta: string[] = t24.filter((x: any) => bisaDiperdagangkan.has(x.symbol) && !STABIL.test(x.symbol) && +x.quoteVolume >= SEMESTA_VOL_MIN && (!adaDemo || adaDemo.has(x.symbol)))
       .sort((a: any, b: any) => +b.quoteVolume - +a.quoteVolume).slice(0, SEMESTA_N).map((x: any) => x.symbol);
     const cache: Record<string, Promise<Lilin[]>> = {}, ambilLilin = (s: string, iv: string) => cache[s + iv] ??= lilin(s, iv);
+    const layak = (x: string) => bisaDiperdagangkan.has(x) && (volume[x] ?? 0) >= BESAR_VOL_MIN && (!adaDemo || adaDemo.has(x));
+    const besar = BESAR.filter(layak), luas = [...new Set([...besar, ...semesta])];
+    const pakaiPaus = robot!.some(r => r.strategi === 'ikut-paus' && (r.status === 'aktif' || r.posisi));
+    const paus = pakaiPaus ? await pantauPaus(kini).catch(e => { log.push('Pengintai: data Hyperliquid gagal ' + String(e).slice(0, 80)); return null; }) : null;
+    const pausKoin = (sim: string) => paus ? (paus[sim] ?? { long: 0, short: 0, baruLong: 0, baruShort: 0 }) : undefined;
+    const kumpulanPair = (strategi: string) => { const k = KUMPULAN[strategi] ?? 'luas';
+      if (k === 'paus') return paus ? Object.entries(paus).filter(([sim, h]) => (h.baruLong >= 2 || h.baruShort >= 2) && layak(sim)).map(([sim]) => sim) : [];
+      return k === 'besar' ? besar : luas; };
     const bulat = (v: number, l: number) => Math.floor(v / l + 1e-9) * l, dp = (l: number) => Math.max(0, -Math.floor(Math.log10(l)));
     const R = [] as any[];   // keadaan kerja tiap robot selama putaran
 
@@ -251,7 +311,7 @@ Deno.serve(async (req) => {
         await db.from('lantai_transaksi').insert({ robot: r.id, data: { sisi: pos.sisi, masuk: pos.masuk, keluar, qty: pos.qty, leverage: pos.leverage, risiko: pos.risiko, rr: pos.rr, pnl: +bersih.toFixed(4), biaya: +biaya.toFixed(4), alasanMasuk: pos.alasan, alasanKeluar: alasan, waktuMasuk: pos.waktu, waktuKeluar: kini.toISOString(), live: a === 'live', akun: a ?? 'simulasi', simbol: sim } });
         log.push(`${r.nama} tutup ${pos.sisi} ${sim} ${bersih >= 0 ? '+' : ''}${bersih.toFixed(2)} (${alasan})`); w.pos = null; };
       if (w.pos) { const sim = w.pos.simbol;
-        try { w.k = await ambilLilin(sim, r.interval); w.mark = premi[sim]?.mark ?? w.k[w.k.length - 1].c; w.ctx = { k: w.k, funding: premi[sim]?.funding }; }
+        try { w.k = await ambilLilin(sim, r.interval); w.mark = premi[sim]?.mark ?? w.k[w.k.length - 1].c; w.ctx = { k: w.k, funding: premi[sim]?.funding, paus: pausKoin(sim) }; }
         catch (e) { w.mark = premi[sim]?.mark ?? w.pos.masuk; w.galat = `data ${sim}: ${String((e as Error).message).slice(0, 80)}`; log.push(`${r.nama}: ${w.galat}`); } }
       if (w.pos && w.k) try { const pos = w.pos, sim = pos.simbol, k = w.k, mark = w.mark;
           const a = akunPos(pos); if (a) { const pr = (await bursa('GET', '/fapi/v2/positionRisk', { symbol: sim }, AKUN[a]))[0]; if (pr && +pr.positionAmt === 0) await w.tutup(pos.sl, 'ditutup bursa (stop loss atau take profit)', true); }
@@ -302,11 +362,11 @@ Deno.serve(async (req) => {
       if (w.galat || w.pos || w.status !== 'aktif' || D.status !== 'aktif' || w.st.lilinDinilai === akhir) continue;
       w.st.lilinDinilai = akhir;
       if (jumlahPos >= maks) { w.st.pindai = { waktu: kini.toISOString(), pair: 0, sinyal: 0, teks: `tidak memindai: sudah ${maks} posisi terbuka` }; continue; }
-      const daftar = semesta.filter(s => !terpakai.has(s)), calon: any[] = [];
+      const daftar = kumpulanPair(r.strategi).filter(s => !terpakai.has(s)); let calon: any[] = [];
       for (let i = 0; i < daftar.length; i += 10) await Promise.all(daftar.slice(i, i + 10).map(async sim => { try {
         const k = await ambilLilin(sim, r.interval); if (k.length < 210 || k[k.length - 1].t !== akhir) return;
-        const s = S.masuk({ k, funding: premi[sim]?.funding }); if (s) calon.push({ sim, s }); } catch { /* pair ini dilewati */ } }));
-      calon.sort((a, b) => (b.s.kuat ?? 0) - (a.s.kuat ?? 0) || (volume[b.sim] ?? 0) - (volume[a.sim] ?? 0));
+        const s = S.masuk({ k, funding: premi[sim]?.funding, paus: pausKoin(sim) }); if (s) calon.push({ sim, s }); } catch { /* pair ini dilewati */ } }));
+      calon = undiBerbobot(calon);   // diundi, sinyal yang lebih kuat lebih besar peluangnya
       w.st.pindai = { waktu: kini.toISOString(), pair: daftar.length, sinyal: calon.length, teks: calon.length ? calon.slice(0, 4).map(c => `${c.sim.replace('USDT', '')} ${c.s.sisi}`).join(', ') : 'tidak ada pair yang memenuhi aturan' };
       const alasanLewat: string[] = [];
       for (const { sim, s } of calon) {
@@ -338,11 +398,11 @@ Deno.serve(async (req) => {
     // ---- simpan
     const perRobot: Record<string, number> = {};
     for (const w of R) { const t = terbuka(w); if (w.pos) w.pos.terbuka = +t.toFixed(4); perRobot[w.r.id] = +(w.pnl + t).toFixed(4);
-      w.st.mark = w.pos ? w.mark : null; w.st.aturan = w.S.aturan; w.st.judul = w.S.judul; w.st.semesta = semesta.length;
+      w.st.mark = w.pos ? w.mark : null; w.st.aturan = w.S.aturan; w.st.judul = w.S.judul; w.st.semesta = kumpulanPair(w.r.strategi).length; w.st.kumpulan = KUMPULAN[w.r.strategi] ?? 'luas';
       await db.from('lantai_robot').update({ kas: +w.pnl.toFixed(6), posisi: w.pos, status: w.status, live: w.live, catatan: w.galat ? 'Galat putaran terakhir: ' + w.galat : w.catatan, statistik: w.st, diubah: kini.toISOString() }).eq('id', w.r.id); }
     ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0); D.puncak = Math.max(+D.puncak || 0, ekuitas);
     await db.from('lantai_dompet').update({ kas: +kasD.toFixed(6), tingkat: D.tingkat, status: D.status, catatan: D.catatan, puncak: +D.puncak.toFixed(4), ekuitas: +ekuitas.toFixed(4), diubah: kini.toISOString() }).eq('id', 1);
     await db.from('lantai_modal').insert({ waktu: kini.toISOString(), total: +ekuitas.toFixed(4), per_robot: perRobot });
-    return new Response(JSON.stringify({ ok: true, total: +ekuitas.toFixed(2), tingkat: D.tingkat, posisi: jumlahPos, semesta: semesta.length, log }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, total: +ekuitas.toFixed(2), tingkat: D.tingkat, posisi: jumlahPos, pair: { besar: besar.length, luas: luas.length, paus: paus ? Object.keys(paus).length : null }, log }), { headers: { 'content-type': 'application/json' } });
   } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String((e as Error).message || e), log }), { status: 500, headers: { 'content-type': 'application/json' } }); }
 });

@@ -67,7 +67,7 @@ const usdT = n => (n >= 0 ? '+' : '−') + '$' + Math.abs(n).toFixed(2);
 const pct = n => (n >= 0 ? '+' : '−') + Math.abs(n * 100).toFixed(1) + '%';
 const jam = t => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const harga = v => v == null ? '-' : v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v >= 1 ? v.toFixed(4) : v.toFixed(6);
-const WARNA = [0x4f7aa8, 0xc98f3a, 0x5e9c6a, 0xb45f8c, 0x3a8fc9, 0xd46a8a, 0x8a6d4a, 0x7a6fb3];
+const WARNA = [0x4f7aa8, 0xc98f3a, 0x5e9c6a, 0xb45f8c, 0x3a8fc9, 0xd46a8a, 0x8a6d4a, 0x7a6fb3, 0x2fa39a];
 let DATA = null;
 
 if (!token) document.body.innerHTML = `<div class="masuk"><div><h2 style="font-family:Fraunces,serif">Lantai Trading</h2><p style="color:var(--redup)">Masuk dulu di Kantor AI dengan sandi pemilik.</p><a class="pil utama" href="./">Buka Kantor AI</a></div></div>`;
@@ -94,9 +94,10 @@ kotak(M.lampuNeon, 34, .08, .08, 0, 6.9, -10.4);
 // layar besar di dinding: perjalanan modal (tekstur kanvas digambar ulang tiap data baru)
 const kanvasLayar = document.createElement('canvas'); kanvasLayar.width = 1600; kanvasLayar.height = 640; const tekLayar = new THREE.CanvasTexture(kanvasLayar); tekLayar.encoding = THREE.sRGBEncoding;
 kotak(M.arang, 15.4, 6.2, .3, -4, 3.7, -10.3); const layar = new THREE.Mesh(new THREE.PlaneGeometry(15, 6), new THREE.MeshBasicMaterial({ map: tekLayar, toneMapped: false })); layar.position.set(-4, 3.7, -10.13); scene.add(layar);
-// 8 meja trading (2 baris x 4), tiap meja 2 monitor; posisi duduk menghadap layar besar
+// 8 meja trading (2 baris x 4) + meja ke-9 Pengintai di baris ketiga; tiap meja 2 monitor; duduk menghadap layar besar
 const MEJA = []; const mejaMonitor = [];
-for (let b = 0; b < 2; b++) for (let k = 0; k < 4; k++) { const x = -10.5 + k * 4.3, z = -3 + b * 5;
+const TEMPAT_MEJA = []; for (let b = 0; b < 2; b++) for (let k = 0; k < 4; k++) TEMPAT_MEJA.push([-10.5 + k * 4.3, -3 + b * 5]); TEMPAT_MEJA.push([-4.05, 7]);
+for (const [x, z] of TEMPAT_MEJA) {
   kotak(M.kayu, 3.2, .12, 1.5, x, 1.5, z); [-1.4, 1.4].forEach(dx => kotak(M.arang, .1, 1.45, 1.2, x + dx, .75, z));
   const layarM = []; [-.7, .7].forEach(dx => { kotak(M.arang, .08, .5, .08, x + dx, 1.8, z - .45); const kn = document.createElement('canvas'); kn.width = 256; kn.height = 160;
     const t = new THREE.CanvasTexture(kn); t.encoding = THREE.sRGBEncoding; const mon = new THREE.Mesh(new THREE.BoxGeometry(1.25, .78, .06), [M.arang, M.arang, M.arang, M.arang, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }), M.arang]);
@@ -114,7 +115,7 @@ kotak(M.kaca, .08, 3.4, 4, -16.9, 1.7, 7); kotak(M.arang, .12, .12, 4.2, -16.9, 
 const papanKeluar = document.createElement('canvas'); papanKeluar.width = 512; papanKeluar.height = 96; { const x = papanKeluar.getContext('2d'); x.fillStyle = '#3a0f0c'; x.fillRect(0, 0, 512, 96); x.fillStyle = '#ff8a7e'; x.font = 'bold 44px JetBrains Mono, monospace'; x.textAlign = 'center'; x.fillText('DIKELUARKAN', 256, 62); }
 const tk = new THREE.CanvasTexture(papanKeluar); tk.encoding = THREE.sRGBEncoding; const pk = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .5), new THREE.MeshBasicMaterial({ map: tk, toneMapped: false })); pk.position.set(-16.75, 3.9, 7); pk.rotation.y = Math.PI / 2; scene.add(pk);
 // tempat menunggu: kafe (berdiri), sofa (duduk), biliar (berdiri)
-const TUNGGU = [[11.6, -7.5, -Math.PI / 2, 'kopi'], [11.6, -6, -Math.PI / 2, 'kopi'], [11.6, -4.5, -Math.PI / 2, 'kopi'], [11.2, 1.1, Math.PI, 'sofa'], [12.8, 1.1, Math.PI, 'sofa'], [5.4, 6.5, Math.PI / 2, 'biliar'], [9.6, 6.5, -Math.PI / 2, 'biliar'], [7.5, 8.4, Math.PI, 'biliar']];
+const TUNGGU = [[11.6, -3, -Math.PI / 2, 'kopi'], [11.6, -7.5, -Math.PI / 2, 'kopi'], [11.6, -6, -Math.PI / 2, 'kopi'], [11.6, -4.5, -Math.PI / 2, 'kopi'], [11.2, 1.1, Math.PI, 'sofa'], [12.8, 1.1, Math.PI, 'sofa'], [5.4, 6.5, Math.PI / 2, 'biliar'], [9.6, 6.5, -Math.PI / 2, 'biliar'], [7.5, 8.4, Math.PI, 'biliar']];
 const KELUAR = [[-19.5, 5.5], [-21, 6.5], [-19.5, 8], [-21, 9], [-20.2, 4.6], [-22, 7.7], [-18.8, 9.2], [-22, 5]];
 
 // ---------- orang (robot trader)
@@ -180,13 +181,14 @@ function gambarHud() { const R = DATA.robot, D = dompet(), awal = +D.modal_awal,
   $('#ket').textContent = `Putaran terakhir ${DATA.terakhir ? jam(DATA.terakhir) : '-'} · tiap 5 menit · geser untuk memutar, ketuk robot untuk rinciannya`; }
 
 function bukaPanel(id) { const R2 = ROBOT[id]; if (!R2) return; const r = R2.r, s = r.statistik || {}, p = r.posisi, m = pnlRobot(r), D = dompet(), risiko = +D.risiko_persen * +D.tingkat, batas = +D.keluar_persen * +D.tingkat, T = DATA.transaksi.filter(t => t.robot === id).slice(0, 8);
-  $('#panel').innerHTML = `<h2>${esc(r.nama)} · ${esc(s.judul || r.strategi)}</h2><div class="sub">memindai ${s.semesta || 40} pair paling ramai · lilin ${esc(r.interval)} · ${r.live ? '<b style="color:var(--merah)">uang sungguhan</b>' : D.akun === 'demo' ? 'Binance Demo' : 'simulasi'} · status ${esc(r.status)}</div>
-    <div class="aturan"><b>Aturan tertulis.</b> ${esc(s.aturan || '-')} Memakai saldo bersama 8 robot (paling banyak ${D.maks_posisi} posisi terbuka sekaligus). Rugi kalau stop loss kena paling besar ${usd(risiko)}; leverage dihitung otomatis supaya harga likuidasi selalu lebih jauh dari stop loss. Dikeluarkan kalau rugi bersih robot ini mencapai ${usd(batas)}.</div>
+  $('#panel').innerHTML = `<h2>${esc(r.nama)} · ${esc(s.judul || r.strategi)}</h2><div class="sub">${s.kumpulan === 'paus' ? 'mengikuti trader top Hyperliquid' : s.kumpulan === 'besar' ? `BTC + altcoin besar (${s.semesta || '-'} pair)` : `altcoin besar + pair ramai (${s.semesta || '-'} pair)`} · lilin ${esc(r.interval)} · ${r.live ? '<b style="color:var(--merah)">uang sungguhan</b>' : D.akun === 'demo' ? 'Binance Demo' : 'simulasi'} · status ${esc(r.status)}</div>
+    <div class="aturan"><b>Aturan tertulis.</b> ${esc(s.aturan || '-')} Memakai saldo bersama ${DATA.robot.length} robot (paling banyak ${D.maks_posisi} posisi terbuka sekaligus). Rugi kalau stop loss kena paling besar ${usd(risiko)}; leverage dihitung otomatis supaya harga likuidasi selalu lebih jauh dari stop loss. Dikeluarkan kalau rugi bersih robot ini mencapai ${usd(batas)}.</div>
     <div class="kisi"><div><small>Untung-rugi robot</small><b class="${m >= 0 ? 'naik' : 'turun'}">${usdT(m)}</b></div><div><small>Sisa sebelum dikeluarkan</small><b>${usd(Math.max(0, m + batas))}</b></div><div><small>Untung bersih total</small><b class="${(s.pnl || 0) >= 0 ? 'naik' : 'turun'}">${usdT(s.pnl || 0)}</b></div>
       <div><small>Transaksi</small><b>${s.transaksi || 0}</b></div><div><small>Menang</small><b>${s.transaksi ? Math.round(s.menang / s.transaksi * 100) + '%' : '-'}</b></div><div><small>${p ? 'Harga ' + esc(koin(r)) : 'Sinyal pindaian'}</small><b>${p ? harga(s.mark) : (s.pindai ? s.pindai.sinyal + '/' + s.pindai.pair : '-')}</b></div></div>
     ${s.pindai ? `<div class="baris"><span>Pindaian terakhir ${jam(s.pindai.waktu)}</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(s.pindai.teks)}</span></div>` : ''}
     ${p ? `<div class="judul-sub">Posisi terbuka</div><div class="baris"><span>${p.sisi.toUpperCase()} ${harga(p.qty)} ${esc(koin(r))} di ${harga(p.masuk)}</span><span class="${(p.terbuka || 0) >= 0 ? 'naik' : 'turun'}">${usdT(p.terbuka || 0)}</span></div>
       <div class="baris"><span>Stop loss · take profit${p.rr ? ` (risk:reward 1:${p.rr})` : ''}</span><span>${harga(p.sl)} · ${harga(p.tp)}</span></div><div class="baris"><span>Tempat posisi</span><span>${p.akun === 'demo' ? 'Binance Demo (lihat di demo.binance.com)' : p.akun === 'live' || p.live ? 'Binance, uang sungguhan' : 'dicatat simulasi saja'}</span></div><div class="baris"><span>Leverage · risiko · margin</span><span>${p.leverage || 1}x · ${usd(p.risiko || 0)} · ${usd(p.margin || 0)}</span></div><div class="baris"><span>Alasan masuk</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(p.alasan)}</span></div>` : `<div class="judul-sub">Menunggu sinyal</div><div class="baris"><span>Sinyal terakhir</span><span style="font-family:var(--sans);white-space:normal;text-align:right">${esc(s.terakhirSinyal?.teks || 'belum ada')}</span></div>`}
+    ${r.strategi === 'ikut-paus' && DATA.paus ? `<div class="judul-sub">Trader Hyperliquid yang diikuti (${DATA.paus.jumlah}, ${DATA.paus.berposisi} sedang berposisi)</div>${(DATA.paus.teratas || []).map(p => `<div class="baris"><span>${esc(p.alamat)} · ${p.posisi} posisi</span><span class="naik">+${usd(+p.untungBulan, 0)} (${p.roiBulan}%) bulan ini</span></div>`).join('')}` : ''}
     ${r.catatan ? `<div class="peringatan">${esc(r.catatan)}</div>` : ''}
     <div class="judul-sub">Transaksi terakhir</div>${T.length ? T.map(t => `<div class="baris"><span>${jam(t.waktuKeluar)} · ${esc((t.simbol || '').replace('USDT', ''))} ${t.sisi.toUpperCase()} · ${esc(t.alasanKeluar)}</span><span class="${t.pnl >= 0 ? 'naik' : 'turun'}">${usdT(t.pnl)}</span></div>`).join('') : '<div class="baris"><span>Belum ada</span><span></span></div>'}
     <div class="aksi">${r.status === 'aktif' ? `<button class="pil" data-aksi="jeda">Jeda</button>` : r.status === 'jeda' ? `<button class="pil utama" data-aksi="lanjut">Lanjutkan</button>` : `<button class="pil utama" data-aksi="mulai-ulang">Mulai ulang (rugi robot kembali $0)</button>`}
