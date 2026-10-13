@@ -177,3 +177,21 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 notify pgrst, 'reload schema';
+
+-- AKUN DEMO (13 Okt 2026, pemilik: "sambungkan ke binance demo"). akun = 'demo' -> robot yang tidak live mengirim order
+-- sungguhan ke Binance Demo Trading (secret BINANCE_TESTNET_KEY/SECRET, dipasang pemilik) supaya posisinya terlihat di
+-- demo.binance.com. Ukuran posisi tetap dihitung dari dompet $100 ini, bukan dari saldo demo. 'simulasi' = hanya dicatat.
+alter table public.lantai_dompet add column if not exists akun text not null default 'simulasi';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'lantai_dompet_akun_cek') then
+    alter table public.lantai_dompet add constraint lantai_dompet_akun_cek check (akun in ('simulasi', 'demo')); end if;
+end $$;
+create or replace function public.lantai_akun(p_token text, p_akun text) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_akun not in ('simulasi', 'demo') then return jsonb_build_object('ok', false, 'pesan', 'Akun tidak dikenal.'); end if;
+  update lantai_dompet set akun = p_akun, diubah = now() where id = 1;   -- posisi yang sedang terbuka tetap di akun lamanya sampai ditutup
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.lantai_akun(text, text) to anon, authenticated;
+notify pgrst, 'reload schema';
