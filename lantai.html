@@ -13,7 +13,7 @@
    meja biliar = menunggu sinyal, untung-rugi terbuka melayang di kepala, layar besar = perjalanan modal, robot yang
    menyentuh batas rugi dikeluarkan ke luar pintu kaca. Data dari lantai_baca (sesi pemilik Kantor AI). */
 :root{--latar:#0b0f17;--kartu:#141b27;--garis:#263244;--tinta:#e8eef5;--redup:#91a3b6;--hijau:#45d483;--merah:#ff6b5e;--kuning:#f3c550;--biru:#6fb6ff;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif}
-*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--latar);color:var(--tinta);font:14px/1.45 var(--sans);overflow:hidden}
+*{box-sizing:border-box}html,body{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}#panel{-webkit-user-select:text;user-select:text}html,body{margin:0;height:100%;background:var(--latar);color:var(--tinta);font:14px/1.45 var(--sans);overflow:hidden}
 #adegan{position:fixed;inset:0}canvas{display:block;touch-action:none}
 .hud{position:fixed;left:0;right:0;top:0;display:flex;gap:8px;padding:max(10px,env(safe-area-inset-top)) 12px 8px;overflow-x:auto;scrollbar-width:none;pointer-events:none;z-index:3}
 .hud>*{pointer-events:auto;flex:none;background:rgba(9,13,21,.82);border:1px solid var(--garis);border-radius:10px;padding:7px 12px;backdrop-filter:blur(8px)}
@@ -159,7 +159,7 @@ function tempatkanRobot() { let iTunggu = 0, iKeluar = 0; DATA.robot.forEach((r,
     else { const [x, z, h, jenis] = TUNGGU[iTunggu++ % TUNGGU.length]; R2.tujuan = new THREE.Vector3(x, 0, z); R2.mode = r.status === 'jeda' ? 'sofa' : jenis; R2.hadap = h; }
     gambarMonitor(meja, r.status === 'dikeluarkan' ? null : r);
     const u = pnlRobot(r), buka = r.posisi ? r.posisi.terbuka || 0 : null;
-    R2.label.className = 'label' + (r.status === 'dikeluarkan' ? ' keluar' : '');
+    R2.label.className = 'label' + (r.status === 'dikeluarkan' ? ' keluar' : ''); R2.ukuran = null;
     R2.label.innerHTML = `<div class="pnl ${(buka ?? u) >= 0 ? 'naik' : 'turun'}">${buka != null ? `${r.posisi.sisi.toUpperCase()} ${usdT(buka)}` : r.status === 'dikeluarkan' ? 'dikeluarkan ' + usdT(u) : r.status === 'jeda' ? 'jeda' : 'menunggu sinyal'}</div><div class="nama">${esc(r.nama)} <i>${esc(r.simbol.replace('USDT', ''))}${r.live ? ' · LIVE' : ''}</i></div>`; }); }
 
 function gambarHud() { const R = DATA.robot, D = dompet(), awal = +D.modal_awal, kini = +D.ekuitas, live = R.some(r => r.live), henti = D.status === 'berhenti';
@@ -220,7 +220,13 @@ function frame(now) { const t = now / 1000, dt = Math.min(.05, (now - t0) / 1000
       else if (m === 'kopi') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.ln.rotation.x = (t + R2.r.urut) % 5 < 1.3 ? 2.3 : .5; o.lk.rotation.x = .2; o.kepala.rotation.y = Math.sin(t * .8 + R2.r.urut) * .4; }
       else if (m === 'biliar') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.lk.rotation.x = o.ln.rotation.x = .9 + Math.sin(t * 2 + R2.r.urut) * .35; o.badan.rotation.x = .25; }
       else if (m === 'keluar') { g.position.y = 0; o.kk.rotation.x = o.kn.rotation.x = 0; o.lk.rotation.x = o.ln.rotation.x = 0; o.kepala.rotation.x = .5; } }
-    v3.set(g.position.x, g.position.y + 2.55, g.position.z).project(camera); R2.label.style.transform = `translate(${(v3.x + 1) / 2 * innerWidth}px, ${(1 - v3.y) / 2 * innerHeight}px) translate(-50%,-100%)`; R2.label.style.opacity = v3.z < 1 ? 1 : 0; }
+    v3.set(g.position.x, g.position.y + 2.55, g.position.z).project(camera); R2.lx = (v3.x + 1) / 2 * innerWidth; R2.ly = (1 - v3.y) / 2 * innerHeight; R2.lz = v3.z; }
+  const L = Object.values(ROBOT).filter(R2 => R2.tujuan), taruh = [];
+  for (const R2 of L) R2.ukuran ??= [R2.label.offsetWidth, R2.label.offsetHeight];
+  L.sort((a, b) => b.ly - a.ly);
+  for (const R2 of L) { const [w, h] = R2.ukuran; let y = R2.ly;
+    for (let n = 0; n < 8; n++) { const tabrak = taruh.find(q => Math.abs(q.x - R2.lx) < (q.w + w) / 2 + 2 && y > q.y - q.h - 2 && y - h - 2 < q.y); if (!tabrak) break; y = tabrak.y - tabrak.h - 3; }
+    taruh.push({ x: R2.lx, y, w, h }); R2.label.style.transform = `translate(${R2.lx}px, ${y}px) translate(-50%,-100%)`; R2.label.style.opacity = R2.lz < 1 ? 1 : 0; }
   renderer.render(scene, camera); requestAnimationFrame(frame); }
 if (token) { muat(); setInterval(muat, 20000); requestAnimationFrame(frame); }
 </script>
