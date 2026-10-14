@@ -44,6 +44,14 @@ function buatLangit(scene, renderer, opsi = {}) {
   const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(), envGeo = new THREE.SphereGeometry(500, 32, 16), envWarna = new Float32Array(envGeo.attributes.position.count * 3);
   envGeo.setAttribute('color', new THREE.BufferAttribute(envWarna, 3)); envScene.add(new THREE.Mesh(envGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
   const pendarEnv = new THREE.Mesh(new THREE.SphereGeometry(60, 16, 8), new THREE.MeshBasicMaterial({ color: 0xffffff })); envScene.add(pendarEnv);
+  // langit foto HDRI (Poly Haven, CC0, seri Qwantani): pagi/siang/senja/malam jadi latar DAN pantulan. Langit buatan di atas
+  // tetap dipakai sampai fotonya selesai dimuat (atau kalau gagal). HP memakai versi 1k, laptop 2k.
+  let hdriNama = '', hdriLatar = null, hdriEnv = null;
+  function muatHdri(nama) { if (!THREE.RGBELoader || nama === hdriNama) return; hdriNama = nama;
+    new THREE.RGBELoader().setDataType(THREE.HalfFloatType).load(`model/langit/qwantani_${nama}_puresky_${hp ? '1k' : '2k'}.hdr`, tex => { if (hdriNama !== nama) { tex.dispose(); return; }
+      tex.mapping = THREE.EquirectangularReflectionMapping; const env = pm.fromEquirectangular(tex);
+      if (hdriLatar) hdriLatar.dispose(); if (hdriEnv) hdriEnv.dispose(); hdriLatar = tex; hdriEnv = env;
+      scene.background = tex; scene.environment = env.texture; sky.visible = kubah.visible = bintang.visible = false; bulan.visible = false; }, undefined, () => { hdriNama = ''; }); }
   const warnaiEnv = (puncak, cakrawala, tanah) => { const p = envGeo.attributes.position; for (let i = 0; i < p.count; i++) { const k = p.getY(i) / 500;
       const c = k >= 0 ? cakrawala.clone().lerp(puncak, Math.pow(k, .6)) : cakrawala.clone().lerp(tanah, Math.min(1, -k * 6)); envWarna.set([c.r, c.g, c.b], i * 3); } envGeo.attributes.color.needsUpdate = true; };
   let envRT = null, envKunci = '';
@@ -66,13 +74,15 @@ function buatLangit(scene, renderer, opsi = {}) {
   const out = { matahari, langitTanah, malam: 0, info: '' };
   out.perbarui = function () {
     const { tinggi, arah } = posisiMatahari(new Date()), deg = tinggi / rad;
+    const jamWIB = jamPaksa != null ? jamPaksa : (new Date().getUTCHours() + 7 + new Date().getUTCMinutes() / 60) % 24;
+    muatHdri(deg < -6 ? 'night' : deg < 12 ? (jamWIB < 12 ? 'morning' : 'sunset') : 'noon');
     const malam = 1 - halus(-9, 2, deg), senja = halus(-6, 3, deg) * (1 - halus(8, 22, deg));   // 1 saat matahari rendah
     out.malam = malam; out.senja = senja; out.tinggi = deg;
     U.sunPosition.value.copy(arah).multiplyScalar(1000);
-    kubah.material.opacity = Math.min(1, malam * 1.15); sky.visible = malam < .995;
-    bintang.material.opacity = halus(.55, 1, malam) * .95; bintang.visible = malam > .5;
+    kubah.material.opacity = Math.min(1, malam * 1.15); sky.visible = !hdriLatar && malam < .995; kubah.visible = !hdriLatar;
+    bintang.material.opacity = halus(.55, 1, malam) * .95; bintang.visible = !hdriLatar && malam > .5;
     // bulan di sisi berlawanan matahari, agak miring
-    const ab = arah.clone().negate(); ab.y = Math.max(.35, Math.abs(ab.y)); ab.normalize(); bulan.position.copy(ab).multiplyScalar(1500); bulan.material.opacity = halus(.4, 1, malam); bulan.visible = malam > .4;
+    const ab = arah.clone().negate(); ab.y = Math.max(.35, Math.abs(ab.y)); ab.normalize(); bulan.position.copy(ab).multiplyScalar(1500); bulan.material.opacity = halus(.4, 1, malam); bulan.visible = !hdriLatar && malam > .4;
     // cahaya utama: matahari saat siang, bulan saat malam
     const sumber = malam < .6 ? arah : ab, tinggiS = Math.max(.12, sumber.y);
     matahari.position.copy(sumber).multiplyScalar(220); matahari.target.position.set(0, 0, -10);
@@ -91,7 +101,7 @@ function buatLangit(scene, renderer, opsi = {}) {
     warnaiEnv(puncak, cakrawala, tanah); pendarEnv.position.copy(arah).multiplyScalar(420); pendarEnv.material.color.copy(lin('#fff1d8').lerp(lin('#ff9a50'), senja)).multiplyScalar(2.5 * (1 - malam)); pendarEnv.visible = malam < .9;
     // pantulan: buat ulang kalau matahari bergeser > 1,5 derajat atau malam berubah
     const kunci = Math.round(deg / 1.5) + '|' + Math.round(malam * 10);
-    if (kunci !== envKunci) { envKunci = kunci; const lama = envRT; envRT = pm.fromScene(envScene, 0, 1, 2000); scene.environment = envRT.texture; if (lama) lama.dispose(); }
+    if (!hdriEnv && kunci !== envKunci) { envKunci = kunci; const lama = envRT; envRT = pm.fromScene(envScene, 0, 1, 2000); scene.environment = envRT.texture; if (lama) lama.dispose(); }
     const j = jamPaksa != null ? jamPaksa : null;
     out.info = (j != null ? `jam ${j}` : '') + ` matahari ${deg.toFixed(1)}°`;
     return out; };

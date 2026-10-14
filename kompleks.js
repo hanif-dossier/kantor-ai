@@ -36,9 +36,26 @@ function bangunKompleks(wadah) {
     if (ubin) { x.strokeStyle = 'rgba(0,0,0,.18)'; x.lineWidth = 2; for (let i = 0; i <= 256; i += 256 / ubin) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 256); x.stroke(); x.beginPath(); x.moveTo(0, i); x.lineTo(256, i); x.stroke(); } }
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(ulang, ulang); t.anisotropy = 4; return t; };
   const bahanTex = (tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, roughness: .9, ...o });
-  const M = { tanah: bahanTex(texBintik('#6f8f4e', .22, 30)), aspal: bahanTex(texBintik('#3a3d42', .28, 40), { roughness: .85 }), marka: bahan(0xe8e4d8, { roughness: .6 }), trotoar: bahanTex(texBintik('#b9b4aa', .16, 60, 8)),
-    plaza: bahanTex(texBintik('#cfc8bb', .12, 1, 6), { roughness: .75 }), pagarHidup: bahan(0x3f6a33, { roughness: .95 }), air: new THREE.MeshStandardMaterial({ color: warnaL(0x2c5a74), roughness: .04, metalness: .9 }),
-    rumput: bahanTex(texBintik('#5d7f40', .25, 120)), daun: bahan(0x3d6b2c, { roughness: .9 }), daun2: bahan(0x557f35, { roughness: .9 }), daun3: bahan(0x2f5a2a, { roughness: .9 }), batang: bahan(0x5a4632, { roughness: .9 }),
+  // 14 Okt 2026: permukaan nyata dari foto (ambientCG, CC0): warna + peta normal + kekasaran. UV dihitung dari posisi dunia
+  // (xz x skala) di shader, karena satu bahan dipakai kotak-kotak berukuran berbeda (instancing).
+  const muatTx = new THREE.TextureLoader();
+  const bahanNyata = (id, skala, warna = 0xffffff, o = {}) => { const t = n => { const x = muatTx.load(`model/tekstur/${id}/${n}.jpg`); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = 8; if (n === 'Color') x.encoding = THREE.sRGBEncoding; return x; };
+    const m = new THREE.MeshStandardMaterial({ map: t('Color'), normalMap: t('NormalGL'), roughnessMap: t('Roughness'), color: warnaL(warna), roughness: 1, metalness: 0, envMapIntensity: .3, ...o });
+    m.onBeforeCompile = sh => { sh.uniforms.skalaUV = { value: skala };
+      sh.vertexShader = 'varying vec3 vPosDunia;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec4 pdN = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          pdN = instanceMatrix * pdN;
+        #endif
+        vPosDunia = (modelMatrix * pdN).xyz;`);
+      sh.fragmentShader = 'uniform float skalaUV;\nvarying vec3 vPosDunia;\n' + sh.fragmentShader
+        .replace('#include <map_fragment>', 'vec2 uvD = vPosDunia.xz * skalaUV; diffuseColor *= mapTexelToLinear(texture2D(map, uvD));')
+        .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = roughness * texture2D(roughnessMap, vPosDunia.xz * skalaUV).g;')
+        .replace('#include <normal_fragment_maps>', 'vec3 nT = texture2D(normalMap, vPosDunia.xz * skalaUV).xyz * 2.0 - 1.0; nT.xy *= normalScale; normal = normalize((viewMatrix * vec4(normalize(vec3(nT.x, nT.z, nT.y)), 0.0)).xyz);'); };
+    m.customProgramCacheKey = () => 'tanahDunia'; return m; };
+  const M = { tanah: bahanNyata('Grass004', 1 / 6, 0xd8e6c8), aspal: bahanNyata('Asphalt025C', 1 / 8, 0xb8b8b8), marka: bahan(0xe8e4d8, { roughness: .6 }), trotoar: bahanNyata('Concrete034', 1 / 3, 0xe8e4dc),
+    plaza: bahanNyata('PavingStones070', 1 / 2.6, 0xf2ece2), pagarHidup: bahan(0x3f6a33, { roughness: .95 }), air: new THREE.MeshStandardMaterial({ color: warnaL(0x2c5a74), roughness: .04, metalness: .9 }),
+    rumput: bahanNyata('Grass004', 1 / 6, 0xc8d8b4), daun: bahan(0x3d6b2c, { roughness: .9 }), daun2: bahan(0x557f35, { roughness: .9 }), daun3: bahan(0x2f5a2a, { roughness: .9 }), batang: bahan(0x5a4632, { roughness: .9 }),
     fasad: bahan(0x5d6672, { roughness: .45, metalness: .45 }), fasad2: bahan(0xd9d6cf, { roughness: .6, metalness: .05 }), beton: bahanTex(texBintik('#c3beb4', .14, 4)), atap: bahan(0x7b7f86, { roughness: .8, metalness: .2 }),
     sirip: bahan(0xe9e6df, { roughness: .45, metalness: .1 }), siripGelap: bahan(0x2a2f36, { roughness: .35, metalness: .6 }),
     kacaGelap: bahan(0x2c4256, { roughness: .05, metalness: .95 }), baja: bahan(0x3a3f46, { roughness: .35, metalness: .7 }), putih: bahan(0xeceae5, { roughness: .5 }), tangki: bahan(0xc9ced4, { roughness: .35, metalness: .55 }),
@@ -83,7 +100,7 @@ function bangunKompleks(wadah) {
 
   const tak = (grp, w, h, d, x = 0, z = 0) => { const m = new THREE.Mesh(K.GEO.k, new THREE.MeshBasicMaterial({ visible: false })); m.scale.set(w, h, d); m.position.set(x, h / 2, z); grp.add(m);
     // plaza berubin di sekeliling gedung + pagar tanaman di dua sisi + pohon di sudut
-    const X = grp.position.x + x, Z = grp.position.z + z, pw = w + 7, pd = d + 7, pl = new THREE.Mesh(K.GEO.k, M.plaza.clone()); pl.material.map = M.plaza.map.clone(); pl.material.map.needsUpdate = true; pl.material.map.repeat.set(pw / 4, pd / 4);
+    const X = grp.position.x + x, Z = grp.position.z + z, pw = w + 7, pd = d + 7, pl = new THREE.Mesh(K.GEO.k, M.plaza);
     pl.scale.set(pw, .06, pd); pl.position.set(X, y0 + .02, Z);   // di bawah permukaan jalan supaya jalan tetap terlihat pl.receiveShadow = true; scene.add(pl);
     [-1, 1].forEach(s => { kk(M.pagarHidup, .9, .8, pd - 4, X + s * (pw / 2 - .6), y0 + .45, Z); [-1, 1].forEach(t => pohon(X + s * (pw / 2 - 1.4), Z + t * (pd / 2 - 1.4), .75)); }); };
   const papan = (teks, w, h, x, y, z, induk, latar = '#0d1117', tinta = '#e9c886', ry = 0) => { const p = papanTeks(teks, latar, tinta, w, h); p.position.set(x, y, z); p.rotation.y = ry; induk.add(p); return p; };
@@ -231,12 +248,9 @@ function bangunKompleks(wadah) {
     [-.6, 1].forEach(z2 => tambahMesh(K.GEO.k, bahan(0x222222, { emissive: 0xfff2d6, emissiveIntensity: 2 }), .05, .2, .3, 4.13, .9, z2 - .2, grp)); }
   const CAT = [0xb3202a, 0x1f4f9a, 0xd8d6d0, 0x22252b, 0x8f99a4, 0x2f6b5a, 0x6b6f76, 0x9a7b3a];
   function parkiran(cx, cz, kol, bar) { const w = kol * 2.8 + 2, d = bar * 6.4; kk(M.aspal, w, .05, d, cx, y0 + .04, cz, 0, false);
-    const n = kol * bar, badan = new THREE.InstancedMesh(K.GEO.k, new THREE.MeshStandardMaterial({ roughness: .3, metalness: .6 }), n), kabin = new THREE.InstancedMesh(K.GEO.k, M.kacaGelap, n), o = new THREE.Object3D(); let i = 0;
+    const JENIS = ['sedan', 'suv', 'taxi', 'van', 'sedan-sports', 'suv-luxury', 'hatchback-sports', 'sedan', 'suv', 'police'];
     for (let b = 0; b < bar; b++) for (let k = 0; k < kol; k++) { const x = cx - w / 2 + 2.4 + k * 2.8, z = cz - d / 2 + 3.2 + b * 6.4; kk(M.marka, .1, .02, 4.4, x - 1.4, y0 + .08, z, 0, false);
-      if (rnd() < .2) continue; const balik = b % 2 ? Math.PI : 0;
-      o.position.set(x, y0 + .45, z); o.rotation.set(0, Math.PI / 2 + balik, 0); o.scale.set(3.8, .7, 1.7); o.updateMatrix(); badan.setMatrixAt(i, o.matrix); badan.setColorAt(i, warnaL(CAT[(rnd() * CAT.length) | 0]));
-      o.position.set(x, y0 + 1.05, z + (balik ? .25 : -.25)); o.scale.set(2, .55, 1.5); o.updateMatrix(); kabin.setMatrixAt(i, o.matrix); i++; }
-    badan.count = kabin.count = i; scene.add(badan, kabin);
+      if (rnd() < .2) continue; taruh('m/' + JENIS[(rnd() * JENIS.length) | 0], x, z, b % 2 ? Math.PI : 0, 1.45); }
     for (let k = 2; k < kol; k += 6) { lampuJalan(cx - w / 2 + 2 + k * 2.8, cz, 0, 0); } }
   // ---------- isian kawasan industri (bukan gedung karyawan)
   function gudangHias(x, z, w, d, h) { kk(M.fasad2, w, h, d, x, y0 + h / 2, z); kk(M.atap, w + .3, .3, d + .3, x, y0 + h, z);
@@ -279,10 +293,10 @@ function bangunKompleks(wadah) {
     if (g.jenis === 'kedai') kedai(g); else if (g.jenis === 'arkade') arkade(g); else if (g.jenis === 'galeri') galeri(g); else if (g.jenis === 'taman') continue; else (BENTUK[t.bentuk] || menara)(g); }
   K.rakit();
   const kotaNyala = [];   // bahan gedung Kenney: jendela berpendar tipis saat malam (emissiveMap = colormap)
-  if (THREE.GLTFLoader) { const muat = new THREE.GLTFLoader(), KIT = { k: 'model/kota/commercial/', i: 'model/kota/industrial/', s: 'model/kota/suburban/' }, o3 = new THREE.Object3D(), m4 = new THREE.Matrix4();
+  if (THREE.GLTFLoader) { const muat = new THREE.GLTFLoader(), KIT = { k: 'model/kota/commercial/', i: 'model/kota/industrial/', s: 'model/kota/suburban/', m: 'model/mobil/' }, o3 = new THREE.Object3D(), m4 = new THREE.Matrix4();
     for (const [kunci, daftar] of Object.entries(penempatan)) { const [kit, nama] = kunci.split('/');
       muat.load(KIT[kit] + nama + '.glb', gl => { gl.scene.updateMatrixWorld(true); gl.scene.traverse(mesh => { if (!mesh.isMesh) return; const mat = mesh.material;
-          mat.roughness = .82; mat.metalness = 0; mat.envMapIntensity = .35; if (mat.map && !/tree/.test(nama)) { mat.emissiveMap = mat.map; mat.emissive = new THREE.Color(1, .82, .55); mat.emissiveIntensity = .22 * langit.malam; kotaNyala.push(mat); }
+          mat.roughness = kit === 'm' ? .35 : .82; mat.metalness = kit === 'm' ? .3 : 0; mat.envMapIntensity = kit === 'm' ? .9 : .35; if (mat.map && !/tree/.test(nama) && kit !== 'm') { mat.emissiveMap = mat.map; mat.emissive = new THREE.Color(1, .82, .55); mat.emissiveIntensity = .06 * langit.malam; kotaNyala.push(mat); }
           const im = new THREE.InstancedMesh(mesh.geometry, mat, daftar.length);
           daftar.forEach(([x, z, ry, sk], n) => { o3.position.set(x, y0, z); o3.rotation.set(0, ry, 0); o3.scale.setScalar(sk); o3.updateMatrix(); m4.multiplyMatrices(o3.matrix, mesh.matrixWorld); im.setMatrixAt(n, m4); });
           im.castShadow = true; im.receiveShadow = true; scene.add(im); }); }, undefined, () => {}); } }
@@ -299,7 +313,9 @@ function bangunKompleks(wadah) {
   const sorot = new THREE.MeshBasicMaterial({ map: texBulat('rgba(255,240,210,0.6)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const LAJUR = [[1, 0, 1.7], [-1, 0, -1.7], [0, 1, -1.7], [0, -1, 1.7], [1, 0, 1.7], [-1, 0, -1.7], [0, 1, -1.7], [1, 0, 1.7], [-1, 0, -1.7], [0, -1, 1.7]];
   const mobil = LAJUR.map(([dx, dz, o], i) => { const grp = new THREE.Group(), cat = bahan(CAT[i % CAT.length], { roughness: .25, metalness: .65 }), kb = (m, w, h, d, x, y, z) => tambahMesh(K.GEO.k, m, w, h, d, x, y, z, grp);
-    kb(cat, 3.8, .7, 1.7, 0, .55, 0); kb(M.kacaGelap, 2, .55, 1.5, -.25, 1.15, 0); [[-1.2, .8], [1.2, .8], [-1.2, -.8], [1.2, -.8]].forEach(([x, z]) => kb(ban, .6, .6, .2, x, .3, z));
+    const kotakLama = [kb(cat, 3.8, .7, 1.7, 0, .55, 0), kb(M.kacaGelap, 2, .55, 1.5, -.25, 1.15, 0)]; [[-1.2, .8], [1.2, .8], [-1.2, -.8], [1.2, -.8]].forEach(([x, z]) => kotakLama.push(kb(ban, .6, .6, .2, x, .3, z)));
+    if (THREE.GLTFLoader) new THREE.GLTFLoader().load('model/mobil/' + ['sedan', 'taxi', 'suv', 'van', 'truck', 'delivery', 'sedan-sports', 'suv-luxury', 'garbage-truck', 'police'][i % 10] + '.glb', gl => {
+      const m = gl.scene; m.scale.setScalar(1.45); m.rotation.y = Math.PI / 2; m.traverse(x => { if (x.isMesh) { x.castShadow = true; x.material.roughness = .35; x.material.metalness = .3; x.material.envMapIntensity = .9; } }); grp.add(m); kotakLama.forEach(k => k.visible = false); });
     [-.55, .55].forEach(z => { kb(lampuD, .05, .14, .3, 1.92, .62, z); kb(lampuB, .05, .14, .34, -1.92, .62, z); });
     const s = new THREE.Mesh(geoDatar, sorot); s.scale.set(7, 1, 4); s.position.set(5, .1, 0); grp.add(s);
     grp.rotation.y = dz ? -dz * Math.PI / 2 : (dx > 0 ? 0 : Math.PI); grp.position.y = y0; grp.userData = { dx, dz, o, s: -70 + i * 15, v: 7 + (i % 4) * 1.6 }; scene.add(grp); return grp; });
@@ -311,7 +327,7 @@ function bangunKompleks(wadah) {
       if (THREE.GammaCorrectionShader) komposer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader)); } } catch { komposer = null; }
 
   // ---------- waktu: siang lampu padam & bloom tipis, malam lampu & jendela menyala penuh
-  function terapkanWaktu() { langit.perbarui(); const m = langit.malam, lampu = .06 + .94 * m; for (const mt of kotaNyala) mt.emissiveIntensity = .22 * m;
+  function terapkanWaktu() { langit.perbarui(); const m = langit.malam, lampu = .06 + .94 * m; for (const mt of kotaNyala) mt.emissiveIntensity = .06 * m;
     faktorJendela = .18 + .82 * m;
     for (const mat of nyala) mat.emissiveIntensity = mat.userData.n * (mat.userData.jenis === 'jendela' ? faktorJendela : lampu);
     for (const sp of pendarList) { sp.material.opacity = m; sp.visible = m > .05; }
