@@ -179,13 +179,38 @@ function bangunKompleks(wadah) {
     papan('MENARA SIARAN', 5.5, .55, 0, y0 + 1.3, d / 2 + 1.05, grp, '#0b0f16', '#f3c550');
     g.puncak = y + 2; tak(grp, w + 2, y + 2, d + 2); }
   // ---------- kedai, arkade, galeri
-  function kedai(g) { const X = g.x, Z = g.z, grp = grupGedung(g);
-    kk(M.trotoar, 12, .2, 10, X, y0 + .1, Z, 0, false); kk(M.fasad2, 7, 3.2, 4.4, X, y0 + 1.8, Z - 2.4);
-    tambahMesh(K.GEO.k, bahan(0x1a0f08, { emissive: 0xffb36b, emissiveIntensity: 1.8 }), 6.2, 2.2, .06, X, y0 + 1.6, Z - .17); kk(M.atap, 8, .2, 6, X, y0 + 3.5, Z - 1.6);
-    for (let i = 0; i < 14; i++) ps('b', M.lampu, .14, .14, .14, X - 5 + i * .77, y0 + 3.1 - Math.sin(i / 13 * Math.PI) * .4, Z + 1.4, 0, 0, false);
-    g.kursi = []; [[-3, 2.6], [0, 2.6], [3, 2.6], [-3, 4.4], [0, 4.4], [3, 4.4]].forEach(([x, z], i) => { kk(M.beton, 1.1, .08, 1.1, X + x, y0 + .9, Z + z + (i < 3 ? .9 : -.9)); ps('s', M.baja, .1, .9, .1, X + x, y0 + .45, Z + z + (i < 3 ? .9 : -.9)); g.kursi.push([x, z, i < 3 ? 2 : 0]); });
-    genang(X, Z + 3.4, 9); papan('KEDAI KOPI', 4, .6, 0, y0 + 3.2, -.15, grp, '#1a0f08', '#ffd29a');
-    g.orang = {}; g.puncak = 4.4; tak(grp, 12, 4, 10); }
+  // Kedai Kopi modern (14 Okt 2026, pemilik: "caffe nya jadul amat buat seperti architektur modern"): paviliun kaca dengan
+  // interior kayu yang menyala hangat, atap datar tipis menjorok ke teras dengan plafon kisi kayu, sirip kayu vertikal,
+  // kolom baja ramping, teras dek kayu, meja bundar + kursi, payung teras (Kenney), papan nama neon, lampu gantung.
+  function kedai(g) { const X = g.x, Z = g.z, grp = grupGedung(g), kayu = bahan(0x9a6a3f, { roughness: .6 }), kayuTua = bahan(0x5a3b22, { roughness: .65 }), dek = bahan(0x7d5636, { roughness: .8 });
+    const kaca = new THREE.MeshStandardMaterial({ color: warnaL(0x9fc3d8), roughness: .03, metalness: .2, transparent: true, opacity: .28, depthWrite: false, envMapIntensity: 1.2 });
+    const hangat = daftarNyala(bahan(0x2a1a0e, { emissive: 0xffb36b, emissiveIntensity: 1.6 }), 'jendela'), neon = daftarNyala(bahan(0x111111, { emissive: 0xffd29a, emissiveIntensity: 2.8 }));
+    // lantai dasar & dek teras
+    kk(M.beton, 12, .22, 10, X, y0 + .11, Z, 0, false); kk(dek, 11.4, .08, 4.6, X, y0 + .26, Z + 2.4, 0, false);
+    for (let k = -5; k <= 5; k++) kk(kayuTua, .04, .02, 4.6, X + k * 1.04, y0 + .31, Z + 2.4, 0, false);
+    // ruang dalam: dinding belakang kayu menyala, meja bar, rak, lampu gantung
+    kk(kayu, 7.6, 3.1, .25, X, y0 + 1.8, Z - 4.6); tambahMesh(K.GEO.k, hangat, 7.2, 2.4, .05, X, y0 + 1.7, Z - 4.45);
+    kk(kayuTua, 4.6, 1.05, .8, X - .6, y0 + .78, Z - 3.2); kk(M.putih, 4.8, .06, .95, X - .6, y0 + 1.33, Z - 3.2); kk(M.baja, .5, .6, .45, X + 1.1, y0 + 1.66, Z - 3.2);
+    [-2.4, -.6, 1.2].forEach(dx => { kk(M.baja, .02, .9, .02, X + dx, y0 + 2.75, Z - 2.6, 0, false); tambahMesh(K.GEO.b, neon, .32, .26, .32, X + dx, y0 + 2.25, Z - 2.6); });
+    // dinding kaca tiga sisi + sirip kayu vertikal
+    tambahMesh(K.GEO.k, kaca, 8, 3.1, .05, X, y0 + 1.8, Z - .4); [-1, 1].forEach(sx => tambahMesh(K.GEO.k, kaca, .05, 3.1, 4.2, X + sx * 4, y0 + 1.8, Z - 2.5));
+    for (let k = 0; k <= 10; k++) kk(kayu, .09, 3.1, .22, X - 4 + k * .8, y0 + 1.8, Z - .35);
+    // atap datar tipis menjorok ke teras, plafon kisi kayu, kolom baja ramping
+    // atap menaungi paviliun + 1,6 m teras; di atasnya taman atap (sedum) dengan skylight; teras depan terbuka dengan payung
+    kk(M.putih, 10.4, .22, 6.6, X, y0 + 3.46, Z - 1.7); for (let k = 0; k < 20; k++) kk(kayu, .12, .1, 6.4, X - 4.85 + k * .51, y0 + 3.3, Z - 1.7, 0, false);
+    kk(bahan(0x4f7a3a, { roughness: 1 }), 9.6, .12, 5.8, X, y0 + 3.62, Z - 1.7); kk(kaca, 2.2, .06, 1.6, X + 2.4, y0 + 3.7, Z - 2.6, 0, false); kk(M.putih, 2.4, .1, .1, X + 2.4, y0 + 3.68, Z - 1.75, 0, false);
+    for (let k = 0; k < 7; k++) ps('b', rnd() > .5 ? M.daun : M.daun2, .7, .45, .7, X - 4 + k * 1.1, y0 + 3.8, Z - .2 - (k % 2) * 3.4, 0, 0, false);
+    [[-5, 1.5], [5, 1.5], [-5, -4.6], [5, -4.6]].forEach(([dx, dz]) => ps('s', M.baja, .14, 3.25, .14, X + dx, y0 + 1.7, Z + dz));
+    kk(neon, 10.4, .04, .04, X, y0 + 3.34, Z + 1.6, 0, false);   // garis lampu di tepi atap
+    // teras: meja bundar + kursi untuk karyawan yang ngopi, payung teras, pot tanaman
+    g.kursi = []; [[-3, 2.6], [0, 2.6], [3, 2.6], [-3, 4.4], [0, 4.4], [3, 4.4]].forEach(([x, z], i) => { const zz = Z + z + (i < 3 ? .9 : -.9);
+      if (i < 3) { ps('s', M.putih, 1, .05, 1, X + x, y0 + 1.02, Z + 3.5); ps('s', M.baja, .08, .7, .08, X + x, y0 + .66, Z + 3.5); }
+      kk(kayuTua, .55, .06, .55, X + x, y0 + .78, zz); kk(kayuTua, .55, .5, .06, X + x, y0 + 1.05, zz + (i < 3 ? -.27 : .27)); ps('s', M.baja, .05, .45, .05, X + x, y0 + .55, zz);
+      g.kursi.push([x, z, i < 3 ? 2 : 0]); });
+    taruh('k/detail-parasol-a', X - 4.6, Z + 4.4, 0, 6); taruh('k/detail-parasol-b', X + 4.6, Z + 4.4, 0, 6);
+    [-5.6, 5.6].forEach(dx => { kk(M.beton, .9, .6, .9, X + dx, y0 + .5, Z - 1); pohon(X + dx, Z - 1, .55); });
+    genang(X, Z + 3.4, 9); papan('KEDAI KOPI', 4.2, .62, 0, y0 + 3.58, 1.72, grp, '#120a05', '#ffd29a');
+    g.orang = {}; g.puncak = 4.6; tak(grp, 12, 4, 10); }
   function arkade(g) { const X = g.x, Z = g.z, grp = grupGedung(g);
     ps('s', M.fasad, 11, 2.4, 11, X, y0 + 1.2, Z); const kubah = new THREE.Mesh(new THREE.SphereGeometry(4.6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), bahan(0x1a1430, { roughness: .2, metalness: .6 })); kubah.position.set(X, y0 + 2.4, Z); scene.add(kubah);
     [[5.6, .9, 0xff4fd8], [4.75, 2.6, 0x5fe3ff], [3.6, 4.6, 0xff4fd8]].forEach(([r, y, c]) => { const t = new THREE.Mesh(new THREE.TorusGeometry(r, .08, 8, 64), bahan(0x000000, { emissive: c, emissiveIntensity: 2.6 })); t.rotation.x = Math.PI / 2; t.position.set(X, y0 + y, Z); scene.add(t); });
