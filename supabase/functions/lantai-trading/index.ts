@@ -338,7 +338,10 @@ Deno.serve(async (req) => {
   if (badan.cekBybit) {   // pemeriksaan kunci Bybit ASLI tanpa transaksi: tanda tangan, saldo USDT, aturan koin, posisi terbuka
     const B = pelaksanaBybit('https://api.bybit.com', BYBIT_KEY, BYBIT_SECRET, 'bybit'), h: any = { kunciTerpasang: B.siap };
     if (B.siap) { try { await B.muatAturan(); h.koinBybit = Object.keys(B.aturan).length; h.btc = B.aturan.BTCUSDT; const sa = await B.saldo(); h.saldoUSDT = sa.kas; h.belumTerealisasi = sa.upnl; h.kunciBerfungsi = true;
-      h.posisiTerbuka = await B.masihAda('BTCUSDT').then(x => x ? 'ada posisi BTC' : 'tidak ada posisi BTC'); } catch (e) { h.kunciBerfungsi = false; h.galat = String((e as Error).message).slice(0, 200); } }
+      h.posisiTerbuka = await B.masihAda('BTCUSDT').then(x => x ? 'ada posisi BTC' : 'tidak ada posisi BTC');
+      { const ts = String(Date.now()), sign = await tanda(ts + BYBIT_KEY + '10000', BYBIT_SECRET);   // izin kunci: /v5/user/query-api
+        const j = await (await fetch('https://api.bybit.com/v5/user/query-api', { headers: { 'X-BAPI-API-KEY': BYBIT_KEY, 'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': '10000', 'X-BAPI-SIGN': sign } })).json();
+        h.izin = j.result ? { hanyaBaca: j.result.readOnly === 1, izin: j.result.permissions, kedaluwarsa: j.result.expiredAt, akunTerpadu: j.result.uta } : j.retMsg; } } catch (e) { h.kunciBerfungsi = false; h.galat = String((e as Error).message).slice(0, 200); } }
     return new Response(JSON.stringify(h), { headers: { 'content-type': 'application/json' } }); }
   if (badan.ujiBybit) return new Response(JSON.stringify(await ujiBybit(badan.simbol || 'DOGEUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.ujiTestnet) return new Response(JSON.stringify(await ujiTestnet(badan.simbol || 'BTCUSDT')), { headers: { 'content-type': 'application/json' } });
