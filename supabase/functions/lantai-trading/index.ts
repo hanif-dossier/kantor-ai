@@ -335,6 +335,13 @@ Deno.serve(async (req) => {
   const log: string[] = [], kini = new Date();
   const badan = await req.json().catch(() => ({}));
   if (badan.segarPaus) { try { return new Response(JSON.stringify(await segarPaus()), { headers: { 'content-type': 'application/json' } }); } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String(e) }), { status: 500 }); } }
+  if (badan.posisiBybit) {   // daftar posisi terbuka di Bybit asli (hanya membaca): ukuran, harga masuk, stop loss, take profit, leverage, untung-rugi
+    const qs = 'category=linear&settleCoin=USDT', ts = String(Date.now()), sign = await tanda(ts + BYBIT_KEY + '10000' + qs, BYBIT_SECRET);
+    const j = await (await fetch('https://api.bybit.com/v5/position/list?' + qs, { headers: { 'X-BAPI-API-KEY': BYBIT_KEY, 'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': '10000', 'X-BAPI-SIGN': sign } })).json();
+    const ts2 = String(Date.now()), sign2 = await tanda(ts2 + BYBIT_KEY + '10000', BYBIT_SECRET);
+    const info = await (await fetch('https://api.bybit.com/v5/account/info', { headers: { 'X-BAPI-API-KEY': BYBIT_KEY, 'X-BAPI-TIMESTAMP': ts2, 'X-BAPI-RECV-WINDOW': '10000', 'X-BAPI-SIGN': sign2 } })).json();
+    if (badan.akun) return new Response(JSON.stringify({ modeMargin: info.result?.marginMode, statusUTA: info.result?.unifiedMarginStatus, pesan: info.retMsg }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify((j.result?.list || []).map((p: any) => ({ simbol: p.symbol, sisi: p.side, ukuran: p.size, masuk: p.avgPrice, mark: p.markPrice, sl: p.stopLoss, tp: p.takeProfit, leverage: p.leverage, margin: p.positionIM, untungRugi: p.unrealisedPnl, likuidasi: p.liqPrice, mode: p.tradeMode })) ), { headers: { 'content-type': 'application/json' } }); }
   if (badan.cekBybit) {   // pemeriksaan kunci Bybit ASLI tanpa transaksi: tanda tangan, saldo USDT, aturan koin, posisi terbuka
     const B = pelaksanaBybit('https://api.bybit.com', BYBIT_KEY, BYBIT_SECRET, 'bybit'), h: any = { kunciTerpasang: B.siap };
     if (B.siap) { try { await B.muatAturan(); h.koinBybit = Object.keys(B.aturan).length; h.btc = B.aturan.BTCUSDT; const sa = await B.saldo(); h.saldoUSDT = sa.kas; h.belumTerealisasi = sa.upnl; h.kunciBerfungsi = true;
