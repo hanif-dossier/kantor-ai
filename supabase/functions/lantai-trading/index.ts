@@ -335,6 +335,11 @@ Deno.serve(async (req) => {
   const log: string[] = [], kini = new Date();
   const badan = await req.json().catch(() => ({}));
   if (badan.segarPaus) { try { return new Response(JSON.stringify(await segarPaus()), { headers: { 'content-type': 'application/json' } }); } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String(e) }), { status: 500 }); } }
+  if (badan.cekBybit) {   // pemeriksaan kunci Bybit ASLI tanpa transaksi: tanda tangan, saldo USDT, aturan koin, posisi terbuka
+    const B = pelaksanaBybit('https://api.bybit.com', BYBIT_KEY, BYBIT_SECRET, 'bybit'), h: any = { kunciTerpasang: B.siap };
+    if (B.siap) { try { await B.muatAturan(); h.koinBybit = Object.keys(B.aturan).length; h.btc = B.aturan.BTCUSDT; const sa = await B.saldo(); h.saldoUSDT = sa.kas; h.belumTerealisasi = sa.upnl; h.kunciBerfungsi = true;
+      h.posisiTerbuka = await B.masihAda('BTCUSDT').then(x => x ? 'ada posisi BTC' : 'tidak ada posisi BTC'); } catch (e) { h.kunciBerfungsi = false; h.galat = String((e as Error).message).slice(0, 200); } }
+    return new Response(JSON.stringify(h), { headers: { 'content-type': 'application/json' } }); }
   if (badan.ujiBybit) return new Response(JSON.stringify(await ujiBybit(badan.simbol || 'DOGEUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.ujiTestnet) return new Response(JSON.stringify(await ujiTestnet(badan.simbol || 'BTCUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.pindai) {   // pindai semua pair untuk semua robot pada lilin terakhir yang sudah tutup, TANPA membuka posisi (untuk diperiksa)
