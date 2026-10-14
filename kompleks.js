@@ -89,8 +89,10 @@ function bangunKompleks(wadah) {
   const papan = (teks, w, h, x, y, z, induk, latar = '#0d1117', tinta = '#e9c886', ry = 0) => { const p = papanTeks(teks, latar, tinta, w, h); p.position.set(x, y, z); p.rotation.y = ry; induk.add(p); return p; };
   const grupGedung = g => { const grp = new THREE.Group(); grp.position.set(g.x, 0, g.z); grp.userData.gedung = g; scene.add(grp); g.grup = grp; dapatDiketuk.push(grp); return grp; };
   // pohon tropis: batang + tajuk dari beberapa gumpalan daun dengan hijau yang berbeda
-  const pohon = (x, z, s = 1) => { const D = [M.daun, M.daun2, M.daun3]; ps('s', M.batang, .22 * s, 2 * s, .22 * s, x, y0 + 1 * s, z);
-    ps('b', D[(rnd() * 3) | 0], 2.6 * s, 2.2 * s, 2.6 * s, x, y0 + 2.6 * s, z); for (let i = 0; i < 3; i++) { const a = rnd() * 6.28, r = .7 * s; ps('b', D[(rnd() * 3) | 0], 1.7 * s, 1.5 * s, 1.7 * s, x + Math.cos(a) * r, y0 + (2.3 + rnd() * .9) * s, z + Math.sin(a) * r); } };
+  // 14 Okt 2026: model kota Kenney (CC0, kenney.nl): pohon, gedung komersial, pabrik, rumah. Penempatan dikumpulkan dulu, lalu
+  // tiap model digambar sebagai satu InstancedMesh setelah dimuat (ratusan objek tetap ringan di HP).
+  const penempatan = {}, taruh = (kunci, x, z, ry = 0, sk = 8) => (penempatan[kunci] ??= []).push([x, z, ry, sk]);
+  const pohon = (x, z, s = 1) => taruh(rnd() > .35 ? 's/tree-large' : 's/tree-small', x, z, rnd() * 6.28, 9 * s * (.85 + rnd() * .3));
 
   // ---------- tanah, jalan, trotoar, marka
   tambahMesh(K.GEO.k, M.rumput, 700, .2, 700, 0, -.3, 0);
@@ -219,20 +221,30 @@ function bangunKompleks(wadah) {
   function menaraDingin(x, z) { const prof = []; for (let i = 0; i <= 10; i++) { const t = i / 10; prof.push(new THREE.Vector2(4.6 - Math.sin(t * Math.PI) * 1.6 - t * .8, t * 14)); }
     const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 36), bahan(0x6c727b, { roughness: .9, side: THREE.DoubleSide })); m.position.set(x, y0, z); scene.add(m); lampuMerah(x + 3.2, y0 + 14.2, z); }
   // susunan kawasan
-  [-56, -32, -8, 16, 40].forEach((x, i) => gudangHias(x + 6, -42, 18 + (i % 2) * 4, 12, 6 + (i % 3)));
-  [[48, 38], [56, 38], [64, 38], [48, 46], [56, 46], [64, 46]].forEach(([x, z]) => tangki(x, z - 4));
-  for (let b = 0; b < 6; b++) for (let k = 0; k < 9; k++) ps('k', M.surya, 2.4, .08, 1.5, -64 + k * 2.8, y0 + .9, 36 + b * 2.6, 0, -.45, false);
-  for (let b = 0; b < 6; b++) for (let k = 0; k < 9; k++) ps('s', M.baja, .06, .9, .06, -64 + k * 2.8, y0 + .45, 36 + b * 2.6);
-  menaraDingin(62, -22); menaraDingin(62, -8);
+  // pabrik & gudang (Kenney Industrial) di jalur utara, tangki, cerobong, panel surya, kincir angin, peti kemas
+  ['a', 'c', 'e', 'g', 'i'].forEach((h, i) => { const x = -50 + i * 24; taruh('i/building-' + h, x, -43, 0, 9); genang(x, -36, 7); });
+  [[48, 34], [57, 34], [66, 34], [48, 43], [57, 43], [66, 43]].forEach(([x, z], i) => { taruh(i % 2 ? 'i/detail-tank' : 'i/detail-tank-large', x, z, 0, 5); if (i < 3) lampuMerah(x, y0 + 5.2, z); });
+  for (let b = 0; b < 3; b++) for (let k = 0; k < 2; k++) taruh('i/solar-panel-landscape-group', -60 + k * 10, 37 + b * 6, 0, 6.2);
+  taruh('i/windmill', -70, 30, Math.PI / 2, 10); taruh('i/windmill', -70, 48, Math.PI / 2, 10);
+  taruh('i/chimney-large', 62, -22, 0, 8); taruh('i/chimney-medium', 62, -9, 0, 8); lampuMerah(62, y0 + 14, -22);
+  [[66, -42, 0], [68, -38, .1], [64, -36, Math.PI / 2], [70, -45, 0]].forEach(([x, z, r], i) => taruh('i/shipping-container-' + 'abc'[i % 3], x, z, r, 7));
+  // kota di sekeliling kompleks: menara perkantoran di utara (latar), gedung komersial di timur & barat, rumah di selatan
+  const SKY = ['a', 'b', 'c', 'd', 'e'], KOM = 'abcdefghijklmn', RUMAH = 'abcdefghijkl';
+  for (let baris = 0; baris < 4; baris++) for (let x = -160; x <= 160; x += 17) { const z = -74 - baris * 19 + (rnd() - .5) * 5, xx = x + (rnd() - .5) * 6, tengah = Math.abs(xx) < 90;
+    if (rnd() < (tengah ? .7 : .45)) taruh('k/building-skyscraper-' + SKY[(rnd() * 5) | 0], xx, z, 0, 9 + rnd() * 3); else taruh('k/building-' + KOM[(rnd() * 14) | 0], xx, z, 0, 10 + rnd() * 2); }
+  for (const sisi of [-1, 1]) for (let kol = 0; kol < 4; kol++) for (let z = -62; z <= 60; z += 16) { const x = sisi * (90 + kol * 17) + (rnd() - .5) * 5;
+    taruh(kol > 1 && rnd() < .4 ? 'k/building-skyscraper-' + SKY[(rnd() * 5) | 0] : 'k/building-' + KOM[(rnd() * 14) | 0], x, z + (rnd() - .5) * 5, -sisi * Math.PI / 2, 9 + rnd() * 2); }
+  for (let baris = 0; baris < 3; baris++) for (let x = -150; x <= 150; x += 15) taruh('s/building-type-' + RUMAH[(rnd() * 12) | 0], x + (rnd() - .5) * 4, 72 + baris * 16 + (rnd() - .5) * 3, Math.PI, 8 + rnd() * 1.5);
   // gardu listrik + tiang transmisi
   for (let i = 0; i < 6; i++) kk(M.tangki, 1.6, 2, 1.4, -66 + (i % 3) * 3, y0 + 1, 22 + Math.floor(i / 3) * 3);
   [[-66, 12], [-66, -12], [-66, -36]].forEach(([x, z]) => { ps('c', M.baja, 1.4, 14, 1.4, x, y0 + 7, z); kk(M.baja, 5, .15, .15, x, y0 + 12, z, 0, false); lampuMerah(x, y0 + 14.2, z); });
   // menara air
-  ps('s', M.tangki, 4, 3, 4, 30, y0 + 13, -40); [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]].forEach(([a, b]) => ps('s', M.baja, .2, 11.5, .2, 30 + a, y0 + 5.75, -40 + b)); lampuMerah(30, y0 + 14.8, -40);
+  taruh('i/water-tower', 30, -40, 0, 8); lampuMerah(30, y0 + 17.5, -40);
   parkiran(-10, 40, 16, 2); parkiran(24, 40, 7, 2); 
   // pepohonan di tepi jalan dan sabuk hutan di luar pagar
   for (let x = -66; x <= 66; x += 6) { if (Math.abs(x) < 8) continue; pohon(x + 2, 8.5, .8); pohon(x, -8.5, .8); }
-  for (let i = 0; i < 260; i++) { const a = rnd() * Math.PI * 2, r = 92 + rnd() * 90, x = Math.cos(a) * r * 1.15, z = Math.sin(a) * r * .9; pohon(x, z, 1.1 + rnd() * 1.4); }
+  for (let i = 0; i < 220; i++) { const a = rnd() * Math.PI * 2, r = 175 + rnd() * 60, x = Math.cos(a) * r, z = Math.sin(a) * r * .8; pohon(x, z, 1.4 + rnd() * 1.2); }   // hutan di luar kota
+  for (let i = 0; i < 90; i++) { const x = (rnd() - .5) * 320, z = 64 + rnd() * 50; pohon(x, z, .8 + rnd() * .5); }   // pohon di antara rumah
   for (let i = 0; i < 26; i++) pohon(-74 + rnd() * 148, 52 + rnd() * 1.5, .9);
 
   // ---------- bangun gedung karyawan dari GEDUNG
@@ -241,6 +253,14 @@ function bangunKompleks(wadah) {
   for (const g of GEDUNG) { const t = TATA_KOMPLEKS[g.id]; if (!t) continue; g.x = t.x; g.z = t.z;
     if (g.jenis === 'kedai') kedai(g); else if (g.jenis === 'arkade') arkade(g); else if (g.jenis === 'galeri') galeri(g); else if (g.jenis === 'taman') continue; else (BENTUK[t.bentuk] || menara)(g); }
   K.rakit();
+  const kotaNyala = [];   // bahan gedung Kenney: jendela berpendar tipis saat malam (emissiveMap = colormap)
+  if (THREE.GLTFLoader) { const muat = new THREE.GLTFLoader(), KIT = { k: 'model/kota/commercial/', i: 'model/kota/industrial/', s: 'model/kota/suburban/' }, o3 = new THREE.Object3D(), m4 = new THREE.Matrix4();
+    for (const [kunci, daftar] of Object.entries(penempatan)) { const [kit, nama] = kunci.split('/');
+      muat.load(KIT[kit] + nama + '.glb', gl => { gl.scene.updateMatrixWorld(true); gl.scene.traverse(mesh => { if (!mesh.isMesh) return; const mat = mesh.material;
+          mat.roughness = .82; mat.metalness = 0; mat.envMapIntensity = .35; if (mat.map && !/tree/.test(nama)) { mat.emissiveMap = mat.map; mat.emissive = new THREE.Color(1, .82, .55); mat.emissiveIntensity = .22 * langit.malam; kotaNyala.push(mat); }
+          const im = new THREE.InstancedMesh(mesh.geometry, mat, daftar.length);
+          daftar.forEach(([x, z, ry, sk], n) => { o3.position.set(x, y0, z); o3.rotation.set(0, ry, 0); o3.scale.setScalar(sk); o3.updateMatrix(); m4.multiplyMatrices(o3.matrix, mesh.matrixWorld); im.setMatrixAt(n, m4); });
+          im.castShadow = true; im.receiveShadow = true; scene.add(im); }); }, undefined, () => {}); } }
   scene.traverse(o => { if (o.isMesh && !o.isInstancedMesh && !o.isSprite && o.material && !o.material.transparent && o.material.visible !== false && !(o.material.isMeshBasicMaterial)) { o.receiveShadow = true; if (o.geometry !== geoDatar && o.scale.y > .25) o.castShadow = true; } });
   [M.tanah, M.rumput, M.aspal, M.trotoar].forEach(m => m.needsUpdate = true);
   // pantulan langit: kuat di kaca dan air, tipis di permukaan lain
@@ -266,7 +286,7 @@ function bangunKompleks(wadah) {
       if (THREE.GammaCorrectionShader) komposer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader)); } } catch { komposer = null; }
 
   // ---------- waktu: siang lampu padam & bloom tipis, malam lampu & jendela menyala penuh
-  function terapkanWaktu() { langit.perbarui(); const m = langit.malam, lampu = .06 + .94 * m;
+  function terapkanWaktu() { langit.perbarui(); const m = langit.malam, lampu = .06 + .94 * m; for (const mt of kotaNyala) mt.emissiveIntensity = .22 * m;
     faktorJendela = .18 + .82 * m;
     for (const mat of nyala) mat.emissiveIntensity = mat.userData.n * (mat.userData.jenis === 'jendela' ? faktorJendela : lampu);
     for (const sp of pendarList) { sp.material.opacity = m; sp.visible = m > .05; }
