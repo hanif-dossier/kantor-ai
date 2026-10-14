@@ -249,3 +249,23 @@ begin
     'kunciBursa', (select count(*) > 0 from cs_rahasia where nama = 'lantai_bursa_siap'));
 end $$;
 notify pgrst, 'reload schema';
+
+-- UANG SUNGGUHAN UNTUK SELURUH DOMPET (14 Okt 2026, pemilik: "saya mau langsung pakai uang asli"). akun = 'live' hanya bisa
+-- dipilih PEMILIK sendiri di lantai.html (mengetik YA) dan hanya kalau kunci Binance asli sudah ia pasang sendiri
+-- (lantai_bursa_siap). Putaran pertama setelah dipilih: posisi demo ditutup, saldo futures asli jadi modal awal.
+alter table public.lantai_dompet add column if not exists mulai_live timestamptz;
+alter table public.lantai_dompet drop constraint if exists lantai_dompet_akun_cek;
+alter table public.lantai_dompet add constraint lantai_dompet_akun_cek check (akun in ('simulasi', 'demo', 'live'));
+create or replace function public.lantai_akun(p_token text, p_akun text) returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
+  if p_akun not in ('simulasi', 'demo', 'live') then return jsonb_build_object('ok', false, 'pesan', 'Akun tidak dikenal.'); end if;
+  if p_akun = 'live' and not exists (select 1 from cs_rahasia where nama = 'lantai_bursa_siap') then
+    return jsonb_build_object('ok', false, 'pesan', 'Kunci API Binance asli belum terpasang. Pasang BINANCE_KEY dan BINANCE_SECRET di Supabase dulu, tunggu satu putaran (5 menit), lalu coba lagi.'); end if;
+  update lantai_dompet set akun = p_akun, mulai_live = null, diubah = now(),
+    catatan = case when p_akun = 'live' then 'Uang sungguhan dipilih pemilik ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI') || '. Mulai di putaran berikutnya.' else catatan end
+    where id = 1;   -- posisi yang sedang terbuka tetap di akun lamanya sampai ditutup
+  return jsonb_build_object('ok', true);
+end $$;
+grant execute on function public.lantai_akun(text, text) to anon, authenticated;
+notify pgrst, 'reload schema';

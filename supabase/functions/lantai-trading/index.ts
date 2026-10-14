@@ -295,8 +295,9 @@ Deno.serve(async (req) => {
       const S = STRATEGI[r.strategi];
       const w: any = { r, S, st: { transaksi: 0, menang: 0, kalah: 0, pnl: 0, ...(r.statistik || {}) }, pnl: +r.kas, pos: r.posisi, status: r.status, live: !!r.live, catatan: r.catatan };
       // akun bursa yang dipakai robot ini untuk posisi BARU: live (saklar pemilik + kunci) > demo (dompet.akun) > catatan saja
-      w.akunPilihan = w.live && bisaLive ? 'live' : bisaDemo ? 'demo' : null;
-      if (w.live && !bisaLive) w.catatan = 'Saklar uang sungguhan nyala, tapi kunci Binance belum dipasang. Tetap simulasi.';
+      const mintaLive = w.live || D.akun === 'live';
+      w.akunPilihan = mintaLive && bisaLive ? 'live' : bisaDemo ? 'demo' : null;
+      if (mintaLive && !bisaLive) w.catatan = 'Uang sungguhan dipilih, tapi kunci Binance belum dipasang. Tetap simulasi.';
       w.tutup = async (harga: number, alasan: string, olehBursa = false) => { const pos = w.pos, sim = pos.simbol, a = akunPos(pos); let keluar = harga;
         if (a && !olehBursa) { await batalSemua(AKUN[a], sim);
           const o = await bursa('POST', '/fapi/v1/order', { symbol: sim, side: pos.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: pos.qty.toFixed(dp(aturanKoin[sim].langkah)), reduceOnly: true, newOrderRespType: 'RESULT' }, AKUN[a]);
@@ -340,6 +341,23 @@ Deno.serve(async (req) => {
         } catch (e) { w.galat = String((e as Error).message || e).slice(0, 200); log.push(`${r.nama}: ${w.galat}`); }
       R.push(w); }
 
+    // ---- UANG SUNGGUHAN untuk seluruh dompet (dompet.akun = 'live', dipilih pemilik sendiri di lantai.html). Saldo diambil dari
+    // akun futures Binance pemilik. Putaran pertama: posisi demo/simulasi yang masih terbuka ditutup, saldo asli jadi modal
+    // awal, tingkat, dan puncak (risiko 3% saldo asli), hitungan untung-rugi robot mulai dari 0.
+    const modeLive = D.akun === 'live' && bisaLive; let larangBuka = false;
+    if (D.akun === 'live' && !bisaLive) { larangBuka = true; D.catatan = 'Uang sungguhan dipilih, tapi BINANCE_KEY dan BINANCE_SECRET belum dipasang di Supabase.'; }
+    if (modeLive) {
+      const ak = await bursa('GET', '/fapi/v2/account', {}), saldo = +ak.totalWalletBalance;
+      if (!D.mulai_live) {
+        if (saldo < 10) { larangBuka = true; D.catatan = `Uang sungguhan dipilih, tapi saldo dompet futures Binance baru ${saldo.toFixed(2)} USDT. Pindahkan USDT ke dompet USDⓈ-M Futures dulu.`; log.push('LIVE menunggu saldo'); }
+        else {
+          for (const w of R) if (w.pos && akunPos(w.pos) !== 'live') await w.tutup(w.mark, 'ditutup: pindah ke uang sungguhan').catch(e => log.push(`${w.r.nama}: ${String(e).slice(0, 120)}`));
+          kasD = saldo; D.modal_awal = saldo; D.tingkat = saldo; D.puncak = saldo; D.mulai_live = kini.toISOString(); D.status = 'aktif';
+          D.catatan = `Mulai uang sungguhan ${kini.toISOString().slice(0, 16).replace('T', ' ')} UTC dengan saldo ${saldo.toFixed(2)} USDT.`;
+          for (const w of R) { w.pnl = 0; w.st = { ...w.st, transaksi: 0, menang: 0, kalah: 0, pnl: 0 }; }
+          await db.from('lantai_modal').delete().lt('waktu', kini.toISOString()); log.push(`MULAI UANG SUNGGUHAN, saldo ${saldo}`); } }
+      else kasD = saldo; }
+
     // ---- saldo, tingkat, rem darurat, robot yang dikeluarkan
     const terbuka = (w: any) => w.pos ? (w.mark - w.pos.masuk) * w.pos.qty * (w.pos.sisi === 'long' ? 1 : -1) : 0;
     let ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0);
@@ -359,7 +377,7 @@ Deno.serve(async (req) => {
     const risikoUsd = +D.risiko_persen * +D.tingkat, maks = +D.maks_posisi;
     let marginPakai = R.reduce((a, w) => a + (w.pos ? w.pos.qty * w.pos.masuk / (w.pos.leverage || 1) : 0), 0), jumlahPos = R.filter(w => w.pos).length;
     for (const w of R) { const r = w.r, S = w.S, ms = IV_MS[r.interval], akhir = Math.floor(kini.getTime() / ms) * ms - ms;   // waktu buka lilin terakhir yang sudah tutup
-      if (w.galat || w.pos || w.status !== 'aktif' || D.status !== 'aktif' || w.st.lilinDinilai === akhir) continue;
+      if (w.galat || w.pos || w.status !== 'aktif' || D.status !== 'aktif' || larangBuka || w.st.lilinDinilai === akhir) continue;
       w.st.lilinDinilai = akhir;
       if (jumlahPos >= maks) { w.st.pindai = { waktu: kini.toISOString(), pair: 0, sinyal: 0, teks: `tidak memindai: sudah ${maks} posisi terbuka` }; continue; }
       const daftar = kumpulanPair(r.strategi).filter(s => !terpakai.has(s)); let calon: any[] = [];
@@ -403,8 +421,10 @@ Deno.serve(async (req) => {
     for (const w of R) { const t = terbuka(w); if (w.pos) w.pos.terbuka = +t.toFixed(4); perRobot[w.r.id] = +(w.pnl + t).toFixed(4);
       w.st.mark = w.pos ? w.mark : null; w.st.aturan = w.S.aturan; w.st.judul = w.S.judul; w.st.semesta = kumpulanPair(w.r.strategi).length; w.st.kumpulan = KUMPULAN[w.r.strategi] ?? 'luas';
       await db.from('lantai_robot').update({ kas: +w.pnl.toFixed(6), posisi: w.pos, status: w.status, live: w.live, catatan: w.galat ? 'Galat putaran terakhir: ' + w.galat : w.catatan, statistik: w.st, diubah: kini.toISOString() }).eq('id', w.r.id); }
-    ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0); D.puncak = Math.max(+D.puncak || 0, ekuitas);
-    await db.from('lantai_dompet').update({ kas: +kasD.toFixed(6), tingkat: D.tingkat, status: D.status, catatan: D.catatan, puncak: +D.puncak.toFixed(4), ekuitas: +ekuitas.toFixed(4), diubah: kini.toISOString() }).eq('id', 1);
+    ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0);
+    if (modeLive && D.mulai_live) { const ak = await bursa('GET', '/fapi/v2/account', {}).catch(() => null); if (ak) { kasD = +ak.totalWalletBalance; ekuitas = kasD + +ak.totalUnrealizedProfit; } }   // angka akhir = saldo asli Binance
+    D.puncak = Math.max(+D.puncak || 0, ekuitas);
+    await db.from('lantai_dompet').update({ kas: +kasD.toFixed(6), tingkat: D.tingkat, status: D.status, catatan: D.catatan, puncak: +D.puncak.toFixed(4), ekuitas: +ekuitas.toFixed(4), modal_awal: D.modal_awal, mulai_live: D.mulai_live ?? null, diubah: kini.toISOString() }).eq('id', 1);
     await db.from('lantai_modal').insert({ waktu: kini.toISOString(), total: +ekuitas.toFixed(4), per_robot: perRobot });
     return new Response(JSON.stringify({ ok: true, total: +ekuitas.toFixed(2), tingkat: D.tingkat, posisi: jumlahPos, pair: { besar: besar.length, luas: luas.length, paus: paus ? Object.keys(paus).length : null }, log }), { headers: { 'content-type': 'application/json' } });
   } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String((e as Error).message || e), log }), { status: 500, headers: { 'content-type': 'application/json' } }); }

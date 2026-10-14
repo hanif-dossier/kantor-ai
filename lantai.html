@@ -166,12 +166,27 @@ function tempatkanRobot() { let iTunggu = 0, iKeluar = 0; DATA.robot.forEach((r,
     R2.label.innerHTML = `<div class="pnl ${(buka ?? u) >= 0 ? 'naik' : 'turun'}">${buka != null ? `${r.posisi.sisi.toUpperCase()} ${usdT(buka)}` : r.status === 'dikeluarkan' ? 'dikeluarkan ' + usdT(u) : r.status === 'jeda' ? 'jeda' : 'menunggu sinyal'}</div><div class="nama">${esc(r.nama)} <i>${esc(koin(r))}${r.live ? ' · LIVE' : ''}</i></div>`; }); }
 
 function gambarHud() { const R = DATA.robot, D = dompet(), awal = +D.modal_awal, kini = +D.ekuitas, live = R.some(r => r.live), henti = D.status === 'berhenti';
-  $('#hud').innerHTML = `<div class="judul"><b>Lantai Trading</b><small>Binance futures<span class="mode ${live ? 'live' : ''}">${live ? 'ADA UANG SUNGGUHAN' : D.akun === 'demo' ? 'BINANCE DEMO' : 'SIMULASI'}</span></small></div>
+  $('#hud').innerHTML = `<div class="judul"><b>Lantai Trading</b><small>Binance futures<span class="mode ${live || D.akun === 'live' ? 'live' : ''}" id="bAkun" style="cursor:pointer" title="Ketuk untuk mengganti akun">${D.akun === 'live' ? (D.mulai_live ? 'UANG SUNGGUHAN' : 'UANG SUNGGUHAN · MENUNGGU') : live ? 'ADA UANG SUNGGUHAN' : D.akun === 'demo' ? 'BINANCE DEMO' : 'SIMULASI'} ✎</span></small></div>
     <div><small>Saldo bersama</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usd(kini)}</b></div><div><small>Sejak mulai</small><b class="${kini >= awal ? 'naik' : 'turun'}">${usdT(kini - awal)}</b></div>
     <div><small>Risiko/transaksi</small><b>${usd(+D.risiko_persen * +D.tingkat)}</b></div><div><small>Naik ke ${usd(+D.risiko_persen * +D.tingkat * 3)} di</small><b>${usd(3 * +D.tingkat)}</b></div>
     <div id="bRem" style="cursor:pointer" title="Ketuk untuk mengubah batas"><small>${henti ? 'Rem darurat' : `Rem −${Math.round(+D.rem_persen * 100)}% di`} ✎</small><b class="${henti ? 'turun' : ''}">${henti ? 'MENYALA' : usd((1 - +D.rem_persen) * Math.max(+D.puncak || 0, kini))}</b></div>
     <div><small>Posisi terbuka</small><b>${R.filter(r => r.posisi).length}/${D.maks_posisi}</b></div><div><small>Dikeluarkan</small><b class="${R.some(r => r.status === 'dikeluarkan') ? 'turun' : ''}">${R.filter(r => r.status === 'dikeluarkan').length}</b></div>
     <div><small>Transaksi</small><b>${R.reduce((a, r) => a + (r.statistik?.transaksi || 0), 0)}</b></div>`;
+  // pilih akun: simulasi / Binance Demo / uang sungguhan (hanya pemilik, hanya setelah kunci Binance asli terpasang)
+  $('#bAkun').onclick = async () => { const v = prompt(`Akun yang dipakai robot sekarang: ${D.akun === 'live' ? 'UANG SUNGGUHAN' : D.akun === 'demo' ? 'Binance Demo' : 'simulasi'}.
+
+Ketik salah satu:
+  simulasi
+  demo
+  sungguhan`, ''); if (v == null) return;
+    const p = { simulasi: 'simulasi', demo: 'demo', sungguhan: 'live', live: 'live' }[String(v).trim().toLowerCase()]; if (!p) return alert('Ketik simulasi, demo, atau sungguhan.');
+    if (p === 'live') { if (!DATA.kunciBursa) return alert('Kunci API Binance asli belum terpasang. Pasang BINANCE_KEY dan BINANCE_SECRET di Supabase dulu.');
+      if (prompt(`UANG SUNGGUHAN
+
+Semua robot akan membuka posisi futures dengan saldo asli di akun Binance-mu. Posisi demo yang terbuka akan ditutup. Saldo futures-mu jadi modal awal; rugi per transaksi paling besar 3% dari saldo itu, paling banyak 3 posisi, rem darurat ${Math.round(+D.rem_persen * 100)}% dari puncak. Rugi tetap mungkin terjadi.
+
+Ketik YA untuk mulai.`) !== 'YA') return; }
+    try { const j = await rpc('lantai_akun', { p_token: token, p_akun: p }); if (!j.ok) throw new Error(j.pesan); await muat(); } catch (e) { alert(e.message); } };
   $('#bRem').onclick = async () => { const v = prompt(`Rem darurat: kalau saldo turun berapa persen dari puncaknya, semua posisi ditutup dan semua robot berhenti?\n\nPuncak saldo sekarang ${usd(Math.max(+D.puncak || 0, kini))}. Isi angka 10 sampai 60.`, Math.round(+D.rem_persen * 100));
     if (v == null) return; const n = +String(v).replace(',', '.'); if (!(n >= 10 && n <= 60)) return alert('Isi angka 10 sampai 60.');
     try { const j = await rpc('lantai_setel', { p_token: token, p_rem: n / 100 }); if (!j.ok) throw new Error(j.pesan); await muat(); } catch (e) { alert(e.message); } };
