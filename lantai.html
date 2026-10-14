@@ -231,6 +231,8 @@ function buatOrang(warna) { const g = new THREE.Group(); scene.add(g);
     o.material = Array.isArray(o.material) ? o.material.map(ganti) : ganti(o.material); });
   const mix = new THREE.AnimationMixer(m), aksi = Object.fromEntries(MODEL.animations.map(a => [a.name, mix.clipAction(a)]));
   for (const n of SEKALI) if (aksi[n]) { aksi[n].setLoop(THREE.LoopOnce); aksi[n].clampWhenFinished = true; }
+  // 'Sitting' hanya gerakan turun ke kursi (0,42 dtk): diputar sekali lalu berhenti di pose duduk, kalau diulang robot maju-mundur
+  if (aksi.Sitting) { aksi.Sitting.setLoop(THREE.LoopOnce); aksi.Sitting.clampWhenFinished = true; }
   const O = { g, m, mix, aksi, dasar: null, sedang: null, sibukSampai: 0,
     main(nama, fade = .35) { if (O.dasar === nama && !O.sedang) return; const baru = aksi[nama]; if (!baru) return; const lama = O.sedang || (O.dasar && aksi[O.dasar]);
       O.dasar = nama; O.sedang = null; baru.reset().setEffectiveWeight(1).fadeIn(fade).play(); if (lama && lama !== baru) lama.fadeOut(fade); },
