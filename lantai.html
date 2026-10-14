@@ -172,7 +172,7 @@ function gambarHud() { const R = DATA.robot, D = dompet(), awal = +D.modal_awal,
     <div id="bRem" style="cursor:pointer" title="Ketuk untuk mengubah batas"><small>${henti ? 'Rem darurat' : `Rem −${Math.round(+D.rem_persen * 100)}% di`} ✎</small><b class="${henti ? 'turun' : ''}">${henti ? 'MENYALA' : usd((1 - +D.rem_persen) * Math.max(+D.puncak || 0, kini))}</b></div>
     <div><small>Posisi terbuka</small><b>${R.filter(r => r.posisi).length}/${D.maks_posisi}</b></div><div><small>Dikeluarkan</small><b class="${R.some(r => r.status === 'dikeluarkan') ? 'turun' : ''}">${R.filter(r => r.status === 'dikeluarkan').length}</b></div>
     <div><small>Transaksi</small><b>${R.reduce((a, r) => a + (r.statistik?.transaksi || 0), 0)}</b></div>`;
-  // pilih akun: simulasi / Binance Demo / uang sungguhan (hanya pemilik, hanya setelah kunci Binance asli terpasang)
+  // pilih akun: simulasi / Binance Demo / uang sungguhan (hanya pemilik, hanya setelah kunci Bybit asli terpasang)
   $('#bAkun').onclick = async () => { const v = prompt(`Akun yang dipakai robot sekarang: ${D.akun === 'live' ? 'UANG SUNGGUHAN' : D.akun === 'demo' ? 'Binance Demo' : 'simulasi'}.
 
 Ketik salah satu:
@@ -180,10 +180,10 @@ Ketik salah satu:
   demo
   sungguhan`, ''); if (v == null) return;
     const p = { simulasi: 'simulasi', demo: 'demo', sungguhan: 'live', live: 'live' }[String(v).trim().toLowerCase()]; if (!p) return alert('Ketik simulasi, demo, atau sungguhan.');
-    if (p === 'live') { if (!DATA.kunciBursa) return alert('Kunci API Binance asli belum terpasang. Pasang BINANCE_KEY dan BINANCE_SECRET di Supabase dulu.');
+    if (p === 'live') { if (!DATA.kunciBursa) return alert('Kunci API Bybit belum terpasang. Pasang BYBIT_TRADE_KEY dan BYBIT_TRADE_SECRET di Supabase dulu.');
       if (prompt(`UANG SUNGGUHAN
 
-Semua robot akan membuka posisi futures dengan saldo asli di akun Binance-mu. Posisi demo yang terbuka akan ditutup. Saldo futures-mu jadi modal awal; rugi per transaksi paling besar 3% dari saldo itu, paling banyak 3 posisi, rem darurat ${Math.round(+D.rem_persen * 100)}% dari puncak. Rugi tetap mungkin terjadi.
+Semua robot akan membuka posisi futures dengan saldo asli di akun Bybit-mu (USDT di Unified Trading). Posisi demo yang terbuka akan ditutup. Saldo USDT itu jadi modal awal; rugi per transaksi paling besar 3% dari saldo itu, paling banyak 3 posisi, rem darurat ${Math.round(+D.rem_persen * 100)}% dari puncak. Rugi tetap mungkin terjadi.
 
 Ketik YA untuk mulai.`) !== 'YA') return; }
     try { const j = await rpc('lantai_akun', { p_token: token, p_akun: p }); if (!j.ok) throw new Error(j.pesan); await muat(); } catch (e) { alert(e.message); } };
@@ -208,7 +208,7 @@ function bukaPanel(id) { const R2 = ROBOT[id]; if (!R2) return; const r = R2.r, 
     <div class="judul-sub">Transaksi terakhir</div>${T.length ? T.map(t => `<div class="baris"><span>${jam(t.waktuKeluar)} · ${esc((t.simbol || '').replace('USDT', ''))} ${t.sisi.toUpperCase()} · ${esc(t.alasanKeluar)}</span><span class="${t.pnl >= 0 ? 'naik' : 'turun'}">${usdT(t.pnl)}</span></div>`).join('') : '<div class="baris"><span>Belum ada</span><span></span></div>'}
     <div class="aksi">${r.status === 'aktif' ? `<button class="pil" data-aksi="jeda">Jeda</button>` : r.status === 'jeda' ? `<button class="pil utama" data-aksi="lanjut">Lanjutkan</button>` : `<button class="pil utama" data-aksi="mulai-ulang">Mulai ulang (rugi robot kembali $0)</button>`}
       ${r.status !== 'dikeluarkan' ? (r.live ? `<button class="pil" data-aksi="live-mati">Kembali ke simulasi</button>` : `<button class="pil bahaya" data-aksi="live-nyala">Pakai uang sungguhan…</button>`) : ''}<button class="pil" id="bTutup">Tutup</button></div>
-    ${!DATA.kunciBursa ? `<div class="sub" style="margin-top:10px">Kunci API Binance belum dipasang. Saklar uang sungguhan baru bekerja setelah kamu sendiri memasang BINANCE_KEY dan BINANCE_SECRET di Supabase → Edge Functions → Secrets.</div>` : ''}`;
+    ${!DATA.kunciBursa ? `<div class="sub" style="margin-top:10px">Kunci API Bybit belum dipasang. Uang sungguhan baru bisa dipilih setelah kamu sendiri memasang BYBIT_TRADE_KEY dan BYBIT_TRADE_SECRET di Supabase → Edge Functions → Secrets.</div>` : ''}`;
   $('#tirai').classList.add('buka'); $('#bTutup').onclick = () => $('#tirai').classList.remove('buka');
   document.querySelectorAll('[data-aksi]').forEach(b => b.onclick = async () => { const a = b.dataset.aksi;
     if (a === 'live-nyala' && prompt(`Robot ${r.nama} akan membuka posisi dengan SALDO SUNGGUHAN di Binance futures (rugi per transaksi sekitar ${usd(risiko)}, leverage dihitung otomatis; rugi bisa lebih besar kalau harga melompat melewati stop loss).\n\nKetik YA untuk melanjutkan.`) !== 'YA') return;

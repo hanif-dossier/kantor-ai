@@ -261,7 +261,7 @@ begin
   if not kantor__sah(p_token) then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi di Kantor AI.'); end if;
   if p_akun not in ('simulasi', 'demo', 'live') then return jsonb_build_object('ok', false, 'pesan', 'Akun tidak dikenal.'); end if;
   if p_akun = 'live' and not exists (select 1 from cs_rahasia where nama = 'lantai_bursa_siap') then
-    return jsonb_build_object('ok', false, 'pesan', 'Kunci API Binance asli belum terpasang. Pasang BINANCE_KEY dan BINANCE_SECRET di Supabase dulu, tunggu satu putaran (5 menit), lalu coba lagi.'); end if;
+    return jsonb_build_object('ok', false, 'pesan', 'Kunci API Bybit belum terpasang. Pasang BYBIT_TRADE_KEY dan BYBIT_TRADE_SECRET di Supabase dulu, tunggu satu putaran (5 menit), lalu coba lagi.'); end if;
   update lantai_dompet set akun = p_akun, mulai_live = null, diubah = now(),
     catatan = case when p_akun = 'live' then 'Uang sungguhan dipilih pemilik ' || to_char(now() at time zone 'Asia/Jakarta', 'DD Mon HH24:MI') || '. Mulai di putaran berikutnya.' else catatan end
     where id = 1;   -- posisi yang sedang terbuka tetap di akun lamanya sampai ditutup
@@ -269,3 +269,7 @@ begin
 end $$;
 grant execute on function public.lantai_akun(text, text) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- 14 Okt 2026: uang sungguhan dipindah ke BYBIT (Binance mewajibkan IP tetap untuk kunci trading). Secret pemilik:
+-- BYBIT_TRADE_KEY/BYBIT_TRADE_SECRET (akun asli) dan BYBIT_DEMO_KEY/BYBIT_DEMO_SECRET (Bybit Demo Trading, untuk uji).
+-- lantai_akun di atas sudah memakai pesan Bybit.

@@ -139,6 +139,109 @@ async function batalSemua(akun: Akun, simbol: string) {
   await bursa('DELETE', '/fapi/v1/allOpenOrders', { symbol: simbol }, akun).catch(() => null);
   await bursa('DELETE', '/fapi/v1/algoOpenOrders', { symbol: simbol }, akun).catch(() => null); }
 
+// ---------- PELAKSANA ORDER: satu bentuk untuk semua bursa
+// 14 Okt 2026: uang sungguhan lewat BYBIT (pemilik: "trading di bybit ajalah"), karena Binance mewajibkan kunci trading
+// dikunci ke IP tetap sedangkan server Supabase IP-nya berganti. Binance Demo tetap dipakai untuk akun 'demo'.
+type Aturan = { langkah: number; tik: number; minNilai: number; minQty: number; levMaks: number };
+type Pelaksana = {
+  nama: string; siap: boolean; aturan: Record<string, Aturan>;
+  muatAturan(): Promise<void>; siapkan(): Promise<string>;
+  buka(sim: string, sisi: string, qty: number, lev: number, sl: number, tpDari: (m: number) => number): Promise<number>;
+  tutup(sim: string, sisi: string, qty: number): Promise<number>;
+  masihAda(sim: string): Promise<boolean>;
+  hargaKeluar(sim: string, pos: any): Promise<number | null>;
+  aturPengaman(sim: string, sisi: string, sl: number, tp: number | null): Promise<void>;
+  saldo(): Promise<{ kas: number; upnl: number }>;
+};
+const dpL = (l: number) => Math.max(0, -Math.floor(Math.log10(l))), fmt = (v: number, l: number) => (Math.floor(v / l + 1e-9) * l).toFixed(dpL(l));
+const tidur = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// Bybit v5, linear USDT perpetual, mode satu arah (positionIdx 0), stop loss & take profit menempel di posisi (tpslMode Full)
+function pelaksanaBybit(base: string, key: string, secret: string, nama: string): Pelaksana {
+  const panggil = async (metode: 'GET' | 'POST', jalur: string, p: Record<string, any> = {}, tanpaTanda = false) => {
+    const ts = String(Date.now()), recv = '10000', qs = metode === 'GET' ? new URLSearchParams(Object.entries(p).map(([a, b]) => [a, String(b)])).toString() : '', body = metode === 'POST' ? JSON.stringify(p) : '';
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (!tanpaTanda) Object.assign(headers, { 'X-BAPI-API-KEY': key, 'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': recv, 'X-BAPI-SIGN': await tanda(ts + key + recv + (metode === 'GET' ? qs : body), secret) });
+    const r = await fetch(`${base}${jalur}${qs ? '?' + qs : ''}`, { method: metode, headers, body: metode === 'POST' ? body : undefined }); const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.retCode !== 0) throw new Error(`${jalur}: ${j.retCode ?? r.status} ${j.retMsg ?? ''}`); return j.result; };
+  const P: Pelaksana = { nama, siap: !!(key && secret), aturan: {},
+    async muatAturan() { if (Object.keys(P.aturan).length) return; let cursor = '';
+      do { const r = await panggil('GET', '/v5/market/instruments-info', { category: 'linear', limit: 1000, ...(cursor ? { cursor } : {}) }, true);
+        for (const s of r.list) if (s.status === 'Trading' && s.contractType === 'LinearPerpetual' && s.quoteCoin === 'USDT')
+          P.aturan[s.symbol] = { langkah: +s.lotSizeFilter.qtyStep, tik: +s.priceFilter.tickSize, minNilai: +(s.lotSizeFilter.minNotionalValue || 5), minQty: +s.lotSizeFilter.minOrderQty, levMaks: +s.leverageFilter.maxLeverage };
+        cursor = r.nextPageCursor || ''; } while (cursor); },
+    async siapkan() { try { await panggil('POST', '/v5/account/set-margin-mode', { setMarginMode: 'ISOLATED_MARGIN' }); return 'margin isolated'; } catch (e) { return 'margin: ' + String((e as Error).message).slice(0, 100); } },
+    async buka(sim, sisi, qty, lev, sl, tpDari) { const A = P.aturan[sim]; if (!A) throw new Error(`${sim} tidak ada di Bybit`);
+      await panggil('POST', '/v5/position/set-leverage', { category: 'linear', symbol: sim, buyLeverage: String(lev), sellLeverage: String(lev) }).catch(e => { if (!/110043/.test(String(e))) throw e; });
+      const tick = await panggil('GET', '/v5/market/tickers', { category: 'linear', symbol: sim }, true), perkiraan = +tick.list[0].markPrice;
+      await panggil('POST', '/v5/order/create', { category: 'linear', symbol: sim, side: sisi === 'long' ? 'Buy' : 'Sell', orderType: 'Market', qty: fmt(qty, A.langkah), positionIdx: 0,
+        tpslMode: 'Full', stopLoss: fmt(sl, A.tik), takeProfit: fmt(tpDari(perkiraan), A.tik), slTriggerBy: 'MarkPrice', tpTriggerBy: 'MarkPrice' });
+      let pos: any = null; for (let i = 0; i < 6 && !(+pos?.size > 0); i++) { await tidur(400); pos = (await panggil('GET', '/v5/position/list', { category: 'linear', symbol: sim })).list[0]; }
+      if (!(+pos?.size > 0)) throw new Error('order terkirim tapi posisi belum terlihat');
+      const masuk = +pos.avgPrice;
+      // take profit disesuaikan ke harga isi sebenarnya; kalau stop loss tidak menempel, posisi langsung ditutup
+      try { await P.aturPengaman(sim, sisi, sl, tpDari(masuk)); const cek = (await panggil('GET', '/v5/position/list', { category: 'linear', symbol: sim })).list[0]; if (!(+cek.stopLoss > 0)) throw new Error('stop loss tidak terpasang'); }
+      catch (e) { await P.tutup(sim, sisi, +pos.size).catch(() => null); throw new Error('stop loss gagal dipasang, posisi langsung ditutup: ' + (e as Error).message); }
+      return masuk; },
+    async tutup(sim, sisi, qty) { const A = P.aturan[sim];
+      const o = await panggil('POST', '/v5/order/create', { category: 'linear', symbol: sim, side: sisi === 'long' ? 'Sell' : 'Buy', orderType: 'Market', qty: fmt(qty, A?.langkah ?? qty), reduceOnly: true, positionIdx: 0 });
+      for (let i = 0; i < 5; i++) { await tidur(400); const h = (await panggil('GET', '/v5/order/history', { category: 'linear', symbol: sim, orderId: o.orderId }).catch(() => null))?.list?.[0]; if (h && +h.avgPrice > 0) return +h.avgPrice; }
+      return 0; },
+    async masihAda(sim) { const p = (await panggil('GET', '/v5/position/list', { category: 'linear', symbol: sim })).list[0]; return +p?.size > 0; },
+    async hargaKeluar(sim, pos) { const r = await panggil('GET', '/v5/position/closed-pnl', { category: 'linear', symbol: sim, limit: 5 }).catch(() => null);
+      const x = (r?.list || []).find((c: any) => +c.updatedTime >= Date.parse(pos.waktu)); return x ? +x.avgExitPrice : null; },
+    async aturPengaman(sim, _sisi, sl, tp) { const A = P.aturan[sim];
+      await panggil('POST', '/v5/position/trading-stop', { category: 'linear', symbol: sim, positionIdx: 0, tpslMode: 'Full', stopLoss: fmt(sl, A.tik), takeProfit: tp != null ? fmt(tp, A.tik) : '0', slTriggerBy: 'MarkPrice', tpTriggerBy: 'MarkPrice' })
+        .catch(e => { if (!/34040/.test(String(e))) throw e; }); },   // 34040 = tidak ada yang berubah
+    async saldo() { const r = await panggil('GET', '/v5/account/wallet-balance', { accountType: 'UNIFIED' }), u = (r.list?.[0]?.coin || []).find((c: any) => c.coin === 'USDT');
+      return { kas: +(u?.walletBalance || 0), upnl: +(u?.unrealisedPnl || 0) }; } };
+  return P; }
+
+// Binance (dipakai untuk akun demo): membungkus fungsi lama
+function pelaksanaBinance(akun: Akun, nama: string, aturanBinance: () => Record<string, { langkah: number; tik: number; minNilai: number }>): Pelaksana {
+  const P: Pelaksana = { nama, siap: !!(akun.key && akun.secret), aturan: {},
+    async muatAturan() { P.aturan = Object.fromEntries(Object.entries(aturanBinance()).map(([s, a]) => [s, { ...a, minQty: a.langkah, levMaks: 20 }])); },
+    async siapkan() { return 'binance'; },
+    async buka(sim, sisi, qty, lev, sl, tpDari) { const A = P.aturan[sim];
+      await bursa('POST', '/fapi/v1/marginType', { symbol: sim, marginType: 'ISOLATED' }, akun).catch(() => null); await bursa('POST', '/fapi/v1/leverage', { symbol: sim, leverage: lev }, akun);
+      const o = await bursa('POST', '/fapi/v1/order', { symbol: sim, side: sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: fmt(qty, A.langkah), newOrderRespType: 'RESULT' }, akun);
+      const masuk = +o.avgPrice || +(await ambil(`${akun.base}/fapi/v1/premiumIndex?symbol=${sim}`)).markPrice;
+      try { await pasangPengaman(akun, sim, sisi, sl, tpDari(masuk), A.tik); }
+      catch (e) { await bursa('POST', '/fapi/v1/order', { symbol: sim, side: sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: fmt(qty, A.langkah), reduceOnly: true }, akun).catch(() => null);
+        await batalSemua(akun, sim); throw new Error('stop loss gagal dipasang, posisi langsung ditutup: ' + (e as Error).message); }
+      return masuk; },
+    async tutup(sim, sisi, qty) { await batalSemua(akun, sim);
+      const o = await bursa('POST', '/fapi/v1/order', { symbol: sim, side: sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: fmt(qty, P.aturan[sim]?.langkah ?? qty), reduceOnly: true, newOrderRespType: 'RESULT' }, akun);
+      return +o.avgPrice || 0; },
+    async masihAda(sim) { const pr = (await bursa('GET', '/fapi/v2/positionRisk', { symbol: sim }, akun))[0]; return !!pr && +pr.positionAmt !== 0; },
+    async hargaKeluar(sim, pos) { await batalSemua(akun, sim);
+      const t = (await bursa('GET', '/fapi/v1/userTrades', { symbol: sim, startTime: Date.parse(pos.waktu), limit: 50 }, akun).catch(() => [])).filter((x: any) => x.side === (pos.sisi === 'long' ? 'SELL' : 'BUY')).at(-1);
+      return t ? +t.price : null; },
+    async aturPengaman(sim, sisi, sl, tp) { await batalSemua(akun, sim); await pasangPengaman(akun, sim, sisi, sl, tp, P.aturan[sim].tik); },
+    async saldo() { const a = await bursa('GET', '/fapi/v2/account', {}, akun); return { kas: +a.totalWalletBalance, upnl: +a.totalUnrealizedProfit }; } };
+  return P; }
+
+const BYBIT_KEY = Deno.env.get('BYBIT_TRADE_KEY') ?? '', BYBIT_SECRET = Deno.env.get('BYBIT_TRADE_SECRET') ?? '';
+
+// ---------- uji jalur Bybit di Bybit Demo Trading (uang mainan): satu siklus penuh, tiap langkah dilaporkan
+async function ujiBybit(simbol: string) {
+  const B = pelaksanaBybit('https://api-demo.bybit.com', Deno.env.get('BYBIT_DEMO_KEY') ?? '', Deno.env.get('BYBIT_DEMO_SECRET') ?? '', 'bybit-demo');
+  if (!B.siap) return { ok: false, pesan: 'Secret BYBIT_DEMO_KEY dan BYBIT_DEMO_SECRET belum dipasang.' };
+  const langkah: { langkah: string; ok: boolean; isi: string }[] = [], catat = (l: string, ok: boolean, isi: any) => langkah.push({ langkah: l, ok, isi: String(isi).slice(0, 220) });
+  try {
+    await B.muatAturan(); const A = B.aturan[simbol]; catat('aturan koin', !!A, JSON.stringify(A));
+    const s0 = await B.saldo(); catat('baca saldo USDT', s0.kas > 0, `saldo ${s0.kas}, belum terealisasi ${s0.upnl}`);
+    catat('siapkan akun', true, await B.siapkan());
+    const mark = +(await (await fetch(`https://api-demo.bybit.com/v5/market/tickers?category=linear&symbol=${simbol}`)).json()).result.list[0].markPrice;
+    const qty = Math.max(A.minQty, Math.ceil(A.minNilai * 1.3 / mark / A.langkah) * A.langkah), sl = mark * .97;
+    const masuk = await B.buka(simbol, 'long', qty, 3, sl, m => m + 3 * (m - sl)); catat('buka long + stop loss + take profit 1:3', masuk > 0, `${qty} ${simbol} di ${masuk}`);
+    catat('posisi tercatat', await B.masihAda(simbol), 'ada');
+    await B.aturPengaman(simbol, 'long', mark * .98, masuk + 3 * (masuk - mark * .98)); catat('geser stop loss', true, `stop loss ke ${(mark * .98).toFixed(4)}`);
+    const keluar = await B.tutup(simbol, 'long', qty); catat('tutup posisi', true, `di ${keluar}`);
+    await tidur(800); catat('bersih: tanpa posisi', !(await B.masihAda(simbol)), 'posisi 0');
+  } catch (e) { catat('GAGAL', false, String((e as Error).message)); }
+  return { ok: langkah.every(x => x.ok), langkah }; }
+
 // ---------- uji jalur live di Binance Testnet (uang mainan): satu siklus penuh, tiap langkah dilaporkan
 async function ujiTestnet(simbol: string) {
   // Testnet futures lama diganti Binance Demo Trading (Okt 2026): kunci dibuat di demo.binance.com, API di demo-fapi.binance.com
@@ -232,6 +335,7 @@ Deno.serve(async (req) => {
   const log: string[] = [], kini = new Date();
   const badan = await req.json().catch(() => ({}));
   if (badan.segarPaus) { try { return new Response(JSON.stringify(await segarPaus()), { headers: { 'content-type': 'application/json' } }); } catch (e) { return new Response(JSON.stringify({ ok: false, galat: String(e) }), { status: 500 }); } }
+  if (badan.ujiBybit) return new Response(JSON.stringify(await ujiBybit(badan.simbol || 'DOGEUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.ujiTestnet) return new Response(JSON.stringify(await ujiTestnet(badan.simbol || 'BTCUSDT')), { headers: { 'content-type': 'application/json' } });
   if (badan.pindai) {   // pindai semua pair untuk semua robot pada lilin terakhir yang sudah tutup, TANPA membuka posisi (untuk diperiksa)
     const t24 = await ambil(`${FAPI}/fapi/v1/ticker/24hr`), info = await ambil(`${FAPI}/fapi/v1/exchangeInfo`), premi = Object.fromEntries((await ambil(`${FAPI}/fapi/v1/premiumIndex`)).map((x: any) => [x.symbol, +x.lastFundingRate]));
@@ -253,7 +357,7 @@ Deno.serve(async (req) => {
       return { robot: r.nama, transaksi: n, menang: m, rataHasil: ok.length ? +(ok.reduce((a, x) => a + parseFloat(x.hasil), 0) / ok.length).toFixed(1) + '%' : '-', perKoin: ok.map(x => `${x.simbol.replace('USDT', '')} ${x.hasil} (${x.menang}/${x.transaksi})`).join(', ') }; }));
     return new Response(JSON.stringify({ ok: true, koin: UJI_KOIN, hasil }), { headers: { 'content-type': 'application/json' } }); }
   try {
-    const bisaLive = !!(KEY && SECRET);
+    const bisaLive = !!(BYBIT_KEY && BYBIT_SECRET);   // uang sungguhan = Bybit (kunci dipasang pemilik sendiri)
     if (bisaLive) await db.from('cs_rahasia').upsert({ nama: 'lantai_bursa_siap', nilai: kini.toISOString() }); else await db.from('cs_rahasia').delete().eq('nama', 'lantai_bursa_siap');
     const { data: robot, error } = await db.from('lantai_robot').select('*').order('urut'); if (error) throw error;
     const { data: D0 } = await db.from('lantai_dompet').select('*').eq('id', 1).single();
@@ -288,6 +392,10 @@ Deno.serve(async (req) => {
       if (k === 'paus') return paus ? Object.entries(paus).filter(([sim, h]) => (h.baruLong >= 2 || h.baruShort >= 2) && layak(sim)).map(([sim]) => sim) : [];
       return k === 'besar' ? besar : luas; };
     const bulat = (v: number, l: number) => Math.floor(v / l + 1e-9) * l, dp = (l: number) => Math.max(0, -Math.floor(Math.log10(l)));
+    const PL: Record<string, Pelaksana> = { live: pelaksanaBybit('https://api.bybit.com', BYBIT_KEY, BYBIT_SECRET, 'bybit'), demo: pelaksanaBinance(AKUN_DEMO, 'binance-demo', () => aturanKoin) };
+    await PL.demo.muatAturan();
+    const pakaiBybit = bisaLive && (D.akun === 'live' || robot!.some(r => r.live || akunPos(r.posisi) === 'live'));
+    if (pakaiBybit) await PL.live.muatAturan().catch(e => log.push('Bybit: aturan koin gagal dimuat ' + String(e).slice(0, 100)));
     const R = [] as any[];   // keadaan kerja tiap robot selama putaran
 
     // ---- tahap 1: urus posisi terbuka
@@ -297,15 +405,11 @@ Deno.serve(async (req) => {
       // akun bursa yang dipakai robot ini untuk posisi BARU: live (saklar pemilik + kunci) > demo (dompet.akun) > catatan saja
       const mintaLive = w.live || D.akun === 'live';
       w.akunPilihan = mintaLive && bisaLive ? 'live' : bisaDemo ? 'demo' : null;
-      if (mintaLive && !bisaLive) w.catatan = 'Uang sungguhan dipilih, tapi kunci Binance belum dipasang. Tetap simulasi.';
+      if (mintaLive && !bisaLive) w.catatan = 'Uang sungguhan dipilih, tapi kunci Bybit (BYBIT_TRADE_KEY, BYBIT_TRADE_SECRET) belum dipasang. Tetap simulasi.';
       w.tutup = async (harga: number, alasan: string, olehBursa = false) => { const pos = w.pos, sim = pos.simbol, a = akunPos(pos); let keluar = harga;
-        if (a && !olehBursa) { await batalSemua(AKUN[a], sim);
-          const o = await bursa('POST', '/fapi/v1/order', { symbol: sim, side: pos.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: pos.qty.toFixed(dp(aturanKoin[sim].langkah)), reduceOnly: true, newOrderRespType: 'RESULT' }, AKUN[a]);
-          keluar = +o.avgPrice || harga; }
+        if (a && !olehBursa) keluar = (await PL[a].tutup(sim, pos.sisi, pos.qty)) || harga;
         else if (!a) keluar = harga * (pos.sisi === 'long' ? 1 - SELIP : 1 + SELIP);
-        if (a && olehBursa) { await batalSemua(AKUN[a], sim);   // order pengaman pasangannya jangan tertinggal
-          const t = (await bursa('GET', '/fapi/v1/userTrades', { symbol: sim, startTime: Date.parse(pos.waktu), limit: 50 }, AKUN[a]).catch(() => []))
-            .filter((x: any) => x.side === (pos.sisi === 'long' ? 'SELL' : 'BUY')).at(-1); if (t) keluar = +t.price; }
+        if (a && olehBursa) keluar = (await PL[a].hargaKeluar(sim, pos).catch(() => null)) ?? harga;   // harga keluar sebenarnya di bursa
         if (a) dipegang[a].delete(sim); terpakai.delete(sim);
         const arah = pos.sisi === 'long' ? 1 : -1, kotor = (keluar - pos.masuk) * pos.qty * arah, biaya = (pos.masuk + keluar) * pos.qty * BIAYA, bersih = kotor - biaya;
         w.pnl += bersih; kasD += bersih; w.st.transaksi++; bersih > 0 ? w.st.menang++ : w.st.kalah++; w.st.pnl = (w.st.pnl || 0) + bersih;
@@ -315,17 +419,17 @@ Deno.serve(async (req) => {
         try { w.k = await ambilLilin(sim, r.interval); w.mark = premi[sim]?.mark ?? w.k[w.k.length - 1].c; w.ctx = { k: w.k, funding: premi[sim]?.funding, paus: pausKoin(sim) }; }
         catch (e) { w.mark = premi[sim]?.mark ?? w.pos.masuk; w.galat = `data ${sim}: ${String((e as Error).message).slice(0, 80)}`; log.push(`${r.nama}: ${w.galat}`); } }
       if (w.pos && w.k) try { const pos = w.pos, sim = pos.simbol, k = w.k, mark = w.mark;
-          const a = akunPos(pos); if (a) { const pr = (await bursa('GET', '/fapi/v2/positionRisk', { symbol: sim }, AKUN[a]))[0]; if (pr && +pr.positionAmt === 0) await w.tutup(pos.sl, 'ditutup bursa (stop loss atau take profit)', true); }
-          if (w.pos) for (const x of k.filter(x => x.t > Date.parse(w.pos.waktu))) {
+          const a = akunPos(pos); if (a && !(await PL[a].masihAda(sim))) await w.tutup(pos.sl, 'ditutup bursa (stop loss atau take profit)', true);
+          if (w.pos && !akunPos(w.pos)) for (const x of k.filter(x => x.t > Date.parse(w.pos.waktu))) {   // posisi bursa: stop loss & take profit dijalankan bursa
             const kenaSl = w.pos.sisi === 'long' ? x.l <= w.pos.sl : x.h >= w.pos.sl, kenaTp = w.pos.tp != null && (w.pos.sisi === 'long' ? x.h >= w.pos.tp : x.l <= w.pos.tp);
             if (kenaSl) { await w.tutup(w.pos.sl, 'stop loss'); break; } if (kenaTp) { await w.tutup(w.pos.tp, 'take profit'); break; } }
           if (w.pos && S.jejak) { const g = S.jejak(w.ctx, w.pos.sisi); if (g != null && (w.pos.sisi === 'long' ? g > w.pos.sl : g < w.pos.sl)) { w.pos.sl = g;
-            const a = akunPos(w.pos); if (a) { await batalSemua(AKUN[a], sim); await pasangPengaman(AKUN[a], sim, w.pos.sisi, g, w.pos.tp, aturanKoin[sim].tik); } } }   // stop loss di bursa ikut digeser
+            const a = akunPos(w.pos); if (a) await PL[a].aturPengaman(sim, w.pos.sisi, g, w.pos.tp); } }   // stop loss di bursa ikut digeser
           if (w.pos && S.keluar) { const a = S.keluar(w.ctx, w.pos.sisi); if (a) await w.tutup(mark, a); }
           if (w.pos && S.maksLilin && k.filter(x => x.t > Date.parse(w.pos.waktu)).length >= S.maksLilin) await w.tutup(mark, `sudah ${S.maksLilin} lilin`);
           if (w.pos && !w.pos.rr && w.pos.qty > 0 && w.pos.risiko > 0) { const rr = Math.max(RR_MIN, S.rr), arah = w.pos.sisi === 'long' ? 1 : -1, tpBaru = w.pos.masuk + arah * rr * (w.pos.risiko / w.pos.qty);
             if (arah * (mark - tpBaru) >= 0) await w.tutup(mark, `sudah melewati target 1:${rr}`);
-            else { w.pos.tp = tpBaru; w.pos.rr = rr; const a = akunPos(w.pos); if (a) { await batalSemua(AKUN[a], sim); await pasangPengaman(AKUN[a], sim, w.pos.sisi, w.pos.sl, tpBaru, aturanKoin[sim].tik); }
+            else { w.pos.tp = tpBaru; w.pos.rr = rr; const a = akunPos(w.pos); if (a) await PL[a].aturPengaman(sim, w.pos.sisi, w.pos.sl, tpBaru);
               log.push(`${r.nama} take profit disesuaikan ke 1:${rr} (${tpBaru})`); } }
           // posisi simulasi yang dibuka sebelum akun demo dinyalakan dipindah ke Binance Demo (jumlah, SL, TP sama). Hanya ke DEMO.
           if (w.pos && !akunPos(w.pos) && w.akunPilihan === 'demo' && !dipegang.demo.has(sim) && (!adaDemo || adaDemo.has(sim)) && (w.pos.sisi === 'long' ? mark > w.pos.sl : mark < w.pos.sl)) {
@@ -345,12 +449,12 @@ Deno.serve(async (req) => {
     // akun futures Binance pemilik. Putaran pertama: posisi demo/simulasi yang masih terbuka ditutup, saldo asli jadi modal
     // awal, tingkat, dan puncak (risiko 3% saldo asli), hitungan untung-rugi robot mulai dari 0.
     const modeLive = D.akun === 'live' && bisaLive; let larangBuka = false;
-    if (D.akun === 'live' && !bisaLive) { larangBuka = true; D.catatan = 'Uang sungguhan dipilih, tapi BINANCE_KEY dan BINANCE_SECRET belum dipasang di Supabase.'; }
+    if (D.akun === 'live' && !bisaLive) { larangBuka = true; D.catatan = 'Uang sungguhan dipilih, tapi BYBIT_TRADE_KEY dan BYBIT_TRADE_SECRET belum dipasang di Supabase.'; }
     if (modeLive) {
-      const ak = await bursa('GET', '/fapi/v2/account', {}), saldo = +ak.totalWalletBalance;
+      const saldo = (await PL.live.saldo()).kas;
       if (!D.mulai_live) {
-        if (saldo < 10) { larangBuka = true; D.catatan = `Uang sungguhan dipilih, tapi saldo dompet futures Binance baru ${saldo.toFixed(2)} USDT. Pindahkan USDT ke dompet USDⓈ-M Futures dulu.`; log.push('LIVE menunggu saldo'); }
-        else {
+        if (saldo < 10) { larangBuka = true; D.catatan = `Uang sungguhan dipilih, tapi saldo USDT di akun Bybit (Unified Trading) baru ${saldo.toFixed(2)}. Pindahkan USDT ke sana dulu.`; log.push('LIVE menunggu saldo'); }
+        else { log.push('Bybit: ' + await PL.live.siapkan());
           for (const w of R) if (w.pos && akunPos(w.pos) !== 'live') await w.tutup(w.mark, 'ditutup: pindah ke uang sungguhan').catch(e => log.push(`${w.r.nama}: ${String(e).slice(0, 120)}`));
           kasD = saldo; D.modal_awal = saldo; D.tingkat = saldo; D.puncak = saldo; D.mulai_live = kini.toISOString(); D.status = 'aktif';
           D.catatan = `Mulai uang sungguhan ${kini.toISOString().slice(0, 16).replace('T', ' ')} UTC dengan saldo ${saldo.toFixed(2)} USDT.`;
@@ -388,27 +492,23 @@ Deno.serve(async (req) => {
       w.st.pindai = { waktu: kini.toISOString(), pair: daftar.length, sinyal: calon.length, teks: calon.length ? calon.slice(0, 4).map(c => `${c.sim.replace('USDT', '')} ${c.s.sisi}`).join(', ') : 'tidak ada pair yang memenuhi aturan' };
       const alasanLewat: string[] = [];
       for (const { sim, s } of calon) {
-        const A = aturanKoin[sim], mark = premi[sim]?.mark; if (!A || !mark) continue;
+        const a = w.akunPilihan && !dipegang[w.akunPilihan].has(sim) ? w.akunPilihan : null;
+        const A = a === 'live' ? PL.live.aturan[sim] : aturanKoin[sim], mark = premi[sim]?.mark;   // aturan lot/tik bursa tempat order dikirim
+        if (a === 'live' && !A) { alasanLewat.push(`${sim}: tidak diperdagangkan di Bybit`); continue; } if (!A || !mark) continue;
         const harga = mark * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl), d = jarak / harga;
         if (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga) { alasanLewat.push(`${sim}: harga sudah lewat stop loss`); continue; }
-        const levAman = Math.max(1, Math.min(+D.lev_maks, Math.floor(.8 / d)));   // likuidasi isolated sekitar 1/leverage, harus lebih jauh dari stop loss
+        const levAman = Math.max(1, Math.min(+D.lev_maks, (A as any).levMaks ?? 99, Math.floor(.8 / d)));   // likuidasi isolated sekitar 1/leverage, harus lebih jauh dari stop loss
         // rugi per koin kalau stop loss kena = jarak + biaya masuk & keluar + selip saat stop loss tereksekusi; jadi rugi total
         // (termasuk biaya) tetap paling besar risikoUsd sesuai aturan pemilik
         const rugiPerKoin = jarak + (harga + s.sl) * BIAYA + s.sl * SELIP;
         let qty = bulat(risikoUsd / rugiPerKoin, A.langkah), nilai = qty * harga, lev = Math.max(1, Math.ceil(nilai / (ekuitas / maks)));
         if (lev > levAman) { lev = levAman; qty = bulat(levAman * (ekuitas / maks) / harga, A.langkah); nilai = qty * harga; }
         const margin = nilai / lev;
-        if (nilai < A.minNilai) { alasanLewat.push(`${sim}: nilai ${nilai.toFixed(2)} di bawah minimal ${A.minNilai}`); continue; }
+        if (nilai < A.minNilai || qty < ((A as any).minQty ?? 0)) { alasanLewat.push(`${sim}: nilai ${nilai.toFixed(2)} di bawah minimal ${A.minNilai}`); continue; }
         if (marginPakai + margin > ekuitas) { alasanLewat.push(`${sim}: margin tidak muat`); continue; }
-        const a = w.akunPilihan && !dipegang[w.akunPilihan].has(sim) ? w.akunPilihan : null;
         const tpDari = (m: number) => m + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * Math.abs(m - s.sl);
         try { let masuk = harga;
-          if (a) { const B = AKUN[a]; await bursa('POST', '/fapi/v1/marginType', { symbol: sim, marginType: 'ISOLATED' }, B).catch(() => null); await bursa('POST', '/fapi/v1/leverage', { symbol: sim, leverage: lev }, B);
-            const o = await bursa('POST', '/fapi/v1/order', { symbol: sim, side: s.sisi === 'long' ? 'BUY' : 'SELL', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), newOrderRespType: 'RESULT' }, B); masuk = +o.avgPrice || mark;
-            dipegang[a].add(sim);
-            try { await pasangPengaman(B, sim, s.sisi, s.sl, tpDari(masuk), A.tik); }
-            catch (e) { await bursa('POST', '/fapi/v1/order', { symbol: sim, side: s.sisi === 'long' ? 'SELL' : 'BUY', type: 'MARKET', quantity: qty.toFixed(dp(A.langkah)), reduceOnly: true }, B).catch(() => null);
-              await batalSemua(B, sim); dipegang[a].delete(sim); throw new Error('stop loss gagal dipasang, posisi langsung ditutup: ' + (e as Error).message); } }
+          if (a) { masuk = await PL[a].buka(sim, s.sisi, qty, lev, s.sl, tpDari); dipegang[a].add(sim); }   // stop loss wajib menempel, kalau gagal posisi ditutup lagi
           w.pos = { simbol: sim, sisi: s.sisi, masuk, qty, sl: s.sl, slAwal: s.sl, tp: tpDari(masuk), rr: Math.max(RR_MIN, S.rr), alasan: s.alasan, waktu: new Date(akhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * rugiPerKoin).toFixed(4), margin: +margin.toFixed(4) };
           w.mark = mark; marginPakai += margin; jumlahPos++; terpakai.add(sim);
           w.st.terakhirSinyal = { waktu: kini.toISOString(), teks: `${sim.replace('USDT', '')}: ${s.alasan}` };
@@ -422,7 +522,7 @@ Deno.serve(async (req) => {
       w.st.mark = w.pos ? w.mark : null; w.st.aturan = w.S.aturan; w.st.judul = w.S.judul; w.st.semesta = kumpulanPair(w.r.strategi).length; w.st.kumpulan = KUMPULAN[w.r.strategi] ?? 'luas';
       await db.from('lantai_robot').update({ kas: +w.pnl.toFixed(6), posisi: w.pos, status: w.status, live: w.live, catatan: w.galat ? 'Galat putaran terakhir: ' + w.galat : w.catatan, statistik: w.st, diubah: kini.toISOString() }).eq('id', w.r.id); }
     ekuitas = kasD + R.reduce((a, w) => a + terbuka(w), 0);
-    if (modeLive && D.mulai_live) { const ak = await bursa('GET', '/fapi/v2/account', {}).catch(() => null); if (ak) { kasD = +ak.totalWalletBalance; ekuitas = kasD + +ak.totalUnrealizedProfit; } }   // angka akhir = saldo asli Binance
+    if (modeLive && D.mulai_live) { const sa = await PL.live.saldo().catch(() => null); if (sa) { kasD = sa.kas; ekuitas = sa.kas + sa.upnl; } }   // angka akhir = saldo asli Bybit
     D.puncak = Math.max(+D.puncak || 0, ekuitas);
     await db.from('lantai_dompet').update({ kas: +kasD.toFixed(6), tingkat: D.tingkat, status: D.status, catatan: D.catatan, puncak: +D.puncak.toFixed(4), ekuitas: +ekuitas.toFixed(4), modal_awal: D.modal_awal, mulai_live: D.mulai_live ?? null, diubah: kini.toISOString() }).eq('id', 1);
     await db.from('lantai_modal').insert({ waktu: kini.toISOString(), total: +ekuitas.toFixed(4), per_robot: perRobot });
