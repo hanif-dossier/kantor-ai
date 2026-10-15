@@ -54,7 +54,7 @@ const UJI_KOIN = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUS
 // 'paus' = koin yang sedang dibuka trader top Hyperliquid. Dari sinyal yang ada, pilihan diundi berbobot kekuatan sinyal.
 const BESAR = ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE', 'ADA', 'AVAX', 'LINK', 'TRX', 'DOT', 'LTC', 'BCH', 'NEAR', 'SUI', 'APT', 'ARB', 'OP', 'INJ', 'UNI', 'AAVE', 'ATOM',
   'HBAR', 'XLM', 'FIL', 'ETC', 'TAO', 'HYPE', 'ENA', 'WLD', 'SEI', 'TIA', 'ONDO', '1000PEPE', '1000SHIB', 'RENDER', 'FET', 'TON', 'ICP'].map(x => x + 'USDT');
-const KUMPULAN: Record<string, 'besar' | 'luas' | 'paus'> = { 'ikut-tren': 'besar', 'momentum-macd': 'besar', 'supertrend': 'besar', 'pantulan-rsi': 'besar', 'kembali-ke-tengah': 'besar',
+const KUMPULAN: Record<string, 'besar' | 'luas' | 'paus'> = { 'pullback-tren': 'besar', 'squeeze': 'luas', 'ikut-tren': 'besar', 'momentum-macd': 'besar', 'supertrend': 'besar', 'pantulan-rsi': 'besar', 'kembali-ke-tengah': 'besar',
   'tembus-kisaran': 'luas', 'lonjakan-volume': 'luas', 'lawan-funding': 'luas', 'ikut-paus': 'paus' };
 const BESAR_VOL_MIN = 20e6;
 const HL_INFO = 'https://api.hyperliquid.xyz/info', HL_PAPAN = 'https://stats-data.hyperliquid.xyz/Mainnet/leaderboard', PAUS_N = 30, PAUS_BARU_MS = 36e5;
@@ -99,6 +99,22 @@ const STRATEGI: Record<string, { judul: string; aturan: string; rr: number; masu
       if (funding > .0003) return { sisi: 'short', sl: c + 1.5 * t, tp: c - 2 * t, kuat: Math.abs(funding) * 1e4, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong long` };
       if (funding < -.0001) return { sisi: 'long', sl: c - 1.5 * t, tp: c + 2 * t, kuat: Math.abs(funding) * 1e4, alasan: `funding ${(funding * 100).toFixed(3)}%, pasar terlalu condong short` }; return null; },
     maksLilin: 16 },
+  // 15 Okt 2026: pengganti 'kembali-ke-tengah' (Nadia) dan 'momentum-macd' (Fajar) yang hampir tidak pernah mencapai 3R.
+  // Keduanya menangkap pergerakan panjang dengan stop loss dekat, cocok untuk aturan pemilik minimal 1:3.
+  'pullback-tren': { judul: 'Pullback dalam tren', rr: 3, aturan: 'Tren naik: EMA 50 di atas EMA 200 dan harga di atas EMA 200. Tunggu harga turun menyentuh EMA 20, lalu lilin naik tutup kembali di atas EMA 20: long. Kebalikannya untuk short. Stop loss di luar titik ekstrem 5 lilin terakhir (minimal 1 ATR), take profit 3x jarak stop loss (1:3).',
+    masuk: ({ k }) => { const c = k.map(x => x.c), e20 = ema(c, 20), e50 = ema(c, 50), e200 = ema(c, 200), t = atr(k), i = c.length - 1, x = k[i], s5 = k.slice(i - 5, i + 1);
+      const lo = Math.min(...s5.map(y => y.l)), hi = Math.max(...s5.map(y => y.h));
+      if (e50[i] > e200[i] && c[i] > e200[i] && Math.min(x.l, k[i - 1].l) <= e20[i] && x.c > e20[i] && x.c > x.o) return { sisi: 'long', sl: Math.min(lo, x.c - t[i]), tp: null, kuat: (e50[i] - e200[i]) / t[i], alasan: 'pullback ke EMA 20 dalam tren naik, lilin naik kembali' };
+      if (e50[i] < e200[i] && c[i] < e200[i] && Math.max(x.h, k[i - 1].h) >= e20[i] && x.c < e20[i] && x.c < x.o) return { sisi: 'short', sl: Math.max(hi, x.c + t[i]), tp: null, kuat: (e200[i] - e50[i]) / t[i], alasan: 'pullback ke EMA 20 dalam tren turun, lilin turun kembali' };
+      return null; } },
+  'squeeze': { judul: 'Ledakan setelah sempit', rr: 3, aturan: 'Pita Bollinger (20, 2) menyempit masuk ke dalam saluran Keltner (20, 1,5 ATR) minimal 6 dari 7 lilin sebelumnya. Saat pita keluar lagi dan harga tutup di atas pita atas: long; di bawah pita bawah: short. Stop loss di garis tengah (minimal 1 ATR), take profit 3x jarak stop loss (1:3).',
+    masuk: ({ k }) => { const c = k.map(x => x.c), m = sma(c, 20), t = atr(k, 20), i = c.length - 1;
+      const sd = (j: number) => Math.sqrt(c.slice(j - 19, j + 1).reduce((a, x) => a + (x - m[j]) ** 2, 0) / 20), sempit = (j: number) => 2 * sd(j) < 1.5 * t[j];
+      let n = 0; for (let j = i - 1; j >= i - 7; j--) if (sempit(j)) n++;
+      if (n < 6 || sempit(i)) return null; const atas = m[i] + 2 * sd(i), bawah = m[i] - 2 * sd(i), kuat = Math.abs(c[i] - m[i]) / t[i];
+      if (c[i] > atas) return { sisi: 'long', sl: Math.min(m[i], c[i] - t[i]), tp: null, kuat, alasan: `harga meledak ke atas setelah ${n} lilin menyempit` };
+      if (c[i] < bawah) return { sisi: 'short', sl: Math.max(m[i], c[i] + t[i]), tp: null, kuat, alasan: `harga meledak ke bawah setelah ${n} lilin menyempit` };
+      return null; } },
   'ikut-paus': { judul: 'Pengintai Hyperliquid', rr: 3, aturan: 'Memantau 30 trader paling untung di Hyperliquid (nilai akun minimal $100 rb, untung bulan ini dan sepanjang masa, aktif trading tapi bukan bot market maker). Masuk kalau minimal 2 dari mereka baru membuka posisi searah di koin yang sama dalam 1 jam terakhir dan yang searah lebih banyak minimal 3 orang dari yang berlawanan. Stop loss 3 ATR lilin 15 menit, take profit 3x jarak stop loss (1:3).',
     masuk: ({ k, paus }) => { if (!paus) return null; const i = k.length - 1, t = atr(k)[i], c = k[i].c, net = paus.long - paus.short;
       if (paus.baruLong >= 2 && net >= 3) return { sisi: 'long', sl: c - 3 * t, tp: null, kuat: net + paus.baruLong, alasan: `${paus.baruLong} trader top Hyperliquid baru buka long (${paus.long} long vs ${paus.short} short)` };
@@ -367,6 +383,7 @@ Deno.serve(async (req) => {
     const { data: rr } = await db.from('lantai_robot').select('*').order('urut'); const info = await ambil(`${FAPI}/fapi/v1/exchangeInfo`);
     const A = (sim: string) => { const s = info.symbols.find((x: any) => x.symbol === sim), f = Object.fromEntries(s.filters.map((x: any) => [x.filterType, x])); return { langkah: +f.LOT_SIZE.stepSize, minNilai: +(f.MIN_NOTIONAL?.notional ?? 5) }; };
     const hasil = await Promise.all(rr!.map(async r => { const per = [] as any[];
+      const coba = badan.coba?.[r.id]; if (coba) { r = { ...r, strategi: coba[0], interval: coba[1] ?? r.interval }; }
       for (const sim of UJI_KOIN) { try { per.push(await ujiMundur({ ...r, simbol: sim }, A(sim))); } catch (e) { per.push({ simbol: sim, galat: String(e).slice(0, 80) }); } }
       const ok = per.filter(x => !x.galat), n = ok.reduce((a, x) => a + x.transaksi, 0), m = ok.reduce((a, x) => a + x.menang, 0);
       return { robot: r.nama, transaksi: n, menang: m, rataHasil: ok.length ? +(ok.reduce((a, x) => a + parseFloat(x.hasil), 0) / ok.length).toFixed(1) + '%' : '-', perKoin: ok.map(x => `${x.simbol.replace('USDT', '')} ${x.hasil} (${x.menang}/${x.transaksi})`).join(', ') }; }));
