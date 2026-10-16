@@ -2,7 +2,8 @@
 // hanif-dashboard/). Pemilik: "biar aset saya tidak salah dalam melihat aset mending lihat wallet saya aja".
 //   - Bybit (BTC, USDT): kunci BACA-SAJA milik pemilik, secret BYBIT_KEY dan BYBIT_SECRET (dipasang pemilik sendiri).
 //   - Keplr / Injective (INJ): saldo wallet + delegasi staking + hadiah belum diklaim + unbonding, dari LCD publik.
-//   - MetaMask / Monad (MON): saldo wallet + staking bawaan Monad (precompile 0x…1000: getDelegations, getDelegator).
+//   - MetaMask / Monad (MON): saldo wallet + staking bawaan Monad (precompile 0x…1000: getDelegations, getDelegator,
+//     getWithdrawalRequest untuk MON yang sedang ditarik).
 //   - MetaMask / Ethereum (ZAMA): saldo token + saham staking resmi Zama (OperatorStaking ERC4626, previewRedeem).
 // Harga dan kurs Rupiah dari CoinGecko. Hanya menjawab akun Markasku pemilik (JWT), atau laptop pemilik (kunci server).
 // Alamat di bawah alamat PUBLIK pemilik (13 Okt 2026); tidak ada kunci privat apa pun di sini.
@@ -71,7 +72,11 @@ Deno.serve(async (req) => {
         for (let i = 0; i < 10; i++) { const d = await panggil(RPC_MON, P, '0x4fd66050' + alamat + pad(mulai.toString(16))); const n = Number(kata(d, 3));
           for (let k = 0; k < n; k++) val.push(kata(d, 4 + k)); if (kata(d, 0) === 1n) break; mulai = kata(d, 1); }
         for (const v of val) { const g = await panggil(RPC_MON, P, '0x573c1ce0' + pad(v.toString(16)) + alamat);
-          tambah('MON', angka(kata(g, 0)) + angka(kata(g, 3)) + angka(kata(g, 4)), 'MetaMask staking'); tambah('MON', angka(kata(g, 2)), 'MetaMask hadiah staking'); }
+          tambah('MON', angka(kata(g, 0)) + angka(kata(g, 3)) + angka(kata(g, 4)), 'MetaMask staking'); tambah('MON', angka(kata(g, 2)), 'MetaMask hadiah staking');
+          // 16 Okt 2026, pemilik: "zama dan mon lagi di unstake dan menunggu proses penarikan". MON yang sudah di-unstake
+          // menunggu epoch di permintaan penarikan (getWithdrawalRequest, id 0-7); tetap aset pemilik sampai di-Withdraw.
+          const tarik = await Promise.all([...Array(8).keys()].map(id => panggil(RPC_MON, P, '0x56fa2045' + pad(v.toString(16)) + alamat + pad(id.toString(16))).catch(() => '0x')));
+          tambah('MON', tarik.reduce((a, t) => a + angka(kata(t, 0)), 0), 'MetaMask sedang ditarik'); }
         sumber.push('Monad'); }
       catch (e) { galat.push('Monad: ' + String((e as Error).message).slice(0, 100)); } })(),
     // Ethereum (MetaMask): ZAMA di wallet + staking resmi Zama
