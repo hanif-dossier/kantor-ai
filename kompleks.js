@@ -423,7 +423,7 @@ function bangunKompleks(wadah) {
     // kedai: karyawan yang sedang siaga duduk ngopi
     const nongkrong = AGEN.filter(a => KD[a.kode].st === 'istirahat').slice(0, kd.kursi.length), ada = new Set(nongkrong.map(a => a.kode));
     for (const k in kd.orang) if (!ada.has(k)) { kd.grup.remove(kd.orang[k].g); kd.orang[k].label.remove(); delete kd.orang[k]; }
-    nongkrong.forEach((a, i) => { if (kd.orang[a.kode]) return; const o = buatOrang(a, .72), [x, z, hadap] = kd.kursi[i]; o.g.position.set(x, y0 - .2, z); o.kakiK.rotation.x = o.kakiN.rotation.x = 1.5; o.g.rotation.y = hadap * Math.PI / 2 + Math.PI; o.g.userData.agen = a; kd.grup.add(o.g);
+    nongkrong.forEach((a, i) => { if (kd.orang[a.kode]) return; const o = buatOrang(a, .72), [x, z, hadap] = kd.kursi[i]; o.g.position.set(x, y0 - .2, z); o.kakiK.rotation.x = o.kakiN.rotation.x = 1.5; o.g.rotation.y = hadap * Math.PI / 2 + Math.PI; o.robot?.main('Sitting', 0); o.g.userData.agen = a; kd.grup.add(o.g);
       const l = document.createElement('div'); l.className = 'label istirahat kecil'; l.innerHTML = `<div class="nama">${esc(a.nama)}</div>`; l.onclick = () => bukaPanel(a); labels.appendChild(l); o.label = l; o.x = kd.x + x; o.z = kd.z + z; kd.orang[a.kode] = o; });
     kd.label.innerHTML = `<div class="gelembung">${nongkrong.length ? nongkrong.length + ' orang lagi ngopi' : 'sepi, semua lagi kerja'}</div><div class="nama">Kedai Kopi</div>`;
     const rekorFps = +(localStorage.getItem('kantor-fps-rekor') || 0), rekor = +(localStorage.getItem('kantor-rekor') || 0);
@@ -449,7 +449,7 @@ function bangunKompleks(wadah) {
     for (const k of kedip) { const on = Math.sin(t * 2.2 + k.fase) > .55; k.m.material.emissiveIntensity = on ? 3.2 : .15; k.s.visible = on; }
     ark.lampuKecil.forEach((b, i) => { b.material.emissiveIntensity = Math.sin(t * 5 + i * .8) > 0 ? 2.4 : .25; });
     gal.pajangan.forEach((p, i) => { p.rotation.y = t * .8 + i; p.position.y = y0 + 1.9 + Math.sin(t * 2 + i) * .1; });
-    for (const k in kd.orang) { const o = kd.orang[k]; o.kepala.rotation.y = Math.sin(t * .7 + o.x) * .3; o.lenganN.rotation.x = (t + o.x) % 6 < 1.4 ? 2.45 : .7; tempatkan(o.label, o.x, 2.3, o.z); }
+    for (const k in kd.orang) { const o = kd.orang[k]; o.robot?.mix.update(dt); o.kepala.rotation.y = Math.sin(t * .7 + o.x) * .3; o.lenganN.rotation.x = (t + o.x) % 6 < 1.4 ? 2.45 : .7; tempatkan(o.label, o.x, 2.3, o.z); }
     for (const g of dipakai) tempatkan(g.label, g.x, g.puncak + .6, g.z);
     const dtk = Math.floor(t); if (dtk !== detikLalu) { detikLalu = dtk; const j = $('#hudJam'); if (j) j.textContent = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Pontianak', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB'; }
     if (komposer) komposer.render(); else renderer.render(scene, camera); T.raf = requestAnimationFrame(gambar); }

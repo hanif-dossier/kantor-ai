@@ -117,6 +117,7 @@ a{color:var(--biru)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
 <script src="langit.js"></script>
 <script src="arsitektur.js"></script>
@@ -200,7 +201,28 @@ function papanAngka() { const K = AGEN.map(keadaan), aktif = K.filter(k => k.st 
 /* ---------- orang (dipakai kantor dan kedai) ---------- */
 // Badan kotak bersendi: lengan berputar di bahu, kaki di pinggul. Dari situ bisa jalan, duduk, mengetik, minum kopi,
 // garuk kepala. Menghadap -z lokal; rotation.y = Math.PI berarti menghadap kamera (+z).
-function buatOrang(a, skala = 1) {
+// 16 Okt 2026 (pemilik: "coba ubah design dalam nya"): karyawan AI = robot RobotExpressive (Quaternius, CC0), model yang
+// sama dengan Lantai Trading dan Arkade. Badan berwarna setelan karyawan, animasi jalan/duduk/geleng lewat AnimationMixer.
+// Bagian lama (kepala, lengan, kaki) tetap ada sebagai titik kosong, jadi kode gerak lama tidak perlu diubah.
+let ROBOT_K = null, SKALA_K = 1;
+const ROBOT_SIAP = new Promise(ok => { if (!THREE.GLTFLoader || !THREE.SkeletonUtils) return ok(); const habis = setTimeout(ok, 6000);
+  new THREE.GLTFLoader().load('model/RobotExpressive.glb', gl => { ROBOT_K = gl; const b = new THREE.Box3().setFromObject(gl.scene); SKALA_K = 2.35 / Math.max(.01, b.max.y - b.min.y); clearTimeout(habis); ok(); }, undefined, () => { clearTimeout(habis); ok(); }); });
+const SEKALI_K = ['Death', 'Jump', 'Punch', 'ThumbsUp', 'Wave', 'Yes', 'Standing', 'Sitting'];
+function buatRobotOrang(a, skala) { const g = new THREE.Group(), r = THREE.SkeletonUtils.clone(ROBOT_K.scene); r.scale.setScalar(SKALA_K); r.rotation.y = Math.PI; g.add(r);
+  r.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+    const ganti = mt => { const c = mt.clone(); c.envMapIntensity = .7; if (mt.name === 'Main') { c.color.copy(warnaL(a.warna)).multiplyScalar(.9); c.roughness = .36; c.metalness = .25; } else if (mt.name === 'Grey') { c.color.copy(warnaL(0xc4cad1)); c.roughness = .3; c.metalness = .55; } else { c.roughness = .45; } return c; };
+    o.material = Array.isArray(o.material) ? o.material.map(ganti) : ganti(o.material); });
+  const kosong = () => { const o = new THREE.Object3D(); g.add(o); return o; };
+  const mix = new THREE.AnimationMixer(r), aksi = Object.fromEntries(ROBOT_K.animations.map(c => [c.name, mix.clipAction(c)]));
+  SEKALI_K.forEach(n => { if (aksi[n]) { aksi[n].setLoop(THREE.LoopOnce); aksi[n].clampWhenFinished = true; } });
+  const R = { mix, aksi, kini: null, main(n, f = .3) { if (R.kini === n) return; const b = aksi[n]; if (!b) return; b.reset().setEffectiveWeight(1).fadeIn(f).play(); if (R.kini && aksi[R.kini]) aksi[R.kini].fadeOut(f); R.kini = n; } };
+  aksi.Idle.time = Math.random() * 2; R.main('Idle', 0);
+  g.scale.setScalar(skala); return { g, robot: R, badan: kosong(), kepala: kosong(), lenganK: kosong(), lenganN: kosong(), kakiK: kosong(), kakiN: kosong() }; }
+// animasi robot menurut keadaan karyawan: jalan, duduk (mengetik/santai/sofa/rapat), geleng (gagal), berdiri (ngopi)
+function gerakRobot(o, p, dt) { if (!o.robot) return; o.robot.mix.update(dt);
+  o.robot.main(p.path?.length ? 'Walking' : ['ketik', 'santai', 'sofa', 'rapat'].includes(p.mode) ? 'Sitting' : p.mode === 'bingung' ? 'No' : 'Idle');
+  if (o.robot.kini === 'No' && !o.robot.aksi.No.isRunning()) o.robot.aksi.No.reset().play(); }
+function buatOrang(a, skala = 1) { if (ROBOT_K) return buatRobotOrang(a, skala);
   const g = new THREE.Group(); const mat = c => new THREE.MeshStandardMaterial({ color: warnaL(c), roughness: .8 });
   const kotak = (w, h, d, c, x, y, z, induk = g, bayang = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.castShadow = bayang; induk.add(m); return m; };
   const badan = kotak(.72, .8, .5, a.warna, 0, 1.45, 0);
@@ -292,7 +314,15 @@ function bangunKantor(wadah) {
   // ----- lantai 1: zona kategori, meja, karyawan
   const PX = 5.8, PZ = 5.6, orang = [], dapatDiketuk = [], penanda = [];
   const marmerMeja = bahan(0xf3efe8, { roughness: .14, metalness: .05 }), walnutMeja = bahan(0x3d2618, { roughness: .42 }), kulitHitam = bahan(0x1d1d20, { roughness: .4 });
-  const mejaKerja = (x, z, i, y = 0) => { KI.kk(marmerMeja, 2.6, .1, 1.3, x, y + 1.3, z); [-1.22, 1.22].forEach(dx => KI.kk(walnutMeja, .1, 1.24, 1.2, x + dx, y + .64, z)); KI.kk(walnutMeja, 2.34, .8, .06, x, y + .85, z + .58);
+  // 16 Okt 2026: layar monitor menyala di sisi yang menghadap karyawan: grafik lilin, baris kode, atau tabel (bergantian)
+  const LAYAR = [0, 1, 2].map(j => { const c = document.createElement('canvas'); c.width = 256; c.height = 154; const x = c.getContext('2d'); x.fillStyle = '#0b1220'; x.fillRect(0, 0, 256, 154);
+    if (j === 0) { let y = 80; for (let k = 0; k < 24; k++) { const t2 = y + (Math.random() - .5) * 26; x.fillStyle = t2 < y ? '#38d39f' : '#ff5a6a'; x.fillRect(10 + k * 10, Math.min(y, t2), 6, Math.max(2, Math.abs(t2 - y))); x.fillRect(12.5 + k * 10, Math.min(y, t2) - 5, 1, Math.abs(t2 - y) + 10); y = Math.max(25, Math.min(135, t2)); } }
+    else if (j === 1) for (let k = 0; k < 12; k++) { x.fillStyle = ['#7fb6ff', '#f3c550', '#a5e88f', '#e5a3ff', '#9aa4b2'][k % 5]; x.fillRect(12 + (k % 4) * 12, 12 + k * 11, 40 + Math.random() * 140, 5); }
+    else { x.strokeStyle = 'rgba(160,190,230,.35)'; for (let k = 0; k <= 8; k++) { x.beginPath(); x.moveTo(8, 10 + k * 16); x.lineTo(248, 10 + k * 16); x.stroke(); } for (let k = 0; k <= 4; k++) { x.beginPath(); x.moveTo(8 + k * 60, 10); x.lineTo(8 + k * 60, 138); x.stroke(); }
+      for (let k = 0; k < 8; k++) for (let m = 0; m < 4; m++) { x.fillStyle = m === 3 ? '#38d39f' : '#cfd8e3'; x.fillRect(14 + m * 60, 14 + k * 16, 20 + Math.random() * 25, 5); } }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return new THREE.MeshBasicMaterial({ map: t }); });
+  const geoLayar = new THREE.PlaneGeometry(1, .6);
+  const mejaKerja = (x, z, i, y = 0) => { { const l = new THREE.Mesh(geoLayar, LAYAR[i % 3]); l.position.set(x, y + 1.75, z + .315); l.rotation.y = Math.PI; scene.add(l); } KI.kk(marmerMeja, 2.6, .1, 1.3, x, y + 1.3, z); [-1.22, 1.22].forEach(dx => KI.kk(walnutMeja, .1, 1.24, 1.2, x + dx, y + .64, z)); KI.kk(walnutMeja, 2.34, .8, .06, x, y + .85, z + .58);
     KI.kk(emas, 2.62, .03, .03, x, y + 1.3, z - .66, 0, false); KI.kk(emas, .04, .38, .04, x + 1.05, y + 1.54, z + .45); bola(.07, 0xfff3dc, x + 1.05, y + 1.75, z + .42, 0xffe2b0);
     kotak(1.1, .7, .06, 0x1c1c1c, x, y + 1.75, z + .35); kotak(.3, .25, .2, 0x3a3a3a, x, y + 1.42, z + .35); kotak(.8, .04, .3, 0xd9d9d9, x, y + 1.38, z - .2, false);
     if (i % 2) silinder(.1, .08, .24, 0xf3efe8, x + 1, y + 1.47, z - .2); else { silinder(.17, .13, .3, 0xf3efe8, x - 1, y + 1.5, z + .25); bola(.3, 0x3f8f4a, x - 1, y + 1.88, z + .25); }
@@ -579,7 +609,7 @@ function bangunKantor(wadah) {
         // yang sudah selesai sesekali ambil kopi sebentar, biar kantornya hidup
         if (!p.tetap && p.kd?.st === 'selesai' && t > p.jadwal) { p.jadwal = t + 35 + Math.random() * 50; if (!p.tempat) { const kosong = pantryTempat.find(x => !x.dipakai); if (kosong && Math.random() < .6) { pergi(p, kosong); p.balik = t + 9 + Math.random() * 6; } } }
         if (p.balik && t > p.balik && p.tempat?.mode === 'kopi') { p.balik = 0; pulang(p); } }
-      proyeksi(p.label, o.g.position.x, o.g.position.y + 2.9, o.g.position.z, r); }
+      gerakRobot(o, p, dt); proyeksi(p.label, o.g.position.x, o.g.position.y + 2.9, o.g.position.z, r); }
     for (const m of penanda) proyeksi(m.l, m.x, m.y, m.z, r, m.kiri);
     renderer.render(scene, camera); T.raf = requestAnimationFrame(gambar); }
   T = { renderer, scene, camera, labels, raf: 0, segar }; gambar(performance.now()); }
@@ -1087,7 +1117,7 @@ function mulai() { hentikan();
   // 12 Okt 2026: kota diganti Kompleks Hanif (kompleks.js); kota siang lama masih bisa dibuka dengan ?kota=lama
   const kompleks = MODE === 'kota' && typeof bangunKompleks === 'function' && new URLSearchParams(location.search).get('kota') !== 'lama';
   akar.classList.toggle('mode-kompleks', kompleks);
-  (kompleks ? bangunKompleks : MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); muat(); timer = setInterval(muat, 60000);
+  ROBOT_SIAP.then(() => { if (!$('#kantor') || T) return; (kompleks ? bangunKompleks : MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); segarLabel(); }); muat(); timer = setInterval(muat, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && sesi.baca()) muat(); }); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sesi.baca() ? mulai() : layarMasuk();

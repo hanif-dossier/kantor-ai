@@ -267,6 +267,8 @@ body.hp .kabar{top:auto;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 250p
 <section id="koin"><canvas id="koinKanvas"></canvas><button class="pil kecil" id="koinKeluar" style="position:absolute;top:max(12px,env(safe-area-inset-top));right:12px">Keluar</button><div id="koinHasil"><div class="kartu" style="text-align:center"><div class="label">Tangkap Koin</div><h2 id="koinSkor"></h2><p style="color:var(--redup)" id="koinRekor"></p><div class="tombol" style="justify-content:center"><button class="pil utama" id="koinLagi">Main lagi</button><button class="pil" id="koinRak">Kembali ke Arkade</button></div></div></div></section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -391,7 +393,7 @@ const M = {
   air: new THREE.MeshStandardMaterial({ color: '#3fb6d8', roughness: .05, metalness: .3, emissive: '#0b5c7a', emissiveIntensity: .25 }), daun: new THREE.MeshStandardMaterial({ color: '#1f5a2a', roughness: .9 }), daun2: new THREE.MeshStandardMaterial({ color: '#3d7a2c', roughness: .9 }), bunga: new THREE.MeshStandardMaterial({ color: '#c23a72', roughness: .8 }),
   boneka: new THREE.MeshStandardMaterial({ color: '#d2b48c', roughness: .9 }), bonekaAksen: new THREE.MeshStandardMaterial({ color: '#c0392b', roughness: .7 }) };
 const SERAGAM = { hutan: ['Hutan', '#4b5a3a'], gurun: ['Gurun', '#a08a62'], kota: ['Kota', '#5a6170'], malam: ['Malam', '#262b36'] };
-function pasangSeragam() { M.seragam.color.set(SERAGAM[PENG.seragam][1]); }
+function pasangSeragam() { M.seragam.color.set(SERAGAM[PENG.seragam][1]); let R = null; try { R = PRAJURIT?.userData.robot; } catch {} if (R) R.bahan.forEach(c => { if (c.userData.utama) c.color.set(SERAGAM[PENG.seragam][1]); }); }
 pasangSeragam();
 // 7 Okt 2026 (pemilik: game "kaku, putus-putus"): geometri kotak dipakai ulang (tidak membuat baru tiap bot muncul), dan
 // dekorasi berulang di peta (semak, lantai menara jauh) dikumpulkan jadi satu InstancedMesh per bahan, bukan ribuan mesh.
@@ -636,7 +638,9 @@ function tiangLampu(x, z, tinggi = 7, warna = '#ffb870') { const t = new THREE.M
 
 /* ================= 6. prajurit lobi ================= */
 let PRAJURIT = null;
-function buatPrajurit() { const g = new THREE.Group(), rompi = new THREE.MeshStandardMaterial({ color: '#2a2f26', roughness: .85 });
+function buatPrajurit() { if (ROBOT) { const g = new THREE.Group(), R = pasangRobot(g, SERAGAM[PENG.seragam][1], { mata: '#7fd4ff', abu: '#b9c0c7' }); g.userData.robot = R;
+    const senapan = new THREE.Group(); senapan.position.set(.4, 1.02, .3); senapan.rotation.set(.45, -.2, 0); g.add(senapan); g.userData.pegang = senapan; return g; }
+  const g = new THREE.Group(), rompi = new THREE.MeshStandardMaterial({ color: '#2a2f26', roughness: .85 });
   [-1, 1].forEach(s => { balok(g, .2, .78, .24, s * .13, .55, 0, M.seragam); balok(g, .22, .18, .32, s * .13, .09, .04, M.sarung); });
   balok(g, .5, .62, .3, 0, 1.25, 0, M.seragam); balok(g, .54, .46, .36, 0, 1.3, 0, rompi); [-.14, 0, .14].forEach(x => balok(g, .1, .14, .06, x, 1.26, .2, rompi));
   balok(g, .52, .12, .32, 0, .92, 0, M.sarung);
@@ -666,37 +670,94 @@ function suara(jenis, kuat = 1) { if (!AC || !PENG.suara || kuat < .02) return; 
 const tekKilat = kanvas(64, 64, (x) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,250,220,1)'); g.addColorStop(.3, 'rgba(255,200,90,.9)'); g.addColorStop(1, 'rgba(255,120,20,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); });
 const matKilat = new THREE.MeshBasicMaterial({ map: tekKilat, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
 function buatKilat(skala) { const m = new THREE.Mesh(new THREE.PlaneGeometry(skala, skala), matKilat); m.visible = false; return m; }
-function tangan(g, kanan, kiri) { const t = (x, y, z, rx) => { const lg = balok(g, .085, .085, .32, x, y, z + .14, M.seragam); lg.rotation.x = rx; balok(g, .07, .075, .09, x, y + .005, z, M.sarung); };
-  t(kanan[0], kanan[1], kanan[2], .25); t(kiri[0], kiri[1], kiri[2], .1); }
-function holo(g, y, z) { balok(g, .05, .025, .1, 0, y - .04, z + .04, M.gelap); balok(g, .006, .07, .012, -.036, y, z, M.gelap); balok(g, .006, .07, .012, .036, y, z, M.gelap); balok(g, .078, .006, .012, 0, y + .035, z, M.gelap);
-  const titik = new THREE.Mesh(new THREE.CircleGeometry(.0018, 10), new THREE.MeshBasicMaterial({ color: '#ff3020', fog: false })); titik.position.set(0, y, z + .001); g.add(titik); }
+// 16 Okt 2026 (pemilik: "coba ubah design ... game2 nya"): senjata tidak lagi kotak-kotak. Badan, popor, pegangan, dan
+// magasin dibentuk dari siluet samping yang ditebalkan (ExtrudeGeometry bertepi bulat); laras, pelindung tangan, teropong,
+// dan tabung dari silinder; rel atas bergigi. Bahan: polimer doff, logam berpantulan, aksen tan/kayu. Sarung tangan bulat.
+// Titik bidik (ads), ujung laras, dan posisi pinggul sama dengan senjata lama, jadi rasa menembak tidak berubah.
+const LINGK = (() => { const es = new THREE.Scene(), geo = new THREE.SphereGeometry(10, 24, 12), p = geo.attributes.position, w = [];
+  for (let i = 0; i < p.count; i++) { const k = p.getY(i) / 10, c = k > 0 ? new THREE.Color('#4a5260').lerp(new THREE.Color('#1c2129'), k) : new THREE.Color('#4a5260').lerp(new THREE.Color('#161412'), Math.min(1, -k * 2)); w.push(c.r, c.g, c.b); }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(w, 3)); es.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  [[5, 6, 3, 1.6], [-6, 3, -2, .9]].forEach(([x, y, z, kuat]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshBasicMaterial({ color: new THREE.Color(kuat, kuat * .95, kuat * .88), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); es.add(m); });
+  try { const pm = new THREE.PMREMGenerator(renderer), t = pm.fromScene(es, .03).texture; pm.dispose(); return t; } catch { return null; } })();
+const MS = { polimer: new THREE.MeshStandardMaterial({ color: '#141518', roughness: .68, metalness: .05, envMap: LINGK, envMapIntensity: .6 }), logam: new THREE.MeshStandardMaterial({ color: '#25282c', roughness: .42, metalness: .6, envMap: LINGK, envMapIntensity: .7 }),
+  tan: new THREE.MeshStandardMaterial({ color: '#6f6248', roughness: .78, metalness: .05, envMap: LINGK, envMapIntensity: .6 }), kayu: new THREE.MeshStandardMaterial({ map: TEK.kayu, color: '#a0704a', roughness: .55, envMap: LINGK, envMapIntensity: .5 }),
+  lensa: new THREE.MeshStandardMaterial({ color: '#10303c', roughness: .04, metalness: .95, envMap: LINGK, emissive: '#04161e', emissiveIntensity: .5 }), kuningan: new THREE.MeshStandardMaterial({ color: '#b08a3c', roughness: .28, metalness: .9, envMap: LINGK }) };
+const DS = THREE.DoubleSide;
+// siluet: titik [z, y] (depan = -z), ditebalkan sepanjang x
+function siluet(g, titik, tebal, mat, x = 0, tepi = .005) { const s = new THREE.Shape(); titik.forEach(([z, y], i) => i ? s.lineTo(z, y) : s.moveTo(z, y));
+  const geo = new THREE.ExtrudeGeometry(s, { depth: Math.max(.002, tebal - tepi * 2), bevelEnabled: true, bevelThickness: tepi, bevelSize: tepi, bevelSegments: 2, curveSegments: 6 });
+  geo.translate(0, 0, -Math.max(.002, tebal - tepi * 2) / 2); geo.rotateY(-Math.PI / 2); const m = new THREE.Mesh(geo, mat); m.position.x = x; g.add(m); return m; }
+function tabung(g, r, panjang, z, y, mat, seg = 16, r2 = r, terbuka = false) { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r2, panjang, seg, 1, terbuka), mat); m.rotation.x = Math.PI / 2; m.position.set(0, y, z); g.add(m); return m; }
+function rel(g, z1, z2, y, lebar = .026) { balok(g, lebar, .01, z2 - z1, 0, y, (z1 + z2) / 2, MS.logam); for (let z = z1 + .008; z < z2; z += .018) balok(g, lebar + .006, .006, .007, 0, y + .007, z, MS.logam); }
+// titik merah: tabung terbuka (dinding tipis) + kaca gelap tipis + titik merah di tengah, di garis bidik y
+function titikMerah(g, y, z, panjang = .07) { tabung(g, .021, panjang, z, y, MS.polimer, 20, .021, true).material = new THREE.MeshStandardMaterial({ color: '#1c1e21', roughness: .55, metalness: .3, envMap: LINGK, side: DS });
+  balok(g, .03, .018, panjang * .8, 0, y - .028, z, MS.polimer); const t = new THREE.Mesh(new THREE.CircleGeometry(.0018, 10), new THREE.MeshBasicMaterial({ color: '#ff3020', fog: false })); t.position.set(0, y, z - panjang / 2 + .002); g.add(t); }
+function teropong(g, y, z, panjang, r = .022) { tabung(g, r, panjang, z, y, MS.polimer, 20); [[-1, r * 1.55], [1, r * 1.35]].forEach(([s, rr]) => { tabung(g, rr, .05, z + s * (panjang / 2 + .02), y, MS.polimer, 20, rr * .82); });
+  const lensa = new THREE.Mesh(new THREE.CircleGeometry(r * 1.4, 20), MS.lensa); lensa.position.set(0, y, z - panjang / 2 - .045); lensa.rotation.y = Math.PI; g.add(lensa);
+  tabung(g, r * .5, .03, z, y + r + .01, MS.polimer, 12).rotation.x = 0; [-1, 1].forEach(s => balok(g, .026, .03, .02, 0, y - r - .012, z + s * panjang * .3, MS.logam));
+  const titik = new THREE.Mesh(new THREE.CircleGeometry(.0025, 10), new THREE.MeshBasicMaterial({ color: '#ff3020', fog: false })); titik.position.set(0, y, z + panjang / 2 + .01); g.add(titik); }
+// lengan & sarung tangan: lengan baju silinder, sarung tangan bulat
+function tangan(g, kanan, kiri) { const t = ([x, y, z], rx) => { const lg = new THREE.Mesh(new THREE.CylinderGeometry(.05, .056, .34, 12), M.seragam); lg.rotation.x = Math.PI / 2 + rx; lg.position.set(x, y - .01, z + .17); g.add(lg);
+    const st = new THREE.Mesh(new THREE.SphereGeometry(.048, 14, 10), M.sarung); st.scale.set(.85, .8, 1.25); st.position.set(x, y + .005, z); g.add(st); };
+  t(kanan, .25); t(kiri, .1); }
+function holo(g, y, z) { titikMerah(g, y, z); }
+const kilatDi = (g, z, y, s) => { const k = buatKilat(s); k.position.set(0, y, z); g.add(k); return k; };
 const MODEL = {
-  serbu() { const g = new THREE.Group(); balok(g, .07, .09, .5, 0, 0, 0, M.gelap); balok(g, .05, .05, .32, 0, .012, -.4, M.gelap); balok(g, .065, .07, .2, 0, -.005, -.27, M.aksen); balok(g, .045, .16, .07, 0, -.11, -.05, M.gelap).rotation.x = .25; balok(g, .05, .12, .06, 0, -.09, .12, M.aksen).rotation.x = -.3; balok(g, .06, .08, .2, 0, -.015, .32, M.aksen); balok(g, .072, .012, .05, 0, -.03, -.18, M.emas); holo(g, .096, -.06); tangan(g, [.01, -.1, .13], [.0, -.05, -.27]); const k = buatKilat(.22); k.position.set(0, .012, -.6); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .012, -.6), ads: new THREE.Vector3(0, -.096, -.3), pinggul: new THREE.Vector3(.2, -.2, -.42) }; },
-  smg() { const g = new THREE.Group(); balok(g, .065, .1, .36, 0, 0, 0, M.gelap); balok(g, .04, .04, .16, 0, .012, -.26, M.gelap); balok(g, .04, .2, .05, 0, -.14, -.06, M.gelap); balok(g, .045, .11, .06, 0, -.09, .1, M.aksen).rotation.x = -.3; balok(g, .03, .03, .2, 0, -.01, .26, M.gelap); holo(g, .09, -.04); tangan(g, [.01, -.1, .11], [.0, -.05, -.17]); const k = buatKilat(.18); k.position.set(0, .012, -.36); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .012, -.36), ads: new THREE.Vector3(0, -.09, -.28), pinggul: new THREE.Vector3(.19, -.19, -.38) }; },
-  runduk() { const g = new THREE.Group(); balok(g, .07, .09, .62, 0, 0, 0, M.gelap); balok(g, .04, .04, .55, 0, .015, -.58, M.gelap); balok(g, .07, .1, .26, 0, -.01, .38, M.aksen); balok(g, .045, .14, .07, 0, -.11, .02, M.gelap).rotation.x = .25; balok(g, .05, .08, .06, 0, -.06, -.12, M.gelap);
-    const tb = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .34, 14), M.gelap); tb.rotation.x = Math.PI / 2; tb.position.set(0, .09, -.06); g.add(tb); const lensa = new THREE.Mesh(new THREE.CylinderGeometry(.038, .038, .05, 14), M.gelap); lensa.rotation.x = Math.PI / 2; lensa.position.set(0, .09, -.24); g.add(lensa);
-    tangan(g, [.01, -.1, .2], [.0, -.05, -.25]); const k = buatKilat(.28); k.position.set(0, .015, -.88); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .015, -.88), ads: new THREE.Vector3(0, -.09, -.2), pinggul: new THREE.Vector3(.21, -.2, -.45) }; },
-  // Senapan Tabur: laras panjang, tabung peluru di bawah, pegangan pompa kayu, popor kayu
-  tabur() { const g = new THREE.Group(), kayu = M.kayu; balok(g, .065, .085, .34, 0, 0, 0, M.gelap); const laras = new THREE.Mesh(new THREE.CylinderGeometry(.019, .019, .5, 10), M.gelap); laras.rotation.x = Math.PI / 2; laras.position.set(0, .022, -.41); g.add(laras);
-    const tabung = new THREE.Mesh(new THREE.CylinderGeometry(.017, .017, .42, 10), M.aksen); tabung.rotation.x = Math.PI / 2; tabung.position.set(0, -.018, -.36); g.add(tabung); balok(g, .062, .055, .15, 0, -.02, -.3, kayu);
-    balok(g, .045, .15, .07, 0, -.1, .06, kayu).rotation.x = .3; balok(g, .06, .09, .26, 0, -.04, .3, kayu).rotation.x = -.12; balok(g, .012, .02, .012, 0, .045, -.64, M.emas);
-    tangan(g, [.01, -.1, .1], [.0, -.06, -.3]); const k = buatKilat(.3); k.position.set(0, .022, -.68); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .022, -.68), ads: new THREE.Vector3(0, -.075, -.24), pinggul: new THREE.Vector3(.2, -.2, -.4) }; },
-  // Senapan Mesin Ringan: badan tebal, kotak peluru di bawah, pelindung panas berlubang, pegangan angkat, kaki dua terlipat
-  lmg() { const g = new THREE.Group(); balok(g, .09, .11, .46, 0, 0, 0, M.gelap); balok(g, .1, .1, .12, .01, -.1, -.02, M.aksen); balok(g, .02, .04, .1, .065, -.06, -.02, M.emas);
-    const laras = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .42, 10), M.gelap); laras.rotation.x = Math.PI / 2; laras.position.set(0, .02, -.44); g.add(laras);
-    for (let i = 0; i < 5; i++) balok(g, .055, .055, .035, 0, .02, -.3 - i * .055, M.aksen);
-    balok(g, .02, .05, .16, 0, .09, -.02, M.gelap); balok(g, .02, .02, .05, 0, .07, -.1, M.gelap); balok(g, .02, .02, .05, 0, .07, .06, M.gelap);
-    balok(g, .045, .15, .07, 0, -.12, .1, M.gelap).rotation.x = .25; balok(g, .07, .1, .22, 0, -.01, .33, M.aksen);
-    [-.025, .025].forEach(x => { const kk = balok(g, .012, .012, .26, x, -.03, -.5, M.gelap); kk.rotation.x = .08; });
-    holo(g, .14, -.12); tangan(g, [.01, -.12, .14], [.0, -.07, -.3]); const k = buatKilat(.26); k.position.set(0, .02, -.66); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .02, -.66), ads: new THREE.Vector3(0, -.14, -.3), pinggul: new THREE.Vector3(.21, -.22, -.42), berat: true }; },
-  // Senapan Jitu: laras panjang ramping, teropong kecil di atas, magasin lurus, popor dengan bantalan pipi
-  jitu() { const g = new THREE.Group(); balok(g, .066, .09, .5, 0, 0, 0, M.gelap); balok(g, .042, .042, .48, 0, .014, -.47, M.gelap); balok(g, .06, .07, .26, 0, -.008, -.33, M.aksen);
-    balok(g, .045, .17, .07, 0, -.12, -.06, M.gelap).rotation.x = .05; balok(g, .045, .14, .07, 0, -.1, .1, M.aksen).rotation.x = -.3; balok(g, .066, .1, .24, 0, -.01, .36, M.aksen); balok(g, .05, .03, .12, 0, .055, .3, M.aksen);
-    const tb = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .22, 12), M.gelap); tb.rotation.x = Math.PI / 2; tb.position.set(0, .085, -.06); g.add(tb); [-.18, .06].forEach(z => { const r = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .04, 12), M.gelap); r.rotation.x = Math.PI / 2; r.position.set(0, .085, z - .01); g.add(r); });
-    balok(g, .02, .03, .02, 0, .06, -.12, M.gelap); balok(g, .02, .03, .02, 0, .06, .01, M.gelap);
-    const titik = new THREE.Mesh(new THREE.CircleGeometry(.0025, 10), new THREE.MeshBasicMaterial({ color: '#ff3020', fog: false })); titik.position.set(0, .085, .05); g.add(titik);
-    tangan(g, [.01, -.11, .12], [.0, -.06, -.32]); const k = buatKilat(.24); k.position.set(0, .014, -.74); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .014, -.74), ads: new THREE.Vector3(0, -.085, -.24), pinggul: new THREE.Vector3(.2, -.2, -.44) }; },
-  pistol() { const g = new THREE.Group(); balok(g, .045, .06, .22, 0, 0, -.05, M.gelap); balok(g, .04, .13, .06, 0, -.08, .03, M.aksen).rotation.x = .2; balok(g, .046, .012, .04, 0, -.03, -.03, M.emas); tangan(g, [.0, -.13, .07], [-.02, -.14, .05]); const k = buatKilat(.16); k.position.set(0, .005, -.2); g.add(k); return { g, kilat: k, ujung: new THREE.Vector3(0, .005, -.2), ads: new THREE.Vector3(0, -.065, -.3), pinggul: new THREE.Vector3(.18, -.17, -.38) }; } };
+  serbu() { const g = new THREE.Group();
+    siluet(g, [[.17, .0], [.17, .056], [-.14, .056], [-.14, .0]], .062, MS.logam);   // badan atas
+    siluet(g, [[.17, .0], [-.095, .0], [-.095, -.03], [-.075, -.072], [-.005, -.072], [.0, -.03], [.045, -.03], [.07, -.135], [.112, -.148], [.118, -.132], [.098, -.03], [.17, -.028]], .056, MS.polimer);   // badan bawah + pegangan
+    siluet(g, [[-.088, -.066], [-.012, -.066], [.004, -.16], [-.012, -.255], [-.072, -.262], [-.062, -.165]], .044, MS.tan);   // magasin melengkung
+    balok(g, .01, .03, .012, 0, -.045, .035, MS.logam);   // pelatuk
+    tabung(g, .033, .3, -.29, .028, MS.polimer, 8); rel(g, -.44, .16, .066);
+    tabung(g, .011, .16, -.5, .028, MS.logam, 12); tabung(g, .016, .055, -.6, .028, MS.logam, 12);
+    tabung(g, .018, .17, .26, .028, MS.logam, 14); siluet(g, [[.24, .052], [.42, .046], [.425, -.075], [.37, -.08], [.25, -.02]], .05, MS.tan);   // popor
+    balok(g, .03, .012, .03, 0, .062, .16, MS.logam); titikMerah(g, .096, -.06);
+    tangan(g, [.01, -.1, .13], [.0, -.04, -.27]); return { g, kilat: kilatDi(g, -.64, .028, .22), ujung: new THREE.Vector3(0, .028, -.64), ads: new THREE.Vector3(0, -.096, -.3), pinggul: new THREE.Vector3(.2, -.2, -.42) }; },
+  smg() { const g = new THREE.Group();
+    siluet(g, [[.1, -.02], [.1, .055], [-.13, .055], [-.15, .02], [-.15, -.03], [-.06, -.035], [-.05, -.03], [.02, -.03], [.045, -.13], [.085, -.14], [.09, -.125], [.072, -.03], [.1, -.03]], .06, MS.polimer);
+    siluet(g, [[-.04, -.03], [.0, -.03], [.006, -.2], [-.034, -.2]], .038, MS.logam);   // magasin lurus
+    tabung(g, .022, .2, -.25, .02, MS.logam, 16); for (let i = 0; i < 4; i++) tabung(g, .0235, .006, -.18 - i * .045, .02, MS.polimer, 16);   // peredam
+    rel(g, -.12, .08, .062); [-1, 1].forEach(s => { const k = balok(g, .008, .008, .2, s * .022, .01, .2, MS.logam); }); balok(g, .05, .07, .015, 0, -.02, .3, MS.logam);   // popor kawat
+    titikMerah(g, .09, -.04, .06); tangan(g, [.01, -.1, .11], [.0, -.04, -.17]);
+    return { g, kilat: kilatDi(g, -.36, .02, .14), ujung: new THREE.Vector3(0, .02, -.36), ads: new THREE.Vector3(0, -.09, -.28), pinggul: new THREE.Vector3(.19, -.19, -.38) }; },
+  runduk() { const g = new THREE.Group();
+    siluet(g, [[.5, .04], [.5, -.09], [.44, -.1], [.3, -.03], [.24, -.03], [.2, -.11], [.15, -.12], [.15, -.03], [.1, -.03], [-.26, -.02], [-.32, .0], [-.32, .03], [.2, .03], [.3, .055], [.46, .055]], .06, MS.tan);   // rangka berlubang ibu jari
+    tabung(g, .026, .3, -.02, .03, MS.logam, 16); tabung(g, .013, .62, -.6, .03, MS.logam, 12); tabung(g, .019, .07, -.93, .03, MS.logam, 12);
+    const baut = tabung(g, .008, .06, .06, .045, MS.logam, 8); baut.rotation.set(0, 0, Math.PI / 2); baut.position.x = .04; const kepalaBaut = new THREE.Mesh(new THREE.SphereGeometry(.013, 10, 8), MS.logam); kepalaBaut.position.set(.075, .045, .06); g.add(kepalaBaut);
+    siluet(g, [[-.02, -.03], [.03, -.03], [.03, -.085], [-.02, -.085]], .04, MS.polimer);
+    teropong(g, .09, -.06, .3, .025); tangan(g, [.01, -.1, .2], [.0, -.04, -.25]);
+    return { g, kilat: kilatDi(g, -.98, .03, .28), ujung: new THREE.Vector3(0, .03, -.98), ads: new THREE.Vector3(0, -.09, -.2), pinggul: new THREE.Vector3(.21, -.2, -.45) }; },
+  tabur() { const g = new THREE.Group();
+    siluet(g, [[.12, -.03], [.12, .05], [-.14, .05], [-.14, -.03]], .06, MS.logam);
+    tabung(g, .019, .52, -.4, .03, MS.logam, 14); tabung(g, .017, .44, -.36, -.018, MS.logam, 14); tabung(g, .028, .16, -.3, -.012, MS.kayu, 14);   // laras, tabung peluru, pompa kayu
+    for (let i = 0; i < 6; i++) tabung(g, .029, .006, -.24 - i * .025, -.012, MS.polimer, 14);
+    siluet(g, [[.12, .04], [.44, .0], [.45, -.11], [.39, -.12], [.18, -.07], [.15, -.14], [.11, -.15], [.12, -.03]], .052, MS.kayu);   // popor + pegangan kayu
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(.006, 8, 6), MS.kuningan); bead.position.set(0, .05, -.64); g.add(bead); balok(g, .01, .028, .012, 0, -.045, .04, MS.logam);
+    tangan(g, [.01, -.1, .1], [.0, -.05, -.3]); return { g, kilat: kilatDi(g, -.68, .03, .3), ujung: new THREE.Vector3(0, .03, -.68), ads: new THREE.Vector3(0, -.075, -.24), pinggul: new THREE.Vector3(.2, -.2, -.4) }; },
+  lmg() { const g = new THREE.Group();
+    siluet(g, [[.16, -.04], [.16, .07], [-.16, .07], [-.18, .03], [-.18, -.04]], .085, MS.polimer);
+    siluet(g, [[-.06, -.04], [.06, -.04], [.07, -.2], [-.07, -.2]], .1, MS.tan);   // kotak peluru
+    tabung(g, .028, .26, -.31, .03, MS.logam, 10); for (let i = 0; i < 8; i++) { const lub = tabung(g, .0295, .012, -.2 - i * .03, .03, MS.polimer, 10); }   // pelindung panas berlubang
+    tabung(g, .016, .2, -.53, .03, MS.logam, 12); tabung(g, .022, .05, -.65, .03, MS.logam, 12);
+    balok(g, .018, .05, .16, 0, .1, -.02, MS.logam); balok(g, .018, .018, .03, 0, .12, -.1, MS.logam);   // pegangan angkat
+    siluet(g, [[.06, -.04], [.085, -.15], [.125, -.16], [.13, -.145], [.105, -.04]], .05, MS.polimer); siluet(g, [[.16, .05], [.4, .04], [.41, -.08], [.35, -.085], [.16, -.03]], .065, MS.polimer);
+    [-.025, .025].forEach(x => { const k = balok(g, .012, .012, .26, x, -.01, -.5, MS.logam); k.rotation.x = .08; });
+    titikMerah(g, .14, -.12, .065); tangan(g, [.01, -.12, .14], [.0, -.06, -.3]);
+    return { g, kilat: kilatDi(g, -.68, .03, .26), ujung: new THREE.Vector3(0, .03, -.68), ads: new THREE.Vector3(0, -.14, -.3), pinggul: new THREE.Vector3(.21, -.22, -.42), berat: true }; },
+  jitu() { const g = new THREE.Group();
+    siluet(g, [[.17, .0], [.17, .056], [-.14, .056], [-.14, .0]], .062, MS.logam);
+    siluet(g, [[.17, .0], [-.095, .0], [-.095, -.03], [-.075, -.072], [-.005, -.072], [.0, -.03], [.045, -.03], [.07, -.135], [.112, -.148], [.118, -.132], [.098, -.03], [.17, -.028]], .056, MS.polimer);
+    siluet(g, [[-.08, -.066], [-.02, -.066], [-.016, -.19], [-.076, -.19]], .042, MS.polimer);
+    tabung(g, .034, .38, -.33, .028, MS.tan, 8); rel(g, -.5, .16, .066); tabung(g, .012, .24, -.6, .028, MS.logam, 12); tabung(g, .018, .06, -.73, .028, MS.logam, 12);
+    siluet(g, [[.17, .05], [.44, .046], [.445, -.08], [.38, -.085], [.24, -.02], [.17, -.02]], .052, MS.tan); balok(g, .05, .028, .12, 0, .066, .32, MS.tan);   // popor + bantalan pipi
+    teropong(g, .085, -.06, .2, .02); tangan(g, [.01, -.11, .12], [.0, -.05, -.32]);
+    return { g, kilat: kilatDi(g, -.77, .028, .24), ujung: new THREE.Vector3(0, .028, -.77), ads: new THREE.Vector3(0, -.085, -.24), pinggul: new THREE.Vector3(.2, -.2, -.44) }; },
+  pistol() { const g = new THREE.Group();
+    siluet(g, [[.06, .0], [.06, .045], [-.15, .045], [-.155, .0]], .04, MS.logam, 0, .004);   // peluncur
+    for (let i = 0; i < 5; i++) balok(g, .042, .03, .004, 0, .024, .045 - i * .009, MS.polimer);   // alur kokang
+    siluet(g, [[.055, .0], [-.14, .0], [-.14, -.018], [-.03, -.022], [-.02, -.045], [.005, -.045], [.012, -.022], [.03, -.022], [.04, -.13], [.075, -.135], [.08, -.12], [.065, -.02]], .036, MS.polimer, 0, .004);
+    balok(g, .006, .012, .006, 0, .05, -.14, MS.logam); balok(g, .02, .01, .006, 0, .05, .05, MS.logam);
+    tangan(g, [.0, -.13, .07], [-.02, -.14, .05]); return { g, kilat: kilatDi(g, -.17, .022, .16), ujung: new THREE.Vector3(0, .022, -.17), ads: new THREE.Vector3(0, -.05, -.3), pinggul: new THREE.Vector3(.18, -.17, -.38) }; } };
 const DEF = {
   serbu: { nama: 'Senapan Serbu', ket: 'Serba bisa. Otomatis, stabil di jarak sedang.', mag: 30, rpm: 640, dmg: 26, otomatis: true, sebarPinggul: .03, sebarBidik: .004, hentak: .012, isiUlang: 1.8, zoom: .66, jatuh: 35, suara: 'tembak', stat: [55, 65, 70, 65] },
   smg: { nama: 'SMG', ket: 'Sangat cepat, unggul di jarak dekat dan gang sempit.', mag: 32, rpm: 920, dmg: 18, otomatis: true, sebarPinggul: .032, sebarBidik: .009, hentak: .0075, isiUlang: 1.5, zoom: .8, jatuh: 18, suara: 'smg', stat: [38, 95, 55, 35] },
@@ -712,6 +773,28 @@ const kilatCahaya = new THREE.PointLight('#ffc070', 0, 6, 2); kamera.add(kilatCa
 /* ================= 9. bot peretas dan boneka sasaran ================= */
 const musuh = [], sasaranMusuh = [];
 const TINGKAT = { santai: { akurasi: .75, dmg: .7, hp: .85, nama: 'Santai' }, normal: { akurasi: 1, dmg: 1, hp: 1, nama: 'Normal' }, sulit: { akurasi: 1.25, dmg: 1.3, hp: 1.2, nama: 'Sulit' } };
+// 16 Okt 2026: bot peretas, boneka sasaran, dan tokoh lobi = robot RobotExpressive (Quaternius, CC0; model yang sama dengan
+// karyawan Lantai Trading) beranimasi: diam, jalan, lari, roboh. Kotak lama tetap ada sebagai sasaran tembak tak terlihat
+// (kepala/badan), jadi hitungan kena tembak tidak berubah. Bot menembak dari senapan di bahu kanan.
+let ROBOT = null, SKALA_ROBOT = 1;
+const LARAS_BOT = new THREE.Vector3(.36, 1.5, .62);
+if (THREE.GLTFLoader && THREE.SkeletonUtils) new THREE.GLTFLoader().load('model/RobotExpressive.glb', gl => { ROBOT = gl; const b = new THREE.Box3().setFromObject(gl.scene); SKALA_ROBOT = 1.95 / Math.max(.01, b.max.y - b.min.y);
+  if (PRAJURIT && MODE === 'lobi') { const lama = PRAJURIT, rot = lama.rotation.y; petaGrup.remove(lama); PRAJURIT = buatPrajurit(); PRAJURIT.position.copy(lama.position); PRAJURIT.rotation.y = rot; petaGrup.add(PRAJURIT); pasangSenjataPrajurit(); } }, undefined, () => {});
+function pasangRobot(g, warna, { mata = '#ff3a2a', abu = '#8e979f' } = {}) { const r = THREE.SkeletonUtils.clone(ROBOT.scene); r.scale.setScalar(SKALA_ROBOT); g.add(r); const bahanR = [];
+  r.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+    const ganti = mt => { const c = mt.clone(); c.envMap = LINGK; c.envMapIntensity = .8;
+      if (mt.name === 'Main') { c.color.set(warna); c.roughness = .34; c.metalness = .45; c.userData.utama = true; } else if (mt.name === 'Grey') { c.color.set(abu); c.roughness = .3; c.metalness = .7; } else { c.color.set('#121417'); c.roughness = .4; c.emissive = new THREE.Color(mata); c.emissiveIntensity = .25; }
+      bahanR.push(c); return c; };
+    o.material = Array.isArray(o.material) ? o.material.map(ganti) : ganti(o.material); });
+  const mix = new THREE.AnimationMixer(r), aksi = Object.fromEntries(ROBOT.animations.map(a => [a.name, mix.clipAction(a)]));
+  ['Death', 'Jump', 'Punch', 'No'].forEach(n => { if (aksi[n]) { aksi[n].setLoop(THREE.LoopOnce); aksi[n].clampWhenFinished = true; } });
+  const R = { r, mix, aksi, bahan: bahanR, kini: null, main(n, f = .25) { if (R.kini === n) return; const b = aksi[n]; if (!b) return; b.reset().setEffectiveWeight(1).fadeIn(f).play(); if (R.kini && aksi[R.kini]) aksi[R.kini].fadeOut(f); R.kini = n; },
+    kilau(v) { for (const c of bahanR) { if (!c.userData.e0) c.userData.e0 = [c.emissive.clone(), c.emissiveIntensity]; if (v > 0) { c.emissive.setRGB(1, 1, 1); c.emissiveIntensity = .9 * v; } else { c.emissive.copy(c.userData.e0[0]); c.emissiveIntensity = c.userData.e0[1]; } } } };
+  R.main('Idle', 0); return R; }
+// senapan bahu bot: rumah senapan, laras, pemancar merah
+function senapanBahu(g) { const b = new THREE.Group(); b.position.set(.36, 1.5, .1); g.add(b);
+  balok(b, .12, .12, .3, 0, 0, .05, MS.polimer); balok(b, .05, .05, .12, 0, .085, 0, MS.logam); tabung(b, .028, .26, .32, 0, MS.logam, 12); tabung(b, .036, .05, .46, 0, MS.polimer, 12);
+  const pemancar = new THREE.Mesh(new THREE.CircleGeometry(.02, 12), M.mata); pemancar.position.set(0, 0, .486); b.add(pemancar); balok(b, .06, .16, .06, -.07, -.1, -.02, MS.logam); return b; }
 function buatBot(x, z, kuat, boneka = false) { const g = new THREE.Group(); g.position.set(x, 0, z); const mB = boneka ? M.boneka : M.bot, mA = boneka ? M.bonekaAksen : M.botAksen, kena = [];
   const pinggul = (sisi) => { const p = new THREE.Group(); p.position.set(sisi * .15, .82, 0); kena.push(balok(p, .2, .8, .24, 0, -.4, 0, mB)); balok(p, .22, .1, .3, 0, -.78, .04, mA); g.add(p); return p; };
   const kiri = pinggul(-1), kanan = pinggul(1);
@@ -720,9 +803,10 @@ function buatBot(x, z, kuat, boneka = false) { const g = new THREE.Group(); g.po
   if (!boneka) balok(g, .04, .22, .04, .12, 1.95, 0, mA);
   const lengan = balok(g, .14, .14, .5, .3, 1.24, .2, mB); if (!boneka) balok(g, .07, .07, .5, .3, 1.27, .55, M.gelap);
   kena.push(badan, lengan); g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  const kilat = buatKilat(.5); kilat.position.set(.3, 1.27, .84); g.add(kilat);
+  const kilat = buatKilat(.5); kilat.position.copy(LARAS_BOT); g.add(kilat);
+  let robot = null; if (ROBOT) { g.traverse(o => { if (o.isMesh && o !== kilat) o.visible = false; }); robot = pasangRobot(g, boneka ? '#d98a3a' : '#3a3f47', { mata: boneka ? '#ffd38a' : '#ff3a2a', abu: boneka ? '#e8e2d6' : '#7d868f' }); if (!boneka) senapanBahu(g); }
   const T = TINGKAT[PENG.tingkat], hp = boneka ? 100 : (80 + kuat * 14) * T.hp;
-  const m = { g, kiri, kanan, badan, kepala, mata, kilat, boneka, hp, hpAwal: hp, mati: false, tMati: 0, cd: acak(1, 2), rentetan: 0, tRentetan: 0, lihat: false, tLihat: 0, tTakLihat: 0, granat: boneka ? 0 : 1, tKilat: 0,
+  const m = { g, kiri, kanan, badan, kepala, mata, kilat, robot, boneka, hp, hpAwal: hp, mati: false, tMati: 0, cd: acak(1, 2), rentetan: 0, tRentetan: 0, lihat: false, tLihat: 0, tTakLihat: 0, granat: boneka ? 0 : 1, tKilat: 0,
     jarakIdeal: acak(9, 20), arahGeser: Math.random() < .5 ? -1 : 1, tGeser: acak(1, 3), macet: 0, belok: 0, tBelok: 0, langkah: 0, kilau: 0, muncul: boneka ? 1 : 0, laju: acak(2.6, 3.4) + kuat * .08 };
   kena.forEach(b => b.userData = { musuh: m, bagian: 'badan' }); kepala.userData = { musuh: m, bagian: 'kepala' }; mata.userData = { musuh: m, bagian: 'kepala' };
   m.sasaran = [...kena, kepala, mata]; if (!boneka) g.scale.setScalar(.05); scene.add(g); musuh.push(m); sasaranMusuh.push(...m.sasaran); return m; }
@@ -820,7 +904,7 @@ const _mata = new THREE.Vector3(), _matake = new THREE.Vector3(), _laras = new T
 function lukai(dmg, dari) { if (MODE !== 'main' || !jalan) return; P.hp -= dmg; P.tLuka = 0; lukaLayar = Math.min(1, lukaLayar + dmg / 35); suara('luka');
   $('#arah').style.transform = `rotate(${-(Math.atan2(dari.x - P.x, dari.z - P.z) - Math.atan2(-Math.sin(P.yaw), -Math.cos(P.yaw)))}rad)`; tArah = 1.2;
   if (P.hp <= 0) { P.hp = 0; tamat(); } }
-function botTembak(m) { m.g.updateMatrixWorld(); _laras.set(.3, 1.27, .84); m.g.localToWorld(_laras);
+function botTembak(m) { m.g.updateMatrixWorld(); _laras.copy(LARAS_BOT); m.g.localToWorld(_laras);
   const T = TINGKAT[PENG.tingkat], jarak = Math.hypot(P.x - m.g.position.x, P.z - m.g.position.z), bergerak = Math.hypot(gerakX, gerakZ) > .3;
   const peluang = batas((.52 - jarak * .013 - (bergerak ? .14 : 0) - (P.jongkok ? .1 : 0) + gel * .015) * T.akurasi, .06, .7);
   _mata.set(P.x, P.y + tinggiMata() - .15, P.z);
@@ -832,9 +916,10 @@ function botLempar(m) { const dx = P.x - m.g.position.x, dz = P.z - m.g.position
 function perbaruiBot(m, dt) {
   if (m.tKilat > 0) { m.tKilat -= dt; if (m.tKilat <= 0) m.kilat.visible = false; }
   if (m.muncul < 1) { m.muncul = Math.min(1, m.muncul + dt * 2.5); m.g.scale.setScalar(.05 + .95 * m.muncul); }
-  if (m.kilau > 0) { m.kilau -= dt; m.badan.material = m.kilau > 0 ? M.kilau : (m.boneka ? M.boneka : M.bot); m.kepala.material = m.badan.material; }
-  if (m.mati) { m.tMati += dt; m.g.rotation.x = Math.max(-Math.PI / 2, m.g.rotation.x - dt * 5); m.g.position.y = Math.max(-.2, -m.tMati * .1);
-    if (m.boneka && m.tMati > 2.5) { m.mati = false; m.tMati = 0; m.hp = m.hpAwal; m.g.rotation.x = 0; m.g.position.y = 0; sasaranMusuh.push(...m.sasaran); }
+  if (m.robot) m.robot.mix.update(dt);
+  if (m.kilau > 0) { m.kilau -= dt; if (m.robot) m.robot.kilau(Math.max(0, m.kilau) / .09); else { m.badan.material = m.kilau > 0 ? M.kilau : (m.boneka ? M.boneka : M.bot); m.kepala.material = m.badan.material; } }
+  if (m.mati) { m.tMati += dt; if (m.robot) { m.robot.main('Death', .12); if (m.tMati > 1.6) m.g.position.y = Math.max(-.6, -(m.tMati - 1.6) * .35); } else { m.g.rotation.x = Math.max(-Math.PI / 2, m.g.rotation.x - dt * 5); m.g.position.y = Math.max(-.2, -m.tMati * .1); }
+    if (m.boneka && m.tMati > 2.5) { m.mati = false; m.tMati = 0; m.hp = m.hpAwal; m.g.rotation.x = 0; m.g.position.y = 0; sasaranMusuh.push(...m.sasaran); if (m.robot) m.robot.main('Idle', .3); }
     else if (!m.boneka && m.tMati > 3) { scene.remove(m.g); musuh.splice(musuh.indexOf(m), 1); } return; }
   const dx = P.x - m.g.position.x, dz = P.z - m.g.position.z, jarak = Math.hypot(dx, dz);
   if (m.boneka) { const hadap = Math.atan2(dx, dz); m.g.rotation.y += Math.atan2(Math.sin(hadap - m.g.rotation.y), Math.cos(hadap - m.g.rotation.y)) * Math.min(1, dt * 2); return; }
@@ -851,6 +936,7 @@ function perbaruiBot(m, dt) {
   dorong(o, .4); const pindah = Math.hypot(o.x - sebelumX, o.z - sebelumZ);
   if (pindah < laju * dt * .35) { m.macet += dt; if (m.macet > .35) { m.macet = 0; m.belok = Math.random() < .5 ? -1 : 1; m.tBelok = acak(.6, 1.4); } } else m.macet = Math.max(0, m.macet - dt);
   m.g.position.x = o.x; m.g.position.z = o.z; m.langkah += pindah * 3.2; m.kiri.rotation.x = Math.sin(m.langkah) * .6; m.kanan.rotation.x = -Math.sin(m.langkah) * .6;
+  if (m.robot) { const v = pindah / Math.max(dt, 1e-3); m.robot.main(v > 2.2 ? 'Running' : v > .4 ? 'Walking' : 'Idle'); const a = m.robot.aksi[m.robot.kini]; if (a && m.robot.kini !== 'Idle') a.timeScale = batas(v / (m.robot.kini === 'Running' ? 4.2 : 1.6), .6, 1.4); }
   const hadap = Math.atan2(dx, dz); let beda = hadap - m.g.rotation.y; beda = Math.atan2(Math.sin(beda), Math.cos(beda)); m.g.rotation.y += beda * Math.min(1, dt * 8);
   if (m.lihat && jarak < 40 && m.muncul >= 1) { if (m.rentetan > 0) { m.tRentetan -= dt; if (m.tRentetan <= 0) { botTembak(m); m.rentetan--; m.tRentetan = .12; } }
     else { m.cd -= dt; if (m.cd <= 0) { m.rentetan = 2 + (Math.random() < .4 ? 1 : 0); m.tRentetan = 0; m.cd = acak(1.1, 2) - Math.min(.5, gel * .04); } } }
@@ -948,7 +1034,7 @@ function levelDari(xp) { let level = 1, sisa = xp, butuh = 1500; while (sisa >= 
 const RAK = [
   { id: 'brankas', judul: 'Operasi Brankas', genre: ['Tembak-tembakan', 'Sudut pandang pertama', 'Solo'], ket: 'Bot peretas menyerbu Hanif Dossier. Pilih peta dan senjata di lobi, pemanasan di ruang tunggu, lalu tahan mereka gelombang demi gelombang.', meta: () => [['Rekor', angkaID(simpan.baca('kantor-fps-rekor'))], ['Gelombang terjauh', simpan.baca('kantor-fps-gel') || '-'], ['Level', levelDari(simpan.baca('arkade-xp')).level], ['Peta', '4']], main: () => bukaLobi() },
   { id: 'latihan', judul: 'Lapangan Tembak', genre: ['Latihan', 'Sudut pandang pertama'], ket: 'Lapangan bebas tanpa musuh yang menembak. Coba senjata pilihanmu, latihan tembakan kepala dan lemparan granat pada boneka sasaran.', meta: () => [['Senjata', DEF[PENG.utama].nama], ['Boneka', '5']], main: () => mulaiLatihan() },
-  { id: 'koin', judul: 'Tangkap Koin', genre: ['Kasual', '30 detik'], ket: 'Geser keranjang. Koin emas tambah satu, token merah kurang tiga. Permainan singkat sambil menunggu karyawan selesai bekerja.', meta: () => [['Rekor', simpan.baca('kantor-rekor') + ' koin']], main: () => mulaiKoin() },
+  { id: 'koin', judul: 'Tangkap Koin', genre: ['Kasual', '30 detik'], ket: 'Geser brankas emas. Koin emas tambah satu, koin Bitcoin langka tambah lima, token penipu merah kurang tiga. Tangkap lima berturut-turut untuk kombo.', meta: () => [['Rekor', simpan.baca('kantor-rekor') + ' koin']], main: () => mulaiKoin() },
   { id: 'sewa', judul: 'Juragan Sewa', genre: ['Strategi', 'Arus kas', 'Kota 3D'], ket: 'Bangun kerajaan properti sewaan di Pulau Nusa Juragan: kota, desa sawah, perumahan pesisir, pelabuhan, bandara. Bersaing dengan tiga juragan lain, jalan kaki, lompat, atau naik mobil keliling pulau. Beli rumah dan tanah, layani penyewa, garap kebun dan ternak. Menang saat sewa bersih menutup biaya hidup.',
     meta: () => { let r = null, a = null; try { r = JSON.parse(localStorage.getItem('juragan-rekor') || 'null'); a = JSON.parse(localStorage.getItem('juragan-sewa') || 'null'); } catch {} return [['Rekor bebas finansial', r ? r.bulan + ' bulan' : '-'], ['Permainan tersimpan', a && !a.selesai ? 'bulan ' + a.bulan : '-']]; }, main: () => { location.href = 'juragan.html'; } } ];
 const POSTER = Object.fromEntries(RAK.map(r => [r.id, poster(r.id, 1280, 720)]));
@@ -1125,7 +1211,7 @@ let tNav = 0, terakhir = performance.now(), tRadar = 0, fpsAcc = 0, fpsN = 0, fp
 const elTanda = $('#tanda'), elNyawa = $('#hNyawa'), elLuka = $('#luka'), elArah = $('#arah'), elBidik = $('#bidik').children, elHud = $('#hud');
 function langkah(now) { requestAnimationFrame(langkah); const dtAsli = (now - terakhir) / 1000, dt = Math.min(.066, dtAsli); terakhir = now;
   frameKe++; if (renderer.shadowMap.enabled && (kualitasKini === 'tinggi' || MODE === 'lobi' || frameKe % 2 === 0)) renderer.shadowMap.needsUpdate = true;
-  if (MODE === 'lobi') { if (seretLobi === null) putarLobi += dt * .25; if (PRAJURIT) PRAJURIT.rotation.y = putarLobi; renderer.render(scene, kamLobi); return; }
+  if (MODE === 'lobi') { if (seretLobi === null) putarLobi += dt * .25; if (PRAJURIT) { PRAJURIT.rotation.y = putarLobi; PRAJURIT.userData.robot?.mix.update(dt); } renderer.render(scene, kamLobi); return; }
   if (!diMain() || !petaGrup) return;
   if (jalan) perbarui(dt, dtAsli);
   kamera.position.set(P.x, P.y + tinggiMata(), P.z); P.pitch = batas(P.pitch, -1.45, 1.45); kamera.rotation.set(P.pitch + (goyang > 0 ? acak(-1, 1) * goyang * .03 : 0), P.yaw + (goyang > 0 ? acak(-1, 1) * goyang * .03 : 0), 0); goyang = Math.max(0, goyang - dt * 2);
@@ -1184,23 +1270,69 @@ function perbarui(dt, dtAsli) { waktuMain += dt;
 
 /* ================= 20. Tangkap Koin (dipindah dari kantor) ================= */
 let KOIN = null;
+// Tangkap Koin versi 2 (16 Okt 2026, pemilik: "coba ubah design ... game2 nya"): langit malam dengan grafik candlestick
+// dan kota di bawahnya, koin emas berkilau yang berputar, koin Bitcoin langka (+5), token penipu merah berpendar (-3),
+// brankas emas sebagai wadah, percikan dan angka melayang saat menangkap, layar bergetar saat kena token merah, kombo.
 function mulaiKoin() { MODE = 'koin'; tampil('koin'); $('#koinHasil').style.display = 'none'; const cv = $('#koinKanvas'), ctx = cv.getContext('2d'); const ov = $('#koin');
-  let W, H; const ukur = () => { W = cv.width = ov.clientWidth; H = cv.height = ov.clientHeight; }; ukur();
-  let bx = W / 2, skorK = 0, sisa = 30, benda = [], aktif = true, akhir = performance.now(), spawn = 0; const rekor = simpan.baca('kantor-rekor');
-  const gerak = e => { const r = cv.getBoundingClientRect(); bx = Math.max(44, Math.min(W - 44, e.clientX - r.left)); }; cv.onpointermove = gerak; cv.onpointerdown = gerak;
-  const tekan = e => { if (e.code === 'ArrowLeft') bx = Math.max(44, bx - 40); if (e.code === 'ArrowRight') bx = Math.min(W - 44, bx + 40); }; addEventListener('keydown', tekan);
-  function bingkai(now) { if (!aktif) return; const dt = Math.min(.05, (now - akhir) / 1000); akhir = now; sisa -= dt; spawn -= dt;
-    if (spawn <= 0) { spawn = Math.max(.22, .65 - (30 - sisa) * .012); benda.push({ x: 30 + Math.random() * (W - 60), y: -20, v: 130 + Math.random() * 120 + (30 - sisa) * 5, jenis: Math.random() < .2 ? 'bom' : 'koin', r: Math.random() * 6 }); }
+  let W, H, D = 1, latar = null; const ukur = () => { D = Math.min(devicePixelRatio || 1, 2); W = ov.clientWidth; H = ov.clientHeight; cv.width = W * D; cv.height = H * D; ctx.setTransform(D, 0, 0, D, 0, 0); latar = buatLatar(); };
+  // latar dibuat sekali: gradasi langit, bintang, grafik lilin, siluet kota berjendela
+  function buatLatar() { const c = document.createElement('canvas'); c.width = W * D; c.height = H * D; const x = c.getContext('2d'); x.scale(D, D);
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#060912'); g.addColorStop(.55, '#0d1630'); g.addColorStop(1, '#1b1630'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 120; i++) { x.fillStyle = `rgba(255,255,255,${Math.random() * .5})`; x.fillRect(Math.random() * W, Math.random() * H * .6, 1.2, 1.2); }
+    let y = H * .45; const lebar = Math.max(10, W / 60); x.globalAlpha = .16;
+    for (let i = 0, px = 0; px < W; i++, px += lebar * 1.5) { const buka = y, tutup = y + (Math.random() - .55) * H * .05, atas = Math.min(buka, tutup) - Math.random() * H * .02, bawah = Math.max(buka, tutup) + Math.random() * H * .02;
+      x.strokeStyle = x.fillStyle = tutup < buka ? '#38d39f' : '#ff5a6a'; x.beginPath(); x.moveTo(px + lebar / 2, atas); x.lineTo(px + lebar / 2, bawah); x.stroke(); x.fillRect(px, Math.min(buka, tutup), lebar, Math.max(2, Math.abs(tutup - buka))); y = tutup; }
+    x.globalAlpha = 1; let bx = 0; while (bx < W) { const w = 30 + Math.random() * 60, h = 60 + Math.random() * H * .28; x.fillStyle = '#070a14'; x.fillRect(bx, H - h, w, h);
+      for (let wy = H - h + 8; wy < H - 12; wy += 10) for (let wx = bx + 5; wx < bx + w - 6; wx += 9) if (Math.random() < .28) { x.fillStyle = Math.random() < .7 ? 'rgba(255,205,120,.55)' : 'rgba(170,210,255,.45)'; x.fillRect(wx, wy, 4, 5); }
+      bx += w + 2; }
+    const v = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); x.fillStyle = v; x.fillRect(0, 0, W, H); return c; }
+  ukur();
+  let bx = W / 2, tujuX = bx, skorK = 0, sisa = 30, benda = [], partikel = [], tulisan = [], aktif = true, akhir = performance.now(), spawn = 0, getar = 0, merah = 0, kombo = 0, t = 0; const rekor = simpan.baca('kantor-rekor');
+  const gerak = e => { const r = cv.getBoundingClientRect(); tujuX = Math.max(56, Math.min(W - 56, e.clientX - r.left)); }; cv.onpointermove = gerak; cv.onpointerdown = gerak;
+  const tekan = e => { if (e.code === 'ArrowLeft') tujuX = Math.max(56, tujuX - 60); if (e.code === 'ArrowRight') tujuX = Math.min(W - 56, tujuX + 60); }; addEventListener('keydown', tekan);
+  const percikan = (x, y, warna, n) => { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 220; partikel.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, umur: .6 + Math.random() * .4, warna }); } };
+  function koin(b, s) { const sx = Math.abs(Math.cos(b.r)) * .8 + .2, r = b.jenis === 'btc' ? 21 : 16; ctx.save(); ctx.translate(b.x, b.y);
+    ctx.globalAlpha = .35; const ek = ctx.createLinearGradient(0, -r * 3.2, 0, 0); ek.addColorStop(0, 'rgba(255,200,80,0)'); ek.addColorStop(1, b.jenis === 'btc' ? 'rgba(255,160,40,.6)' : 'rgba(255,215,110,.45)'); ctx.fillStyle = ek; ctx.fillRect(-r * .5, -r * 3.2, r, r * 3.2); ctx.globalAlpha = 1;   // ekor cahaya
+    ctx.shadowColor = b.jenis === 'btc' ? '#ff9a1f' : '#ffcf4a'; ctx.shadowBlur = 18; ctx.scale(sx, 1);
+    const g = ctx.createRadialGradient(-r * .35, -r * .4, r * .1, 0, 0, r); if (b.jenis === 'btc') { g.addColorStop(0, '#ffe1a6'); g.addColorStop(.5, '#f7931a'); g.addColorStop(1, '#a85a06'); } else { g.addColorStop(0, '#fff3c4'); g.addColorStop(.45, '#f3c550'); g.addColorStop(1, '#9a6b1c'); }
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0; ctx.lineWidth = 2.5; ctx.strokeStyle = b.jenis === 'btc' ? '#7a3f00' : '#7a5212'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * .74, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    if (sx > .45) { ctx.fillStyle = b.jenis === 'btc' ? '#fff6e6' : '#7a5212'; ctx.font = `800 ${r * 1.05}px "Plus Jakarta Sans",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.jenis === 'btc' ? '₿' : 'H', 0, 1); }
+    ctx.restore(); }
+  function token(b) { const r = 17; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r * .6); ctx.shadowColor = '#ff2a4a'; ctx.shadowBlur = 22 + Math.sin(t * 10) * 6;
+    ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r); g.addColorStop(0, '#ff8a9a'); g.addColorStop(1, '#a3102a'); ctx.fillStyle = g; ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = '#ffd0d6'; ctx.lineWidth = 2; ctx.stroke(); ctx.rotate(-b.r * .6); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, 6); ctx.moveTo(6, -6); ctx.lineTo(-6, 6); ctx.stroke(); ctx.restore(); }
+  function brankas() { const y = H - 70, w = 112, h = 46; ctx.save(); ctx.translate(bx, y);
+    const sorot = ctx.createRadialGradient(0, h / 2, 10, 0, h / 2, 130); sorot.addColorStop(0, 'rgba(243,197,80,.25)'); sorot.addColorStop(1, 'rgba(243,197,80,0)'); ctx.fillStyle = sorot; ctx.fillRect(-140, h / 2 - 130, 280, 260);
+    const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#3a3f48'); g.addColorStop(1, '#16191e'); ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-w / 2, 0, w, h, 8) : ctx.rect(-w / 2, 0, w, h); ctx.fill();
+    ctx.strokeStyle = '#c9a23c'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#f3c550'; ctx.fillRect(-w / 2 - 4, -5, w + 8, 7);   // bibir emas
+    ctx.beginPath(); ctx.arc(0, h / 2 + 2, 11, 0, Math.PI * 2); ctx.strokeStyle = '#c9a23c'; ctx.lineWidth = 2.5; ctx.stroke(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + t; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 4, h / 2 + 2 + Math.sin(a) * 4); ctx.lineTo(Math.cos(a) * 10, h / 2 + 2 + Math.sin(a) * 10); ctx.stroke(); }
+    ctx.restore(); }
+  function pil(teks, x, y, rata, warna = '#eef3f6') { ctx.font = '800 20px "Plus Jakarta Sans",sans-serif'; const w = ctx.measureText(teks).width + 28, x0 = rata === 'center' ? x - w / 2 : x;
+    ctx.fillStyle = 'rgba(8,12,22,.72)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x0, y - 20, w, 40, 20) : ctx.rect(x0, y - 20, w, 40); ctx.fill(); ctx.strokeStyle = 'rgba(243,197,80,.35)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = warna; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(teks, x0 + w / 2, y + 1); }
+  function bingkai(now) { if (!aktif) return; const dt = Math.min(.05, (now - akhir) / 1000); akhir = now; t += dt; sisa -= dt; spawn -= dt; bx += (tujuX - bx) * Math.min(1, dt * 18);
+    if (spawn <= 0) { spawn = Math.max(.2, .62 - (30 - sisa) * .012); const u = Math.random(); benda.push({ x: 40 + Math.random() * (W - 80), y: -30, v: 140 + Math.random() * 120 + (30 - sisa) * 5, jenis: u < .2 ? 'bom' : u < .25 ? 'btc' : 'koin', r: Math.random() * 6 }); }
     for (const b of benda) { b.y += b.v * dt; b.r += dt * 4; }
-    benda = benda.filter(b => { if (b.y > H - 78 && b.y < H - 34 && Math.abs(b.x - bx) < 52) { if (b.jenis === 'koin') { skorK++; suara('ambil'); } else { skorK = Math.max(0, skorK - 3); suara('luka'); } return false; } return b.y < H + 30; });
-    ctx.fillStyle = '#101820'; ctx.fillRect(0, 0, W, H);
-    for (const b of benda) { ctx.save(); ctx.translate(b.x, b.y); ctx.scale(Math.abs(Math.cos(b.r)) * .7 + .3, 1); ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fillStyle = b.jenis === 'koin' ? '#f3c550' : '#f08a7d'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.stroke(); ctx.restore();
-      ctx.fillStyle = '#1a2430'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.jenis === 'koin' ? '$' : 'x', b.x, b.y + 1); }
-    ctx.fillStyle = '#e9e4d8'; ctx.fillRect(bx - 52, H - 60, 104, 30); ctx.fillStyle = '#8a4b2a'; ctx.fillRect(bx - 52, H - 60, 104, 6);
-    ctx.fillStyle = '#eef3f6'; ctx.font = 'bold 22px "Plus Jakarta Sans",sans-serif'; ctx.textAlign = 'left'; ctx.fillText(skorK + ' koin', 16, 36); ctx.textAlign = 'center'; ctx.fillText(Math.ceil(sisa) + ' dtk', W / 2, 36);
-    if (sisa <= 0) { aktif = false; removeEventListener('keydown', tekan); const baru = skorK > rekor; if (baru) simpan.tulis('kantor-rekor', skorK); $('#koinSkor').textContent = skorK + ' koin'; $('#koinRekor').textContent = baru ? 'Rekor baru di perangkat ini' : 'Rekor di perangkat ini ' + Math.max(rekor, skorK) + ' koin'; $('#koinHasil').style.display = 'flex'; }
+    benda = benda.filter(b => { if (b.y > H - 84 && b.y < H - 30 && Math.abs(b.x - bx) < 60) {
+        if (b.jenis === 'bom') { skorK = Math.max(0, skorK - 3); kombo = 0; getar = .35; merah = .5; suara('luka'); percikan(b.x, b.y, '#ff4a5a', 26); tulisan.push({ x: b.x, y: b.y - 20, teks: '-3', warna: '#ff6a7a', umur: 1 }); }
+        else { const n = b.jenis === 'btc' ? 5 : 1; skorK += n; kombo++; suara('ambil'); percikan(b.x, b.y, b.jenis === 'btc' ? '#ffb040' : '#ffd86a', b.jenis === 'btc' ? 30 : 14); tulisan.push({ x: b.x, y: b.y - 20, teks: '+' + n + (kombo >= 5 ? '  ×' + kombo : ''), warna: b.jenis === 'btc' ? '#ffb040' : '#ffe39a', umur: 1 }); }
+        return false; } if (b.y > H + 30 && b.jenis !== 'bom') kombo = 0; return b.y < H + 30; });
+    for (const p of partikel) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 520 * dt; p.umur -= dt; } partikel = partikel.filter(p => p.umur > 0);
+    for (const s of tulisan) { s.y -= 60 * dt; s.umur -= dt; } tulisan = tulisan.filter(s => s.umur > 0);
+    getar = Math.max(0, getar - dt); merah = Math.max(0, merah - dt * 1.6);
+    ctx.save(); if (getar > 0) ctx.translate((Math.random() - .5) * 16 * getar, (Math.random() - .5) * 16 * getar);
+    ctx.drawImage(latar, 0, 0, W, H);
+    for (const b of benda) b.jenis === 'bom' ? token(b) : koin(b);
+    brankas();
+    ctx.globalCompositeOperation = 'lighter'; for (const p of partikel) { ctx.globalAlpha = Math.max(0, p.umur); ctx.fillStyle = p.warna; ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    for (const s of tulisan) { ctx.globalAlpha = Math.min(1, s.umur * 1.5); ctx.fillStyle = s.warna; ctx.font = '800 24px "Plus Jakarta Sans",sans-serif'; ctx.textAlign = 'center'; ctx.fillText(s.teks, s.x, s.y); } ctx.globalAlpha = 1;
+    ctx.restore();
+    if (merah > 0) { ctx.fillStyle = `rgba(255,30,60,${merah * .35})`; ctx.fillRect(0, 0, W, H); }
+    pil(skorK + ' koin', 16, 36, 'left', '#ffe39a'); pil(Math.ceil(Math.max(0, sisa)) + ' dtk', W / 2, 36, 'center', sisa < 6 ? '#ff8a96' : '#eef3f6'); if (kombo >= 5) pil('Kombo ×' + kombo, W / 2, 84, 'center', '#ffb040');
+    if (sisa <= 0) { aktif = false; removeEventListener('keydown', tekan); removeEventListener('resize', ukur); const baru = skorK > rekor; if (baru) simpan.tulis('kantor-rekor', skorK); $('#koinSkor').textContent = skorK + ' koin'; $('#koinRekor').textContent = baru ? 'Rekor baru di perangkat ini' : 'Rekor di perangkat ini ' + Math.max(rekor, skorK) + ' koin'; $('#koinHasil').style.display = 'flex'; }
     else requestAnimationFrame(bingkai); }
-  KOIN = { stop: () => { aktif = false; removeEventListener('keydown', tekan); } }; requestAnimationFrame(bingkai); }
+  addEventListener('resize', ukur);
+  KOIN = { stop: () => { aktif = false; removeEventListener('keydown', tekan); removeEventListener('resize', ukur); } }; requestAnimationFrame(bingkai); }
 $('#koinLagi').onclick = mulaiKoin; $('#koinRak').onclick = () => { KOIN?.stop(); bukaArkade(); }; $('#koinKeluar').onclick = () => { KOIN?.stop(); bukaArkade(); };
 
 /* ================= mulai ================= */
