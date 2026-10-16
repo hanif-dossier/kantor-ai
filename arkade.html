@@ -393,7 +393,7 @@ const M = {
   air: new THREE.MeshStandardMaterial({ color: '#3fb6d8', roughness: .05, metalness: .3, emissive: '#0b5c7a', emissiveIntensity: .25 }), daun: new THREE.MeshStandardMaterial({ color: '#1f5a2a', roughness: .9 }), daun2: new THREE.MeshStandardMaterial({ color: '#3d7a2c', roughness: .9 }), bunga: new THREE.MeshStandardMaterial({ color: '#c23a72', roughness: .8 }),
   boneka: new THREE.MeshStandardMaterial({ color: '#d2b48c', roughness: .9 }), bonekaAksen: new THREE.MeshStandardMaterial({ color: '#c0392b', roughness: .7 }) };
 const SERAGAM = { hutan: ['Hutan', '#4b5a3a'], gurun: ['Gurun', '#a08a62'], kota: ['Kota', '#5a6170'], malam: ['Malam', '#262b36'] };
-function pasangSeragam() { M.seragam.color.set(SERAGAM[PENG.seragam][1]); let R = null; try { R = PRAJURIT?.userData.robot; } catch {} if (R) R.bahan.forEach(c => { if (c.userData.utama) c.color.set(SERAGAM[PENG.seragam][1]); }); }
+function pasangSeragam() { M.seragam.color.set(SERAGAM[PENG.seragam][1]); }
 pasangSeragam();
 // 7 Okt 2026 (pemilik: game "kaku, putus-putus"): geometri kotak dipakai ulang (tidak membuat baru tiap bot muncul), dan
 // dekorasi berulang di peta (semak, lantai menara jauh) dikumpulkan jadi satu InstancedMesh per bahan, bukan ribuan mesh.
@@ -638,17 +638,29 @@ function tiangLampu(x, z, tinggi = 7, warna = '#ffb870') { const t = new THREE.M
 
 /* ================= 6. prajurit lobi ================= */
 let PRAJURIT = null;
-function buatPrajurit() { if (ROBOT) { const g = new THREE.Group(), R = pasangRobot(g, SERAGAM[PENG.seragam][1], { mata: '#7fd4ff', abu: '#b9c0c7' }); g.userData.robot = R;
-    const senapan = new THREE.Group(); senapan.position.set(.4, 1.02, .3); senapan.rotation.set(.45, -.2, 0); g.add(senapan); g.userData.pegang = senapan; return g; }
-  const g = new THREE.Group(), rompi = new THREE.MeshStandardMaterial({ color: '#2a2f26', roughness: .85 });
-  [-1, 1].forEach(s => { balok(g, .2, .78, .24, s * .13, .55, 0, M.seragam); balok(g, .22, .18, .32, s * .13, .09, .04, M.sarung); });
-  balok(g, .5, .62, .3, 0, 1.25, 0, M.seragam); balok(g, .54, .46, .36, 0, 1.3, 0, rompi); [-.14, 0, .14].forEach(x => balok(g, .1, .14, .06, x, 1.26, .2, rompi));
-  balok(g, .52, .12, .32, 0, .92, 0, M.sarung);
-  balok(g, .2, .22, .2, 0, 1.68, 0, M.kulit); balok(g, .27, .14, .29, 0, 1.83, 0, M.seragam); balok(g, .29, .05, .31, 0, 1.76, 0, M.seragam); balok(g, .2, .06, .04, 0, 1.71, .11, M.hitam);
-  const ka = balok(g, .13, .42, .14, .3, 1.28, .08, M.seragam); ka.rotation.x = -.7; ka.rotation.z = .2; const ki = balok(g, .13, .42, .14, -.27, 1.3, .14, M.seragam); ki.rotation.x = -1.1; ki.rotation.z = -.5;
-  balok(g, .1, .1, .12, .2, 1.12, .3, M.sarung); balok(g, .1, .1, .12, -.05, 1.2, .48, M.sarung);
-  const senapan = new THREE.Group(); balok(senapan, .07, .1, .62, 0, 0, 0, M.gelap); balok(senapan, .05, .05, .32, 0, .01, .46, M.gelap); balok(senapan, .05, .16, .07, 0, -.12, -.02, M.gelap); balok(senapan, .06, .09, .2, 0, -.02, -.38, M.aksen); balok(senapan, .05, .06, .1, 0, .08, .05, M.gelap);
-  senapan.position.set(.08, 1.18, .3); senapan.rotation.set(.25, -.25, 0); g.add(senapan); g.userData.pegang = senapan;
+// 16 Okt 2026, pemilik: "user nya manusia aja jangan berbentuk robot". Tokoh pemain tetap manusia, tetapi tidak lagi
+// dari balok: tubuh membulat (kapsul & bola), helm, kacamata, rompi berkantong, sepatu bot, sarung tangan, memegang senapan.
+function buatPrajurit() { const g = new THREE.Group(), rompi = new THREE.MeshStandardMaterial({ color: '#2a2f26', roughness: .85 }), helm = new THREE.MeshStandardMaterial({ color: '#3b4231', roughness: .75 }), _a = new THREE.Vector3(), _b = new THREE.Vector3();
+  const bola = (r, x, y, z, m, sx = 1, sy = 1, sz = 1) => { const b = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), m); b.position.set(x, y, z); b.scale.set(sx, sy, sz); g.add(b); return b; };
+  // tulang: silinder membulat dari titik a ke b
+  const tulang = (a, b, r, m, r2 = r) => { _a.set(...a); _b.set(...b); const p = _a.distanceTo(_b), c = new THREE.Mesh(new THREE.CylinderGeometry(r2, r, p, 14), m); c.position.copy(_a).add(_b).multiplyScalar(.5);
+    c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), _b.clone().sub(_a).normalize()); g.add(c); bola(r, ...a, m); bola(r2, ...b, m); return c; };
+  [-1, 1].forEach(s => { tulang([s * .12, .14, .02], [s * .12, .52, 0], .085, M.seragam, .1); tulang([s * .12, .52, 0], [s * .13, .9, 0], .1, M.seragam, .115); bola(.1, s * .12, .08, .07, M.sarung, .95, .65, 1.6); bola(.075, s * .12, .48, .07, M.sarung, 1, 1, .7); });   // kaki, sepatu bot, pelindung lutut
+  const pinggul = new THREE.Mesh(new THREE.CylinderGeometry(.2, .19, .14, 18), M.sarung); pinggul.position.y = .93; pinggul.scale.z = .75; g.add(pinggul);
+  const badan = new THREE.Mesh(new THREE.CylinderGeometry(.23, .2, .52, 18), M.seragam); badan.position.y = 1.22; badan.scale.z = .68; g.add(badan);
+  const rmp = new THREE.Mesh(new THREE.CylinderGeometry(.25, .225, .4, 18), rompi); rmp.position.y = 1.25; rmp.scale.z = .74; g.add(rmp);
+  [-.12, 0, .12].forEach(x => { const k = balok(g, .09, .12, .06, x, 1.17, .17, rompi); k.rotation.x = -.06; }); balok(g, .32, .04, .06, 0, 1.38, .16, M.sarung);
+  bola(.1, -.25, 1.42, 0, rompi, 1, .8, 1); bola(.1, .25, 1.42, 0, rompi, 1, .8, 1);   // bahu
+  tulang([0, 1.46, 0], [0, 1.56, 0], .06, M.kulit);
+  bola(.13, 0, 1.66, .01, M.kulit, .95, 1.1, 1);   // kepala
+  const h = new THREE.Mesh(new THREE.SphereGeometry(.158, 22, 14, 0, Math.PI * 2, 0, Math.PI * .55), helm); h.position.set(0, 1.69, 0); g.add(h);
+  const tepi = new THREE.Mesh(new THREE.TorusGeometry(.152, .016, 8, 28), helm); tepi.rotation.x = Math.PI / 2; tepi.position.set(0, 1.67, 0); g.add(tepi);
+  balok(g, .2, .045, .05, 0, 1.68, .115, M.hitam); balok(g, .26, .02, .02, 0, 1.68, .09, M.sarung);   // kacamata & tali
+  bola(.016, 0, 1.63, .135, M.kulit); balok(g, .05, .008, .01, 0, 1.585, .125, M.sarung);   // hidung, mulut
+  // lengan memegang senapan: kanan di pegangan, kiri menyangga laras
+  tulang([.26, 1.4, 0], [.3, 1.16, .07], .062, M.seragam); tulang([.3, 1.16, .07], [.2, 1.12, .3], .055, M.seragam); bola(.055, .2, 1.12, .32, M.sarung, 1, .9, 1.2);
+  tulang([-.26, 1.4, 0], [-.22, 1.22, .22], .062, M.seragam); tulang([-.22, 1.22, .22], [-.04, 1.2, .48], .055, M.seragam); bola(.055, -.04, 1.2, .5, M.sarung, 1, .9, 1.2);
+  const senapan = new THREE.Group(); senapan.position.set(.08, 1.18, .3); senapan.rotation.set(.25, -.25, 0); g.add(senapan); g.userData.pegang = senapan;
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; }
 
 /* ================= 7. suara (dibuat di tempat) ================= */
@@ -773,13 +785,13 @@ const kilatCahaya = new THREE.PointLight('#ffc070', 0, 6, 2); kamera.add(kilatCa
 /* ================= 9. bot peretas dan boneka sasaran ================= */
 const musuh = [], sasaranMusuh = [];
 const TINGKAT = { santai: { akurasi: .75, dmg: .7, hp: .85, nama: 'Santai' }, normal: { akurasi: 1, dmg: 1, hp: 1, nama: 'Normal' }, sulit: { akurasi: 1.25, dmg: 1.3, hp: 1.2, nama: 'Sulit' } };
-// 16 Okt 2026: bot peretas, boneka sasaran, dan tokoh lobi = robot RobotExpressive (Quaternius, CC0; model yang sama dengan
+// 16 Okt 2026: bot peretas dan boneka sasaran = robot (tokoh pemain tetap manusia) RobotExpressive (Quaternius, CC0; model yang sama dengan
 // karyawan Lantai Trading) beranimasi: diam, jalan, lari, roboh. Kotak lama tetap ada sebagai sasaran tembak tak terlihat
 // (kepala/badan), jadi hitungan kena tembak tidak berubah. Bot menembak dari senapan di bahu kanan.
 let ROBOT = null, SKALA_ROBOT = 1;
 const LARAS_BOT = new THREE.Vector3(.36, 1.5, .62);
 if (THREE.GLTFLoader && THREE.SkeletonUtils) new THREE.GLTFLoader().load('model/RobotExpressive.glb', gl => { ROBOT = gl; const b = new THREE.Box3().setFromObject(gl.scene); SKALA_ROBOT = 1.95 / Math.max(.01, b.max.y - b.min.y);
-  if (PRAJURIT && MODE === 'lobi') { const lama = PRAJURIT, rot = lama.rotation.y; petaGrup.remove(lama); PRAJURIT = buatPrajurit(); PRAJURIT.position.copy(lama.position); PRAJURIT.rotation.y = rot; petaGrup.add(PRAJURIT); pasangSenjataPrajurit(); } }, undefined, () => {});
+}, undefined, () => {});
 function pasangRobot(g, warna, { mata = '#ff3a2a', abu = '#8e979f' } = {}) { const r = THREE.SkeletonUtils.clone(ROBOT.scene); r.scale.setScalar(SKALA_ROBOT); g.add(r); const bahanR = [];
   r.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
     const ganti = mt => { const c = mt.clone(); c.envMap = LINGK; c.envMapIntensity = .8;
@@ -1211,7 +1223,7 @@ let tNav = 0, terakhir = performance.now(), tRadar = 0, fpsAcc = 0, fpsN = 0, fp
 const elTanda = $('#tanda'), elNyawa = $('#hNyawa'), elLuka = $('#luka'), elArah = $('#arah'), elBidik = $('#bidik').children, elHud = $('#hud');
 function langkah(now) { requestAnimationFrame(langkah); const dtAsli = (now - terakhir) / 1000, dt = Math.min(.066, dtAsli); terakhir = now;
   frameKe++; if (renderer.shadowMap.enabled && (kualitasKini === 'tinggi' || MODE === 'lobi' || frameKe % 2 === 0)) renderer.shadowMap.needsUpdate = true;
-  if (MODE === 'lobi') { if (seretLobi === null) putarLobi += dt * .25; if (PRAJURIT) { PRAJURIT.rotation.y = putarLobi; PRAJURIT.userData.robot?.mix.update(dt); } renderer.render(scene, kamLobi); return; }
+  if (MODE === 'lobi') { if (seretLobi === null) putarLobi += dt * .25; if (PRAJURIT) PRAJURIT.rotation.y = putarLobi; renderer.render(scene, kamLobi); return; }
   if (!diMain() || !petaGrup) return;
   if (jalan) perbarui(dt, dtAsli);
   kamera.position.set(P.x, P.y + tinggiMata(), P.z); P.pitch = batas(P.pitch, -1.45, 1.45); kamera.rotation.set(P.pitch + (goyang > 0 ? acak(-1, 1) * goyang * .03 : 0), P.yaw + (goyang > 0 ? acak(-1, 1) * goyang * .03 : 0), 0); goyang = Math.max(0, goyang - dt * 2);
