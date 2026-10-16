@@ -307,7 +307,7 @@ async function ujiMundur(r: any, A: { langkah: number; minNilai: number }) {
     if (modal <= AWAL - BATAS) { if (pos) tutup(x.c, 'batas rugi', x.t); daftar.push('DIKELUARKAN di ' + new Date(x.t).toISOString().slice(5, 16)); break; }
     if (!pos) { const s = S.masuk(ctx); if (s) { const harga = x.c * (s.sisi === 'long' ? 1 + SELIP : 1 - SELIP), jarak = Math.abs(harga - s.sl);
       let qty = Math.min(jarak > 0 ? RISIKO / (jarak + (harga + s.sl) * BIAYA + s.sl * SELIP) : 0, Math.min(20, Math.floor(.8 / (jarak / harga))) * (kas / 3) / harga); qty = Math.floor(qty / A.langkah + 1e-9) * A.langkah;
-      if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, tp: harga + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * jarak, masuk: harga, qty, i, t: x.t }; } } }
+      if (qty * harga < A.minNilai || (s.sisi === 'long' ? s.sl >= harga : s.sl <= harga)) dilewati++; else pos = { ...s, tp: harga + (s.sisi === 'long' ? 1 : -1) * (Math.max(RR_MIN, S.rr) * (jarak + (harga + s.sl) * BIAYA + s.sl * SELIP) + 2 * harga * BIAYA), masuk: harga, qty, i, t: x.t }; } } }
   return { robot: r.nama, simbol: r.simbol, interval: r.interval, dari: new Date(K[210].t).toISOString().slice(0, 10), sampai: new Date(K.at(-1)!.t).toISOString().slice(0, 10),
     transaksi: n, menang, kas: +kas.toFixed(2), hasil: +((kas / AWAL - 1) * 100).toFixed(1) + '%', ddMaks: +(dd * 100).toFixed(1) + '%', dilewati, contoh: daftar }; }
 
@@ -540,7 +540,9 @@ Deno.serve(async (req) => {
         const margin = nilai / lev;
         if (nilai < A.minNilai || qty < ((A as any).minQty ?? 0)) { alasanLewat.push(`${sim}: nilai ${nilai.toFixed(2)} di bawah minimal ${A.minNilai}`); continue; }
         if (marginPakai + margin > ekuitas) { alasanLewat.push(`${sim}: margin tidak muat`); continue; }
-        const tpDari = (m: number) => m + (s.sisi === 'long' ? 1 : -1) * Math.max(RR_MIN, S.rr) * Math.abs(m - s.sl);
+        // 16 Okt 2026: target dihitung BERSIH. Jarak TP = rr x rugi per koin (jarak SL + biaya + selip) + biaya di sisi untung,
+        // supaya untung bersih saat TP kena tetap >= 3x rugi bersih saat SL kena (dulu TRX: SL 0,2%, bersih hanya 2,3R).
+        const tpDari = (m: number) => m + (s.sisi === 'long' ? 1 : -1) * (Math.max(RR_MIN, S.rr) * (Math.abs(m - s.sl) + (m + s.sl) * BIAYA + s.sl * SELIP) + 2 * m * BIAYA);
         try { let masuk = harga;
           if (a) { masuk = await PL[a].buka(sim, s.sisi, qty, lev, s.sl, tpDari); dipegang[a].add(sim); }   // stop loss wajib menempel, kalau gagal posisi ditutup lagi
           w.pos = { simbol: sim, sisi: s.sisi, masuk, qty, sl: s.sl, slAwal: s.sl, tp: tpDari(masuk), rr: Math.max(RR_MIN, S.rr), alasan: s.alasan, waktu: new Date(akhir).toISOString(), live: a === 'live', akun: a, leverage: lev, risiko: +(qty * rugiPerKoin).toFixed(4), margin: +margin.toFixed(4) };
