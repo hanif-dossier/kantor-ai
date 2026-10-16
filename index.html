@@ -117,7 +117,6 @@ a{color:var(--biru)}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
 <script src="langit.js"></script>
 <script src="arsitektur.js"></script>
@@ -201,43 +200,39 @@ function papanAngka() { const K = AGEN.map(keadaan), aktif = K.filter(k => k.st 
 /* ---------- orang (dipakai kantor dan kedai) ---------- */
 // Badan kotak bersendi: lengan berputar di bahu, kaki di pinggul. Dari situ bisa jalan, duduk, mengetik, minum kopi,
 // garuk kepala. Menghadap -z lokal; rotation.y = Math.PI berarti menghadap kamera (+z).
-// 16 Okt 2026 (pemilik: "coba ubah design dalam nya"): karyawan AI = robot RobotExpressive (Quaternius, CC0), model yang
-// sama dengan Lantai Trading dan Arkade. Badan berwarna setelan karyawan, animasi jalan/duduk/geleng lewat AnimationMixer.
-// Bagian lama (kepala, lengan, kaki) tetap ada sebagai titik kosong, jadi kode gerak lama tidak perlu diubah.
-let ROBOT_K = null, SKALA_K = 1;
-const ROBOT_SIAP = new Promise(ok => { if (!THREE.GLTFLoader || !THREE.SkeletonUtils) return ok(); const habis = setTimeout(ok, 6000);
-  new THREE.GLTFLoader().load('model/RobotExpressive.glb', gl => { ROBOT_K = gl; const b = new THREE.Box3().setFromObject(gl.scene); SKALA_K = 2.35 / Math.max(.01, b.max.y - b.min.y); clearTimeout(habis); ok(); }, undefined, () => { clearTimeout(habis); ok(); }); });
-const SEKALI_K = ['Death', 'Jump', 'Punch', 'ThumbsUp', 'Wave', 'Yes', 'Standing', 'Sitting'];
-function buatRobotOrang(a, skala) { const g = new THREE.Group(), r = THREE.SkeletonUtils.clone(ROBOT_K.scene); r.scale.setScalar(SKALA_K); r.rotation.y = Math.PI; g.add(r);
-  r.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
-    const ganti = mt => { const c = mt.clone(); c.envMapIntensity = .7; if (mt.name === 'Main') { c.color.copy(warnaL(a.warna)).multiplyScalar(.9); c.roughness = .36; c.metalness = .25; } else if (mt.name === 'Grey') { c.color.copy(warnaL(0xc4cad1)); c.roughness = .3; c.metalness = .55; } else { c.roughness = .45; } return c; };
-    o.material = Array.isArray(o.material) ? o.material.map(ganti) : ganti(o.material); });
-  const kosong = () => { const o = new THREE.Object3D(); g.add(o); return o; };
-  const mix = new THREE.AnimationMixer(r), aksi = Object.fromEntries(ROBOT_K.animations.map(c => [c.name, mix.clipAction(c)]));
-  SEKALI_K.forEach(n => { if (aksi[n]) { aksi[n].setLoop(THREE.LoopOnce); aksi[n].clampWhenFinished = true; } });
-  const R = { mix, aksi, kini: null, main(n, f = .3) { if (R.kini === n) return; const b = aksi[n]; if (!b) return; b.reset().setEffectiveWeight(1).fadeIn(f).play(); if (R.kini && aksi[R.kini]) aksi[R.kini].fadeOut(f); R.kini = n; } };
-  aksi.Idle.time = Math.random() * 2; R.main('Idle', 0);
-  g.scale.setScalar(skala); return { g, robot: R, badan: kosong(), kepala: kosong(), lenganK: kosong(), lenganN: kosong(), kakiK: kosong(), kakiN: kosong() }; }
-// animasi robot menurut keadaan karyawan: jalan, duduk (mengetik/santai/sofa/rapat), geleng (gagal), berdiri (ngopi)
-function gerakRobot(o, p, dt) { if (!o.robot) return; o.robot.mix.update(dt);
-  o.robot.main(p.path?.length ? 'Walking' : ['ketik', 'santai', 'sofa', 'rapat'].includes(p.mode) ? 'Sitting' : p.mode === 'bingung' ? 'No' : 'Idle');
-  if (o.robot.kini === 'No' && !o.robot.aksi.No.isRunning()) o.robot.aksi.No.reset().play(); }
-function buatOrang(a, skala = 1) { if (ROBOT_K) return buatRobotOrang(a, skala);
-  const g = new THREE.Group(); const mat = c => new THREE.MeshStandardMaterial({ color: warnaL(c), roughness: .8 });
-  const kotak = (w, h, d, c, x, y, z, induk = g, bayang = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.castShadow = bayang; induk.add(m); return m; };
-  const badan = kotak(.72, .8, .5, a.warna, 0, 1.45, 0);
-  // setelan rapi (6 Okt 2026, pemilik: "seluruhnya dari ai agent nya juga" mewah): kemeja, dasi, kerah jas, sabuk, saputangan
-  const gelap = new THREE.Color(a.warna).multiplyScalar(.62).getHex();
-  kotak(.26, .44, .02, 0xf6f3ee, 0, 1.6, -.255, g, false); kotak(.08, .38, .025, a.dasi || 0x7a1f2b, 0, 1.55, -.266, g, false); kotak(.1, .06, .03, a.dasi || 0x7a1f2b, 0, 1.79, -.266, g, false);
-  [-1, 1].forEach(s2 => { const k = kotak(.1, .46, .02, gelap, s2 * .16, 1.6, -.262, g, false); k.rotation.z = s2 * .32; });
-  kotak(.11, .07, .02, 0xf6f3ee, -.2, 1.68, -.262, g, false); kotak(.74, .07, .52, 0x1b1b1b, 0, 1.08, 0, g, false); kotak(.08, .06, .03, 0xc9a24a, 0, 1.08, -.27, g, false);
-  const kepala = kotak(.56, .56, .56, 0xf1c9a5, 0, 2.15, 0); kotak(.6, .22, .6, a.rambut, 0, 2.35, 0);
-  kotak(.07, .07, .04, 0x222222, -.14, 2.17, -.29, g, false); kotak(.07, .07, .04, 0x222222, .14, 2.17, -.29, g, false);
+// 16 Okt 2026 (pemilik: "masih robot avatarnya"): karyawan tetap manusia, tetapi tidak lagi dari balok. Tubuh membulat:
+// jas (warna karyawan) dengan kemeja, kerah, dan dasi, sabuk, kepala bulat dengan rambut, mata, alis, hidung, mulut,
+// lengan dan tungkai silinder berujung bulat, tangan, sepatu. Sendi (lenganK/N, kakiK/N, kepala) sama dengan versi lama,
+// jadi gerak jalan, mengetik, ngopi, rapat, dan bingung tidak perlu diubah. Wajah menghadap -z.
+const GEO_ORANG = { bola: new THREE.SphereGeometry(1, 20, 14), tabung: new THREE.CylinderGeometry(1, 1, 1, 18), badan: new THREE.CylinderGeometry(.35, .3, .82, 22) };
+function buatOrang(a, skala = 1) {
+  const g = new THREE.Group(), BHN = {}, mat = (c, o = {}) => BHN[c + JSON.stringify(o)] ||= new THREE.MeshStandardMaterial({ color: warnaL(c), roughness: .75, ...o });
+  const pasang = (geo, m, sx, sy, sz, x, y, z, induk = g, bayang = true) => { const b = new THREE.Mesh(geo, m); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.castShadow = bayang; b.receiveShadow = true; induk.add(b); return b; };
+  const bola = (r, x, y, z, m, induk = g, sx = 1, sy = 1, sz = 1) => pasang(GEO_ORANG.bola, m, r * sx, r * sy, r * sz, x, y, z, induk);
+  const tungkai = (induk, r, p, m, y0 = 0) => { pasang(GEO_ORANG.tabung, m, r, p, r, 0, y0 - p / 2, 0, induk); bola(r, 0, y0, 0, m, induk); bola(r * .96, 0, y0 - p, 0, m, induk); };
+  const kulit = mat(0xe8bf9a, { roughness: .6 }), jas = mat(a.warna, { roughness: .62 }), gelap = new THREE.Color(a.warna).multiplyScalar(.62).getHex(), putih = mat(0xf6f3ee, { roughness: .55 }), dasi = mat(a.dasi || 0x7a1f2b, { roughness: .5 });
+  // badan: jas, kemeja & dasi di dada, kerah jas, sabuk, saputangan
+  const badan = pasang(GEO_ORANG.badan, jas, 1, 1, .72, 0, 1.47, 0);
+  const dada = new THREE.Mesh(new THREE.CylinderGeometry(.352, .31, .5, 22, 1, true, Math.PI - .42, .84), putih); dada.scale.z = .72; dada.position.y = 1.6; g.add(dada);
+  pasang(GEO_ORANG.tabung, dasi, .045, .36, .02, 0, 1.56, -.245, g, false); bola(.05, 0, 1.79, -.24, dasi, g, 1, .8, .5);
+  [-1, 1].forEach(s => { const k = pasang(new THREE.BoxGeometry(1, 1, 1), mat(gelap), .09, .44, .02, s * .14, 1.6, -.25, g, false); k.rotation.z = s * .32; });
+  pasang(GEO_ORANG.tabung, mat(0x1b1b1b, { roughness: .4 }), .31, .07, .222, 0, 1.08, 0); pasang(new THREE.BoxGeometry(1, 1, 1), mat(0xc9a24a, { metalness: .6, roughness: .3 }), .08, .055, .02, 0, 1.08, -.225, g, false);
+  pasang(new THREE.BoxGeometry(1, 1, 1), putih, .09, .05, .02, -.2, 1.72, -.23, g, false);
+  bola(.2, -.33, 1.8, 0, jas, g, 1, .8, 1); bola(.2, .33, 1.8, 0, jas, g, 1, .8, 1);   // bahu
+  pasang(GEO_ORANG.tabung, kulit, .1, .16, .1, 0, 1.93, 0);   // leher
+  // kepala (sendi): wajah, rambut, mata, alis, hidung, mulut, telinga
+  const kepala = new THREE.Group(); kepala.position.set(0, 2.18, 0); g.add(kepala);
+  bola(.27, 0, 0, 0, kulit, kepala, .95, 1.06, .96);
+  [-1, 1].forEach(s => { bola(.055, s * .255, -.01, .01, kulit, kepala, .6, 1, .8); bola(.035, s * .095, .02, -.245, mat(0x1d1b19, { roughness: .3 }), kepala, 1, 1.15, .6); const al = pasang(new THREE.BoxGeometry(1, 1, 1), mat(a.rambut), .09, .022, .02, s * .095, .095, -.248, kepala, false); al.rotation.z = -s * .1; });
+  bola(.04, 0, -.04, -.265, kulit, kepala, .8, 1, 1); pasang(new THREE.BoxGeometry(1, 1, 1), mat(0x8a3a3a), .1, .02, .02, 0, -.13, -.235, kepala, false);
+  const rambut = new THREE.Mesh(new THREE.SphereGeometry(.285, 20, 12, 0, Math.PI * 2, 0, Math.PI * .5), mat(a.rambut, { roughness: .85 })); rambut.position.set(0, .03, .02); rambut.rotation.x = .38; rambut.castShadow = true; kepala.add(rambut);
+  bola(.27, 0, .0, .06, mat(a.rambut, { roughness: .85 }), kepala, .98, .95, .9);
+  // lengan & tangan (sendi di bahu), tungkai & sepatu (sendi di pinggul)
   const sendi = (x, y) => { const s = new THREE.Group(); s.position.set(x, y, 0); g.add(s); return s; };
-  const lenganK = sendi(-.46, 1.78), lenganN = sendi(.46, 1.78);
-  for (const l of [lenganK, lenganN]) { kotak(.18, .62, .18, a.warna, 0, -.31, 0, l); kotak(.16, .14, .16, 0xf1c9a5, 0, -.68, 0, l); }
-  const kakiK = sendi(-.18, 1.05), kakiN = sendi(.18, 1.05);
-  for (const k of [kakiK, kakiN]) { kotak(.26, .95, .3, 0x2b3c55, 0, -.48, 0, k); kotak(.28, .14, .42, 0x222222, 0, -.98, -.06, k); }
+  const lenganK = sendi(-.42, 1.76), lenganN = sendi(.42, 1.76);
+  for (const l of [lenganK, lenganN]) { tungkai(l, .095, .5, jas); bola(.085, 0, -.62, 0, kulit, l); pasang(GEO_ORANG.tabung, putih, .092, .05, .092, 0, -.55, 0, l, false); }
+  const kakiK = sendi(-.16, 1.05), kakiN = sendi(.16, 1.05);
+  for (const k of [kakiK, kakiN]) { tungkai(k, .125, .82, mat(0x2b3c55, { roughness: .7 })); bola(.13, 0, -.95, -.07, mat(0x1d1d1f, { roughness: .35 }), k, 1, .62, 1.55); }
   g.scale.setScalar(skala); return { g, badan, kepala, lenganK, lenganN, kakiK, kakiN }; }
 
 /* ---------- kantor 3D: gedung dua lantai ---------- */
@@ -609,7 +604,7 @@ function bangunKantor(wadah) {
         // yang sudah selesai sesekali ambil kopi sebentar, biar kantornya hidup
         if (!p.tetap && p.kd?.st === 'selesai' && t > p.jadwal) { p.jadwal = t + 35 + Math.random() * 50; if (!p.tempat) { const kosong = pantryTempat.find(x => !x.dipakai); if (kosong && Math.random() < .6) { pergi(p, kosong); p.balik = t + 9 + Math.random() * 6; } } }
         if (p.balik && t > p.balik && p.tempat?.mode === 'kopi') { p.balik = 0; pulang(p); } }
-      gerakRobot(o, p, dt); proyeksi(p.label, o.g.position.x, o.g.position.y + 2.9, o.g.position.z, r); }
+      proyeksi(p.label, o.g.position.x, o.g.position.y + 2.9, o.g.position.z, r); }
     for (const m of penanda) proyeksi(m.l, m.x, m.y, m.z, r, m.kiri);
     renderer.render(scene, camera); T.raf = requestAnimationFrame(gambar); }
   T = { renderer, scene, camera, labels, raf: 0, segar }; gambar(performance.now()); }
@@ -1117,7 +1112,7 @@ function mulai() { hentikan();
   // 12 Okt 2026: kota diganti Kompleks Hanif (kompleks.js); kota siang lama masih bisa dibuka dengan ?kota=lama
   const kompleks = MODE === 'kota' && typeof bangunKompleks === 'function' && new URLSearchParams(location.search).get('kota') !== 'lama';
   akar.classList.toggle('mode-kompleks', kompleks);
-  ROBOT_SIAP.then(() => { if (!$('#kantor') || T) return; (kompleks ? bangunKompleks : MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); segarLabel(); }); muat(); timer = setInterval(muat, 60000);
+  (kompleks ? bangunKompleks : MODE === 'kota' ? bangunKota : bangunKantor)($('#kantor')); muat(); timer = setInterval(muat, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && sesi.baca()) muat(); }); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 sesi.baca() ? mulai() : layarMasuk();

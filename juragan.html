@@ -2592,7 +2592,7 @@ kotaPajangan(); tampilAwal(); requestAnimationFrame(putaran);
 // ulang, jadi perbaikan tidak terlihat. Tiap 3 menit, dan saat jendela dibuka lagi, halaman membaca nama cache di sw.js.
 // Kalau berbeda dengan versi halaman ini, muncul tombol Muat ulang yang menyimpan permainan dulu lalu langsung melanjutkan.
 // VERSI_HALAMAN harus selalu sama dengan NAMA di sw.js setiap kali versi dinaikkan.
-const VERSI_HALAMAN = 'kantor-v70'; let versiDiberitahu = false;
+const VERSI_HALAMAN = 'kantor-v71'; let versiDiberitahu = false;
 async function cekVersiBaru() { if (versiDiberitahu || document.hidden) return; try { const t = await (await fetch('sw.js?v=' + Date.now(), { cache: 'no-store' })).text(), v = (t.match(/kantor-v\d+/) || [])[0]; if (v && v !== VERSI_HALAMAN) { versiDiberitahu = true; tampilVersiBaru(); } } catch (e) {} }
 function tampilVersiBaru() { const d = document.createElement('div'); d.className = 'versiBaru'; d.setAttribute('role', 'status'); d.innerHTML = '<span>Versi baru Juragan Sewa sudah tersedia.</span><button class="pil kecil utama">Muat ulang</button>';
   d.querySelector('button').onclick = () => { try { if (S && !diAwal()) { simpan(); sessionStorage.setItem('juragan-langsung', '1'); } } catch (e) {} location.reload(); }; document.body.appendChild(d); }
