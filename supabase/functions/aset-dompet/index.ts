@@ -4,7 +4,8 @@
 //   - Keplr / Injective (INJ): saldo wallet + delegasi staking + hadiah belum diklaim + unbonding, dari LCD publik.
 //   - MetaMask / Monad (MON): saldo wallet + staking bawaan Monad (precompile 0x…1000: getDelegations, getDelegator,
 //     getWithdrawalRequest untuk MON yang sedang ditarik).
-//   - MetaMask / Ethereum (ZAMA): saldo token + saham staking resmi Zama (OperatorStaking ERC4626, previewRedeem).
+//   - MetaMask / Ethereum (ZAMA): saldo token + saham staking resmi Zama (OperatorStaking ERC4626, previewRedeem)
+//     + yang sedang di-unstake (ERC-7540 pendingRedeemRequest / claimableRedeemRequest).
 // Harga dan kurs Rupiah dari CoinGecko. Hanya menjawab akun Markasku pemilik (JWT), atau laptop pemilik (kunci server).
 // Alamat di bawah alamat PUBLIK pemilik (13 Okt 2026); tidak ada kunci privat apa pun di sini.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -81,8 +82,12 @@ Deno.serve(async (req) => {
       catch (e) { galat.push('Monad: ' + String((e as Error).message).slice(0, 100)); } })(),
     // Ethereum (MetaMask): ZAMA di wallet + staking resmi Zama
     (async () => { try { tambah('ZAMA', angka(kata(await panggil(RPC_ETH, ZAMA, '0x70a08231' + alamat), 0)), 'MetaMask wallet');
-        await Promise.all(Object.entries(OPERATOR_ZAMA).map(async ([nama, c]) => { const s = kata(await panggil(RPC_ETH, c, '0x70a08231' + alamat), 0); if (s === 0n) return;
-          tambah('ZAMA', angka(kata(await panggil(RPC_ETH, c, '0x4cdad506' + pad(s.toString(16))), 0)), `staking Zama (${nama})`); }));
+        // saham staking + saham yang sedang di-unstake (ERC-7540: pendingRedeemRequest 0x53dc1dd3, masa tunggu 1 minggu;
+        // claimableRedeemRequest 0x0088d3e5, sudah boleh diambil). Semuanya saham (desimal 20), dirupakan ZAMA lewat previewRedeem.
+        const keZama = async (c: string, s: bigint) => s === 0n ? 0 : angka(kata(await panggil(RPC_ETH, c, '0x4cdad506' + pad(s.toString(16))), 0));
+        await Promise.all(Object.entries(OPERATOR_ZAMA).map(async ([nama, c]) => {
+          const [s, p, k] = await Promise.all(['0x70a08231', '0x53dc1dd3', '0x0088d3e5'].map(f => panggil(RPC_ETH, c, f + alamat).then(h => kata(h, 0)).catch(() => 0n)));
+          tambah('ZAMA', await keZama(c, s), `staking Zama (${nama})`); tambah('ZAMA', await keZama(c, p + k), `sedang ditarik Zama (${nama})`); }));
         sumber.push('Ethereum'); }
       catch (e) { galat.push('Ethereum: ' + String((e as Error).message).slice(0, 100)); } })(),
   ]);
