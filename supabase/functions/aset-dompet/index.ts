@@ -72,6 +72,9 @@ Deno.serve(async (req) => {
         let mulai = 0n; const val: bigint[] = [];
         for (let i = 0; i < 10; i++) { const d = await panggil(RPC_MON, P, '0x4fd66050' + alamat + pad(mulai.toString(16))); const n = Number(kata(d, 3));
           for (let k = 0; k < n; k++) val.push(kata(d, 4 + k)); if (kata(d, 0) === 1n) break; mulai = kata(d, 1); }
+        // 17 Okt 2026: validator 179 (LeMonad) tetap diperiksa walau staking-nya sudah 0, supaya MON yang masih menunggu
+        // epoch penarikan tidak hilang dari hitungan (getDelegations tidak lagi menyebut validator yang sudah kosong)
+        if (!val.includes(179n)) val.push(179n);
         for (const v of val) { const g = await panggil(RPC_MON, P, '0x573c1ce0' + pad(v.toString(16)) + alamat);
           tambah('MON', angka(kata(g, 0)) + angka(kata(g, 3)) + angka(kata(g, 4)), 'MetaMask staking'); tambah('MON', angka(kata(g, 2)), 'MetaMask hadiah staking');
           // 16 Okt 2026, pemilik: "zama dan mon lagi di unstake dan menunggu proses penarikan". MON yang sudah di-unstake
